@@ -3,7 +3,7 @@ Spotify Web API Python3 Library
 </h1>
 
 ## Overview
-This API provides Python programmers the ability to retrieve information from the Spotify Web API from any program written in Python 3.
+This API provides Python programmers the ability to retrieve information from the Spotify Web API from any program written in Python 3.  It also allows player control via Spotify Connect devices.
 
 More information about the Spotify Web API can be found on the <a href="https://developer.spotify.com/documentation/web-api" target="_blank">Spotify Developer Portal page</a>.
 
