@@ -1,0 +1,53 @@
+from spotifywebapipython import *
+from spotifywebapipython.models import *
+
+try:
+
+    # this sample requires an authorization token, as it requires security scope to accesses user data.
+
+    CLIENT_ID:str = 'your_client_id'
+    SPOTIFY_SCOPES:list = \
+    [
+        'user-read-email',
+        'user-top-read',
+    ]
+
+    # create new spotify client instance.
+    spotify:SpotifyClient = SpotifyClient()
+
+    # generate a spotify authorization code with PKCE access token (with scope, private and public data use).
+    spotify.SetAuthTokenAuthorizationCodePKCE(CLIENT_ID, SPOTIFY_SCOPES)
+    print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
+    print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
+
+    # get current user's top artists based on calculated affinity.
+    affinity:str = 'long_term'
+    print('\nGetting current user top artists for "%s" affinity ...\n' % affinity)
+    pageObj:ArtistPage = spotify.GetUsersTopArtists(affinity)
+
+    # handle pagination, as spotify limits us to a set # of items returned per response.
+    while True:
+
+        # display paging details.
+        print(str(pageObj))
+        print('')
+        print('Artists in this page of results:')
+
+        # display episode details.
+        artist:Artist
+        for artist in pageObj.Items:
+        
+            print('- "{name}" ({uri})'.format(name=artist.Name, uri=artist.Uri))
+
+        # anymore page results?
+        if pageObj.Next is None:
+            # no - all pages were processed.
+            break
+        else:
+            # yes - retrieve the next page of results.
+            print('\nGetting next page of %d items ...\n' % (pageObj.Limit))
+            pageObj = spotify.GetUsersTopArtists(affinity, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
+
+except Exception as ex:
+
+    print("** Exception: %s" % str(ex))

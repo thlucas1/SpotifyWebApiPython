@@ -1,0 +1,889 @@
+# external package imports.
+import base64
+import contextlib
+import hashlib
+import json
+import logging
+import os.path
+import platformdirs
+import secrets
+import socket
+import webbrowser
+
+from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient
+from requests_oauthlib import OAuth2Session
+from typing import Optional, Union, Callable, Sequence, Iterable
+from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server as WSGIMakeServer
+from wsgiref.util import request_uri as WSGIRequestUri
+
+# get smartinspect logger reference; create a new session for this module name.
+from smartinspectpython.siauto import SIAuto, SILevel, SISession
+import logging
+_logsi:SISession = SIAuto.Si.GetSession(__name__)
+if (_logsi == None):
+    _logsi = SIAuto.Si.AddSession(__name__, True)
+_logsi.SystemLogger = logging.getLogger(__name__)
+
+
+class AuthClient:
+    """
+    OAuth2 Authorization client class.
+    """
+
+    _DEFAULT_AUTH_CODE_MESSAGE = "Enter the authorization code: "
+    """
+    Enter the authorization code: 
+    """
+
+    _DEFAULT_AUTH_PROMPT_MESSAGE = ("Please visit this URL to authorize this application: {url}")
+    """
+    Please visit this URL to authorize this application: {url}
+    """
+
+    _DEFAULT_WEB_SUCCESS_MESSAGE = ("The authentication flow has completed; you may close this window (or tab)."
+    )
+    """
+    The authentication flow has completed; you may close this window (or tab).
+    """
+
+    def __init__(self,
+                 authorizationType:str,
+                 authorizationUrl:str=None,
+                 tokenUrl:str=None,
+                 scopes:Sequence[str] = None,
+                 clientId:str=None,
+                 clientSecret:str=None,
+                 oauth2Client:Client=None,
+                 oauth2Session:OAuth2Session=None,
+                 tokenProviderId:str=None,
+                 tokenProfileId:str=None,
+                 tokenStorageDir:str=None,
+                 ) -> None:
+        """
+        Initializes a new instance of the class.
+        
+        Args:
+            authorizationType (str):
+                OAuth2 authorization type title (e.g. "Client Credentials", etc).
+            authorizationUrl (str):
+                URL used to authorize the requested access.  
+            tokenUrl (str):
+                URL used to request an access token.  
+            scopes (Sequence[str]):
+                A sequence list of scopes you wish to request access to.  
+                If no scopes are specified, authorization will be granted only to access publicly 
+                available information.
+            clientId (str):
+                The unique identifier of the application.
+            clientSecret (str):
+                The application's secret key, used to authorize your Web API or SDK calls.
+            oauth2Client (Client):
+                OAuth2 Client instance to use for this request.  
+                If null, a new WebApplicationClient will be created with the specified clientId and scope argument values.
+            oauth2Session (OAuth2Session):
+                OAuth2 Session instance to use for this request.  
+                If null, a new one will be created with the specified clientId and scope argument values.
+            tokenProviderId (str):
+                Provider identifier used when storing the token to disk.
+                A null value will default to `Shared`.  
+                Default: `Shared`
+            tokenProfileId (str):
+                Profile identifier used when storing the token to disk.  
+                A null value will default to `Shared`.  
+                Default: `Shared`
+            tokenStorageDir (str):
+                The directory path that will contain the `tokens.json` file.  
+                A null value will default to the platform specific storage location:  
+                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+        """
+        # validations.
+        if oauth2Session is not None:
+            if (not isinstance(oauth2Session, OAuth2Session)):
+                oauth2Session = None
+                
+        if isinstance(scopes, str):
+            scopes = [scopes]
+        if scopes is None:
+            scopes = []
+
+        # verify token storage directory exists.
+        if tokenStorageDir is None:
+            tokenStorageDir = platformdirs.site_config_dir('SpotifyWebApiPython', ensure_exists=True, appauthor=False)
+        os.makedirs(tokenStorageDir, exist_ok=True)  # succeeds even if directory exists.
+
+        # if token providerId not set, then default to shared.
+        if tokenProviderId is None:
+            tokenProviderId = 'Shared'
+
+        # if token userId not set, then default to shared.
+        if tokenProfileId is None:
+            tokenProfileId = 'Shared'
+
+        # initialize storage.
+        self._AuthorizationType:str = authorizationType
+        self._AuthorizationUrl:str = authorizationUrl
+        self._ClientId:str = clientId
+        self._ClientSecret:str = clientSecret
+        self._CodeVerifier:str = None
+        self._DefaultLocalHost:str = 'localhost'
+        self._Scopes:Sequence[str] = scopes
+        self._Session:OAuth2Session = oauth2Session
+        self._TokenProviderId:str = tokenProviderId
+        self._TokenStorageDir:str = tokenStorageDir
+        self._TokenUrl:str = tokenUrl
+        self._TokenProfileId:str = tokenProfileId
+               
+        # create OAuth2 Session instance if necessary.
+        if self._Session is None:
+            
+            if oauth2Client is None:
+                oauth2Client = WebApplicationClient(client_id=clientId)
+            
+            # create the OAuth2 session with the specified clientId and scopes.
+            self._Session:OAuth2Session = OAuth2Session(clientId, scope=scopes, client=oauth2Client)
+            
+            # inform OAuth2 to execute the SaveToken method when a token is automatically refreshed.
+            self._Session.token_updater = self._SaveToken
+            
+        # load the token from storage (if one exists).
+        token:dict = self._LoadToken()
+        
+        # was a token loaded?
+        if token is not None:
+            
+            # check for scope change between the existing token and the newly requested session.
+            _logsi.LogVerbose('Verifying OAuth2 authorization access scopes have not changed')
+            hasScopeChanged:bool = self.HasScopeChanged(token)
+            if hasScopeChanged == True:
+                # if scope change detected, then destroy the token as we need to force an auth refresh.
+                self._SaveToken(None)
+            else:
+                # scopes are the same.
+                # set session token reference to the loaded token.
+                self._Session.token = token
+
+
+    @property
+    def AuthorizationType(self) -> str:
+        """
+        OAuth2 authorization type title (e.g. "Client Credentials", etc).
+        """
+        return self._AuthorizationType
+
+
+    @property
+    def AuthorizationUrl(self) -> str:
+        """
+        Url used to request user authorization permission for an authorization token.
+        """
+        return self._AuthorizationUrl
+
+
+    @property
+    def CodeVerifier(self) -> str:
+        """
+        The code verifier string used as part of the token request authorization process.
+        
+        According to the PKCE standard, a code verifier is a high-entropy cryptographic 
+        random string with a length between 43 and 128 characters (the longer the better). 
+        It can contain letters, digits, underscores, periods, hyphens, or tildes.
+        """
+        return self._CodeVerifier
+
+
+    @property
+    def IsAuthorized(self) -> bool:
+        """
+        Indicates whether this session has an OAuth token or not. 
+        
+        If True, you can reasonably expect OAuth-protected requests to the resource to succeed.  
+        
+        If False, you need the user to go through the OAuth authentication dance before 
+        OAuth-protected requests to the resource will succeed.
+        """
+        return self._Session.authorized
+
+
+    @property
+    def Session(self) -> OAuth2Session:
+        """
+        OAuth 2 extension to the `requests.Session` class.
+
+        Supports any grant type adhering to :class:`oauthlib.oauth2.Client` spec
+        including the four core OAuth 2 grants.
+
+        Can be used to create authorization urls, fetch tokens and access protected
+        resources using the `requests.Session` class interface you are used to.
+        """
+        return self._Session
+
+
+    @property
+    def TokenUrl(self) -> str:
+        """
+        Url used to request or renew an authorization token.
+        """
+        return self._TokenUrl
+
+
+    def Logout(self):
+        """
+        Removes a stored token, but does not clear the current session.
+        
+        Warning: a request with the current session can refresh and save
+        the token, making this call ineffective.
+        """
+        self._SaveToken(None)
+
+
+    def process_url(self, api:str) -> str:
+        return api
+
+
+    def request(self, method:str, api:str, **kwargs) -> object:
+        return self._Session.request(method, self.process_url(api), **kwargs)
+
+
+    def get(self, api:str, **kwargs):
+        return self._Session.get(self.process_url(api), **kwargs)
+
+
+    def post(self, api:str, **kwargs):
+        return self._Session.post(self.process_url(api), **kwargs)
+
+
+    def put(self, api:str, **kwargs):
+        return self._Session.put(self.process_url(api), **kwargs)
+
+
+    def patch(self, api:str, **kwargs):
+        return self._Session.patch(self.process_url(api), **kwargs)
+
+
+    def delete(self, api:str, **kwargs):
+        return self._Session.delete(self.process_url(api), **kwargs)
+
+
+    def head(self, api:str, **kwargs):
+        return self._Session.head(self.process_url(api), **kwargs)
+
+
+    def options(self, api:str, **kwargs):
+        return self._Session.options(self.process_url(api), **kwargs)
+
+
+    def _CheckAuthorization(self, force:bool, token_test:Optional[Callable]=None) -> bool:
+        """
+        Checks if the access token is authorized or not.
+        
+        Args:
+            force (bool):
+                True to force the access token to be refreshed regardless of 
+                authorized status.
+            tokenTest (Callable):
+                Function that receives this object for a param, makes a call, and 
+                returns the response.  
+                Default is null.
+                
+        Returns:
+            True if the access token is authorized; otherwise, False if it is not
+            authorized or the force argument is true.
+        """
+        # force the user to authorize the application access if we do not have an authorized 
+        # access token, if the scope has changed, or if the caller requested us to (by force).
+        if (not self._Session.authorized) or (force == True):
+            return False
+        
+        result:bool = True
+        if token_test is not None:
+            try:
+                resp = token_test(self)
+                if resp.status_code % 100 == 4:
+                    result = False
+            except:  # noqa: E722
+                result = False
+                
+        return result
+
+
+    def _FindOpenPortOnLocalhost(self, portRange:list[int]):
+        """
+        Find a port to open for the redirect web server.
+        
+        Args:
+            portRange (list[int]):
+                A list that contains a starting port number (index 0) and the ending
+                port number (index 1) to check.  
+                Default port range is 8080 - 8180.
+                
+        If portRange argument is null, then the default range will be used.
+        If only one port number is passed, then only that port will be checked.
+        """
+        _logsi.LogVerbose('Finding an available local port for the redirect response; port range to check: "%s"' % (str(portRange)))
+        
+        # default starting and ending ports.
+        portStart:int = 8080
+        portStop = portStart + 100
+        localhostIp:str = '127.0.0.1'
+
+        # validations.
+        if portRange is None:
+            pass
+        elif len(portRange) == 1:
+            portStart = int(portRange[0])
+            portStop = portStart
+        elif len(portRange) == 2:
+            portStart = int(portRange[0])
+            portStop = int(portRange[1])
+            
+        # find an available port within the specified range of ports.
+        for port in range(portStart, portStop):
+            
+            with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+                try:
+                    sock.bind((localhostIp, port))
+                    sock.listen(1)
+                except socket.error:
+                    is_open = False
+                else:
+                    is_open = True
+                
+            # if port is open for listening, then use it.
+            if is_open:
+                return port
+            
+        # if we could not find a port, then it's a problem!
+        raise ConnectionError('Could not find an open port on localhost address "%s", in the range of "%s" to "%s"' % (localhostIp, portStart, portStop))
+        
+
+    def _LoadToken(self) -> dict:
+        """
+        Loads a token from the token storage file for the ProviderId \ ClientId key.
+        
+        Returns:
+            A token dictionary, if one was found in the token storage file for the
+            specified ProviderId and ClientId key; otherwise, null.
+        """
+        
+        # if we don't have a clientId then don't bother.
+        if not self._Session.client_id:
+            return
+        
+        tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
+        tokenStoragePath:str = os.path.join(self._TokenStorageDir, 'tokens.json')
+        
+        try:
+            # does the token storage file exist?
+            if os.path.exists(tokenStoragePath):
+
+                # open the token storage file, and load it's contents.
+                _logsi.LogVerbose('Opening OAuth2 token storage file: "%s"' % (tokenStoragePath))
+                with open(tokenStoragePath, 'r') as f:
+                    tokens = json.load(f)
+
+                    # if token key exists then load the token.
+                    if tokenKey in tokens:
+                        _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 token loaded from token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey])
+                        return tokens[tokenKey]
+                        
+        except Exception as ex:
+            
+            _logsi.LogException('Could not load OAuth2 Token from token storage file: "%s"' % (tokenStoragePath), ex)
+
+
+    def _SaveToken(self, token:dict=None) -> None:
+        """
+        Saves a token to the token storage file (e.g. disk) for the ProviderId \ ClientId key.
+        
+        Args:
+            token (dict):
+                The token dictionary object to save.  
+                Specify null to remove the token for the specified ProviderId / ClientId.
+                
+        Raises:
+            IOError:
+                If an error occurs saving the tokens file.
+        """
+        tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
+        tokenStoragePath:str = os.path.join(self._TokenStorageDir, 'tokens.json')
+        tokens:dict = {}
+        
+        try:
+            # open the token storage file, and load it's contents.
+            if os.path.exists(tokenStoragePath):
+                _logsi.LogVerbose('Opening OAuth2 token storage file: "%s"' % (tokenStoragePath))
+                with open(tokenStoragePath, 'r') as f:
+                    tokens = json.load(f)
+        except Exception as ex:
+            _logsi.LogException('Could not load stored OAuth2 Tokens from token storage file: "%s"' % (tokenStoragePath), ex)
+
+        if token is None:
+            # if token not specified, then remove the existing token for the providerId \ clientId.
+            _logsi.LogVerbose('Removing OAuth2 token from token storage file for provider: "%s"' % (tokenKey))
+            if tokenKey in tokens:
+                del tokens[tokenKey]
+        else:
+            # store the token for the providerId \ clientId.
+            _logsi.LogDictionary(SILevel.Verbose, 'Storing OAuth2 token in token storage file for provider: "%s"' % (tokenKey), token)
+            tokens[tokenKey] = token
+
+        try:
+            # save the token storage file changes.
+            _logsi.LogVerbose('Saving updates to OAuth2 token storage file: "%s"' % (tokenStoragePath))
+            with open(tokenStoragePath, 'w') as f:
+                json.dump(tokens, f, indent=4, sort_keys=True)
+        except Exception as ex:
+            _logsi.LogException('Could not save OAuth2 Token to token storage file: "%s"' % (tokenStoragePath), ex)
+
+
+    def authorization_url(self, **kwargs):
+        """
+        Constructs the authorization url, complete with all querystring parameters.
+        
+        Args:
+            **kwargs
+                Keyword arguments for the authorization type.
+        
+        Returns:
+            The authorization url querystring and a generated state value.
+        """
+        _logsi.LogVerbose('Creating OAuth2 authorization url')
+
+        # according to the PKCE standard, a code verifier is a high-entropy cryptographic 
+        # random string with a length between 43 and 128 characters (the longer the better). 
+        # it can contain letters, digits, underscores, periods, hyphens, or tildes.
+        codeVerifierLength:int = 128
+        codeVerifier:str = secrets.token_urlsafe(codeVerifierLength)[0:codeVerifierLength]
+        _logsi.LogVerbose('OAuth2 code verifier (urlsafe, %d bytes): %s' % (codeVerifierLength, codeVerifier))
+        self._CodeVerifier = codeVerifier
+
+        # once the code verifier has been generated, we must transform (hash) it using the SHA256 algorithm. 
+        codeHash = hashlib.sha256(codeVerifier.encode('utf-8'))
+        _logsi.LogVerbose('OAuth2 code verifier SHA256 hashed bytes: %s' % (codeHash.hexdigest()))
+        
+        # we will then convert the hash value to a base64 encoded string.
+        # this is the value that will be sent within the user authorization request.
+        codeChallengeBytes = base64.urlsafe_b64encode(codeHash.digest())
+        codeChallenge = codeChallengeBytes.decode('utf-8').rstrip('=')  # drop '=' padding characters
+        _logsi.LogVerbose('OAuth2 code challenge url-safe BASE64 encoded string: %s' % (codeChallenge))
+        kwargs.setdefault("code_challenge_method", "S256")
+        kwargs.setdefault("code_challenge", codeChallenge)
+
+        # state is an opaque value that is used to prevent cross-site request forgery.
+        stateLength:int = 16
+        state:str = secrets.token_urlsafe(stateLength)[0:stateLength]
+        _logsi.LogVerbose('OAuth2 state value (urlsafe, %d bytes): %s' % (stateLength, state))
+
+        # create the authorization URL.  
+        url, state = self._Session.authorization_url(self._AuthorizationUrl, state, **kwargs)
+        
+        # trace.
+        _logsi.LogVerbose('OAuth2 authorization url="%s"' % (url))
+        return url, state
+
+
+    def FetchToken(self, **kwargs) -> dict:
+        """
+        Fetch an access token from the token endpoint.
+        
+        Args:
+            **kwargs:
+                Additional keyword arguments to add to the 
+                
+        Returns:
+            A token dictionary.
+        """
+        # trace.
+        _logsi.LogVerbose('Preparing to fetch the OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
+
+        # if client secret specified then include it.
+        includeClientId:bool = False
+        if self._ClientId is not None:
+            includeClientId = True
+
+        # if code verifier specified then include it so that the code challenge is verified.
+        if self._CodeVerifier is not None:
+            kwargs.setdefault("code_verifier", self._CodeVerifier)
+
+        _logsi.LogVerbose('Fetching authorization token: TokenUrl="%s", includeClientId=%s, ClientSecret="%s"' % (self._TokenUrl, includeClientId, self._ClientSecret))
+            
+        # fetch the authorization token.
+        # this will also automatically set the 'self._Session.token' instance.
+        token = self._Session.fetch_token(self._TokenUrl, 
+                                          include_client_id=includeClientId, 
+                                          client_secret=self._ClientSecret, 
+                                          **kwargs)
+        
+        _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 Authorization token was successfully fetched for the "%s" authorization type' % self._AuthorizationType, token)
+
+        # save the token to disk, and return it to the caller.
+        self._SaveToken(token)
+        return token
+
+
+    def HasScopeChanged(self, token:dict) -> bool:
+        """
+        Indicates whether the scope has changed between this session and the authorization
+        access token scope values.
+        
+        Args:
+            token (dict):
+                The authorization access token dictionary to check the scope of.
+        
+        If True, you need the user to go through the OAuth authentication dance before 
+        OAuth-protected requests to the resource will succeed.
+        
+        If False, then you can reasonably expect OAuth-protected requests to the resource to succeed.  
+        """
+        # if token not set then don't bother - indicate scope has changed.
+        if token is None:
+            return True
+        
+        tokenScope:list[str] = None 
+        sessionScope:list[str] = None
+
+        # get scope values for session and token.
+        # also sort them both before comparing for differences.
+        if self._Session is not None:
+            sessionScope:list[str] = self._Session.scope
+            if isinstance(sessionScope, list):
+                sessionScope.sort()
+
+        if token is not None and isinstance(token, dict):
+            tokenScope = token.get('scope')
+            if isinstance(tokenScope, list):
+                tokenScope.sort()
+            
+        # get string values for both scopes for comparison.
+        if tokenScope is None:
+            tokenScope = []
+        tokenScopeString = " ".join(tokenScope)
+
+        if sessionScope is None:
+            sessionScope = []
+        sessionScopeString = " ".join(sessionScope)
+        
+        # does the token scope match the requested session scope?
+        if tokenScope != sessionScope:
+            
+            _logsi.LogVerbose('OAuth2 scope change detected, forcing authorization access; token scope="%s", session scope="%s"' % (tokenScopeString, sessionScopeString))
+            return True
+        
+        # indicate scope has not changed.
+        return False
+
+
+    def AuthorizeWithConsole(
+        self,
+        authorization_prompt_message=_DEFAULT_AUTH_PROMPT_MESSAGE,
+        open_browser=True,
+        code_message=_DEFAULT_AUTH_CODE_MESSAGE,
+        token_audience=None,
+        force: bool = False,
+        token_test: Optional[Callable] = None,
+        **kwargs
+    ):
+        """
+        Executes the authorization flow without starting a web server.
+        
+        Note that you must have 'urn:ietf:wg:oauth:2.0:oob' as a redirect URI value 
+        in the provider app settings for this to work.
+        """
+        # set authorization type.
+        self._AuthorizationType = 'Authorization Code'
+        
+        # is the access token authorized?  if so, then we are done.
+        if self._CheckAuthorization(force, token_test):
+            return self
+
+        self._Session.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+        auth_url, _ = self.authorization_url(**kwargs)
+
+        if open_browser:
+            _logsi.LogVerbose('Opening a browser window (or tab) to the authorization request url')
+            webbrowser.open(auth_url, new=2, autoraise=True)
+
+        if authorization_prompt_message:
+            message:str = authorization_prompt_message.format(url=auth_url)
+            _logsi.LogWarning(message, logToSystemLogger=True)
+
+        # prompt the user (in the console) to enter the authorization code response.
+        while True:
+            auth_code = input(code_message).strip()
+            if auth_code:
+                break
+
+        # fetch the newly issued authorization token.
+        self.FetchToken(code=auth_code, audience=token_audience)
+        
+        # return to caller.
+        return self
+
+
+    def AuthorizeWithServer(
+        self,
+        host: Optional[str] = None,
+        bind_addr: Optional[int] = None,
+        port: Union[int, list[int]] = 8080,
+        authorization_prompt_message: Optional[str] = _DEFAULT_AUTH_PROMPT_MESSAGE,
+        success_message: str = _DEFAULT_WEB_SUCCESS_MESSAGE,
+        open_browser: bool = True,
+        redirect_uri_trailing_slash: bool = True,
+        timeout_seconds: Optional[int] = None,
+        token_audience: Optional[str] = None,
+        force: bool = False,
+        token_test: Optional[Callable] = None,
+        **kwargs
+    ):
+        """
+        Executes the authorization flow by starting a temporary local web server
+        to listen for the authorization response.
+        
+        Note that you must have 'http://localhost:8080/' as a redirect URI value 
+        in the provider app settings for this to work.
+        
+        The server strategy instructs the user to open the authorization URL in
+        their browser and will attempt to automatically open the URL for them.
+        It will start a local web server to listen for the authorization
+        response. Once authorization is complete the authorization server will
+        redirect the user's browser to the local web server. The web server
+        will get the authorization code from the response and shutdown. The
+        code is then exchanged for a token.
+
+        Args:
+            host (str):  
+                The hostname for the local redirect server. This will be served 
+                over http, not https.
+            bind_addr (str):  
+                Optionally provide an ip address for the redirect server to listen 
+                on when it is not the same as host (e.g. in a container).  
+                Default value is None, which means that the redirect server will listen
+                on the ip address specified in the host parameter.
+            port (int / list[int]):  
+                The port for the local redirect server.  
+                If a list, it would find the first open port in the range.
+            authorization_prompt_message (str | None):  
+                The message to display that will inform the user to navigate to the 
+                authorization URL. If null, then no message is displayed.
+            success_message (str):  
+                The message to display in the web browser that the authorization flow 
+                is complete.
+            open_browser (bool):  
+                True to open the authorization URL in the user's browser; otherwise, False
+                to not open a browser.
+            redirect_uri_trailing_slash (bool):  
+                True to add trailing slash when constructing the redirect_uri; otherwise,
+                False to not add a trailing slash.  
+                Default value is True.
+            timeout_seconds (int):  
+                If set, an error will be raised after the timeout value if the user did not
+                respond to the authorization request.  The value is in seconds.  
+                When set to None there is no timeout.  
+                Default value is None.
+            token_audience (str):  
+                Passed along with the request for an access token.  
+                It determines the endpoints with which the token can be used.  
+                Default is null.
+            force (bool):  
+                True to authorize, even if we already have a token;  otherwise, False
+                to only authorize if the token is not authorized, has expired, or the
+                scope has changed.
+            token_test (Callable):  
+                Function that receives this object for a param, makes a call, and returns 
+                the response.
+            kwargs: 
+                Additional keyword arguments passed through to `authorization_url`.
+
+        Returns:
+            The OAuth 2.0 credentials for the user.
+        """
+        # set authorization type.
+        self._AuthorizationType = 'Authorization Code with PKCE'
+        
+        # is the access token authorized?  if so, then we are done.
+        if self._CheckAuthorization(force, token_test):
+            return self
+
+        wsgiServer:WSGIServer = None
+        
+        try:
+            # if a port range was passed, then find an available port in that range.
+            if isinstance(port, list):
+                port = self._FindOpenPortOnLocalhost(port)
+
+            # default the local redirect server host if one was not specified.
+            if not host:
+                host = self._DefaultLocalHost
+
+            # initialize and create a local Web Server Gateway Interface (WSGI) server.
+            _logsi.LogVerbose('Creating WSGI server to handle the OAuth2 authorization request response')
+            wsgiApp:_WSGIAppRedirectHandler = _WSGIAppRedirectHandler(success_message)
+            WSGIServer.allow_reuse_address = False  # Fail fast if the address is occupied
+            wsgiServer:WSGIServer = WSGIMakeServer(bind_addr or host, 
+                                                   port, 
+                                                   wsgiApp, 
+                                                   handler_class=_WSGIRequestHandler
+                                                   )
+        
+            # construct the redirect uri, which is where the user is redirected after 
+            # authentication success or failure.
+            redirectUri:str = 'http://{}:{}'.format(host, wsgiServer.server_port)
+            if redirect_uri_trailing_slash:
+                redirectUri = redirectUri + '/'
+            self._Session.redirect_uri = redirectUri
+        
+            # construct the authorization url and state values.
+            auth_url, _ = self.authorization_url(**kwargs)
+
+            # open a new tab page using the local default browser.
+            if open_browser:
+                _logsi.LogVerbose('Opening a browser window (or tab) to the authorization request url')
+                webbrowser.open(auth_url, new=2, autoraise=True)
+
+            if authorization_prompt_message:
+                message:str = authorization_prompt_message.format(url=auth_url)
+                _logsi.LogWarning(message, logToSystemLogger=True)
+
+            # set the timeout value, and handle the user authorization request response.
+            # the 'handle_request' call will block until a response is received, or a timeout occurs.
+            _logsi.LogVerbose('WSGI server will now wait for a response from the user for the authorization request url')
+            wsgiServer.timeout = timeout_seconds
+            wsgiServer.handle_request()
+
+            # get the user authorization request response value.
+            # force https in case it needs it, as OAuth 2.0 can only occur over https!
+            authResponse:str = wsgiApp.LastRequestUri.replace("http", "https")
+            _logsi.LogVerbose('WSGI server intercepted the user authorization response: "%s"' % (authResponse))
+
+            # fetch the newly issued authorization token.
+            self.FetchToken(authorization_response=authResponse, 
+                            audience=token_audience
+                           )
+
+            # return to caller.
+            return self
+
+        finally:
+            
+            # ensure wsgi server is shutdown.
+            if wsgiServer is not None:
+                _logsi.LogVerbose('Shutting down the WSGI server and freeing resources.')
+                wsgiServer.server_close()
+                wsgiServer = None
+
+
+    def RefreshToken(self, **kwargs) -> dict:
+        """ 
+        Refreshes the current session token using its refresh token value.
+        
+        Args:
+            **kwargs: 
+                Additional keyword arguments to include in the token request.
+                
+        Returns:
+            A token dictionary.
+        """
+        try:
+
+            # trace.
+            _logsi.LogVerbose('Refreshing OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
+
+            # add the clientId if the session has been established.
+            if self._Session.client_id is not None:
+                kwargs.setdefault("client_id", self._Session.client_id)
+                
+            # refresh the authorization token, using it's refresh token value.
+            token = self._Session.refresh_token(self._TokenUrl, self._Session.token["refresh_token"], **kwargs)
+            
+            # store the refresh token to the token storage file.
+            self._SaveToken(token)
+            
+            # trace.
+            _logsi.LogVerbose('OAuth2 authorization token was successfully refreshed for the "%s" authorization type' % self._AuthorizationType)
+
+            # return the refreshed authorization token to the caller.
+            return token
+        
+        except InvalidGrantError as ex:
+            
+            # trace.
+            _logsi.LogException('OAuth2 token refresh error: %s' % str(ex))
+            
+            # if refresh token was revoked, then remove the token from the token storage file
+            # so that it will force an authorization refresh next time around.
+            if ex.description == 'Refresh token revoked':
+                self._SaveToken(None)
+                
+            # pass exception on thru.
+            raise
+
+
+class _WSGIRequestHandler(WSGIRequestHandler):
+    """
+    WSGI Request Handler.
+
+    Uses a named logger instead of printing to stderr.
+    """
+
+    def log_message(self, format, *args) -> None:
+        # pylint: disable=redefined-builtin
+        # (format is the argument name defined in the superclass.)
+        _logsi.LogMessage(format, *args, logToSystemLogger=True)
+
+
+class _WSGIAppRedirectHandler(object):
+    """
+    WSGI App that will handle the authorization redirect.
+
+    Stores the request URI and displays the given success message.
+    """
+
+    def __init__(self, successMessage) -> None:
+        """
+        Args:
+            successMessage (str): 
+                The message to display in the web browser that the authorization flow is complete.
+        """
+        self._LastRequestUri:str = None
+        self._SuccessMessage = successMessage
+
+
+    def __call__(self, environ, start_response) -> Iterable[bytes]:
+        """
+        WSGI Callable.
+
+        Args:
+            environ (Mapping[str, Any]): 
+                The WSGI environment.
+            start_response (Callable[str, list]): 
+                The WSGI start_response callable.
+
+        Returns:
+            The response body.
+        """
+        # respond to the authorization server with response code 200 (ok) message,
+        # which indicates that we received their response.
+        start_response("200 OK", [("Content-type", "text/plain; charset=utf-8")])
+        
+        # store the full request URI (including the query string) so that it can
+        # be accessed by the caller.
+        self._LastRequestUri = WSGIRequestUri(environ)
+        
+        # return authorization flow was completed successfully message.
+        return [self._SuccessMessage.encode("utf-8")]
+
+
+    @property
+    def LastRequestUri(self) -> str:
+        """
+        The full request URI, optionally including the query string.
+        """
+        return self._LastRequestUri
+
+
+    @property
+    def SuccessMessage(self) -> str:
+        """
+        The message to display in the web browser that the authorization flow is complete.
+        """
+        return self._SuccessMessage

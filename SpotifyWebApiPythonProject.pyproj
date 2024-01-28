@@ -1,0 +1,315 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>test\test_FreeAccount.py</StartupFile>
+    <SearchPath>.;test</SearchPath>
+    <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>SpotifyWebApiPythonProject</Name>
+    <RootNamespace>SpotifyWebApiPythonProject</RootNamespace>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <TestFramework>unittest</TestFramework>
+    <UnitTestPattern>testVS_*.py</UnitTestPattern>
+    <UnitTestRootDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject\test</UnitTestRootDirectory>
+    <Environment>PYTHONIOENCODING=437:replace
+PDOC_DISPLAY_ENV_VARS=1</Environment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="docspdoc\buildEnv.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Playlist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Album.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Artist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerRecentTracks_Past01Hours.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPause.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaResume.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSeek.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSkipNext.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSkipPrevious.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerQueueInfo.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerRecentTracks_AfterDateTime.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetRepeatMode.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetShuffleMode.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetVolume.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerTransferPlayback.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerVerifyDeviceDefault.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerPlaybackState.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerNowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerDevices.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\AddPlayerQueueItem.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckArtistsFollowing.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtistsFollowed.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckUsersFollowing.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetUsersTopTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetUsersTopArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\UnfollowArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\UnfollowUsers.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\FollowUsers.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\FollowArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\FollowPlaylist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckPlaylistFollowers.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\UnfollowPlaylist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckAudiobookFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckShowFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckEpisodeFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetChapter.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetEpisodeFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetChapters.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetEpisodes.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetMarkets.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetGenres.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetBrowseCategorys.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetBrowseCategorysPage.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetBrowseCategory.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetCategoryPlaylists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetFeaturedPlaylists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylistCoverImage.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobook.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetShow.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetEpisode.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobookChapters.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobookFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobooks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetShows.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetShowEpisodes.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylistsForUser.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetShowFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrackRecommendations_IWannaRock.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrackRecommendations_WindDown.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetUsersPublicProfile.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemoveEpisodeFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemoveAudiobookFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemoveShowFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ReorderPlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\AddPlaylistCoverImage.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ReplacePlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ClearPlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemovePlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\AddPlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckTrackFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ChangePlaylistDetails.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CreatePlaylist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylistFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTracksAudioFeatures.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrackAudioFeatures.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylistItems.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SaveEpisodeFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SaveAudiobookFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SaveShowFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetUsersCurrentProfile.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchPlaylists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchEpisodes.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchAudiobooks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchShows.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SearchAlbums.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrackFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrack.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtistAlbums.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtistTopTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtistRelatedArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemoveTrackFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SaveTrackFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\SaveAlbumFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\RemoveAlbumFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\CheckAlbumFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumTracks.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumNewReleases.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumFavorites.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbums.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum.py" />
+    <Compile Include="setup.py" />
+    <Compile Include="spotifywebapipython\const.py" />
+    <Compile Include="spotifywebapipython\models\playeractions.py" />
+    <Compile Include="spotifywebapipython\models\context.py" />
+    <Compile Include="spotifywebapipython\models\device.py" />
+    <Compile Include="spotifywebapipython\models\chapterpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\audiobookpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\chaptersimplified.py" />
+    <Compile Include="spotifywebapipython\models\chapter.py" />
+    <Compile Include="spotifywebapipython\models\playerqueueinfo.py" />
+    <Compile Include="spotifywebapipython\models\playhistory.py" />
+    <Compile Include="spotifywebapipython\models\playhistorypage.py" />
+    <Compile Include="spotifywebapipython\models\recommendationseed.py" />
+    <Compile Include="spotifywebapipython\models\narrator.py" />
+    <Compile Include="spotifywebapipython\models\author.py" />
+    <Compile Include="spotifywebapipython\models\episode.py" />
+    <Compile Include="spotifywebapipython\models\audiobooksimplified.py" />
+    <Compile Include="spotifywebapipython\models\audiobook.py" />
+    <Compile Include="spotifywebapipython\models\show.py" />
+    <Compile Include="spotifywebapipython\models\episodepagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\episodesimplified.py" />
+    <Compile Include="spotifywebapipython\models\category.py" />
+    <Compile Include="spotifywebapipython\models\pageobject.py" />
+    <Compile Include="spotifywebapipython\models\categorypage.py" />
+    <Compile Include="spotifywebapipython\models\playlistpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\playlistsimplified.py" />
+    <Compile Include="spotifywebapipython\models\playlist.py" />
+    <Compile Include="spotifywebapipython\models\audiofeatures.py" />
+    <Compile Include="spotifywebapipython\models\artistpage.py" />
+    <Compile Include="spotifywebapipython\models\playlisttracksummary.py" />
+    <Compile Include="spotifywebapipython\models\resumepoint.py" />
+    <Compile Include="spotifywebapipython\models\searchresponse.py" />
+    <Compile Include="spotifywebapipython\models\albumsimplified.py" />
+    <Compile Include="spotifywebapipython\models\albumpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\explicitcontent.py" />
+    <Compile Include="spotifywebapipython\models\playlistpage.py" />
+    <Compile Include="spotifywebapipython\models\episodesaved.py" />
+    <Compile Include="spotifywebapipython\models\episodepagesaved.py" />
+    <Compile Include="spotifywebapipython\models\playerplaystate.py" />
+    <Compile Include="spotifywebapipython\models\trackpage.py" />
+    <Compile Include="spotifywebapipython\models\showpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\showpagesaved.py" />
+    <Compile Include="spotifywebapipython\models\trackpagesimplified.py" />
+    <Compile Include="spotifywebapipython\models\owner.py" />
+    <Compile Include="spotifywebapipython\models\playlisttrack.py" />
+    <Compile Include="spotifywebapipython\models\showsimplified.py" />
+    <Compile Include="spotifywebapipython\models\showsaved.py" />
+    <Compile Include="spotifywebapipython\models\trackrecommendations.py" />
+    <Compile Include="spotifywebapipython\models\userprofilesimplified.py" />
+    <Compile Include="spotifywebapipython\models\userprofile.py" />
+    <Compile Include="spotifywebapipython\models\album.py" />
+    <Compile Include="spotifywebapipython\models\copyright.py" />
+    <Compile Include="spotifywebapipython\models\albumpagesaved.py" />
+    <Compile Include="spotifywebapipython\models\trackpagesaved.py" />
+    <Compile Include="spotifywebapipython\models\albumsaved.py" />
+    <Compile Include="spotifywebapipython\models\tracksaved.py" />
+    <Compile Include="spotifywebapipython\models\tracksimplified.py" />
+    <Compile Include="spotifywebapipython\models\track.py" />
+    <Compile Include="spotifywebapipython\models\artistsimplified.py" />
+    <Compile Include="spotifywebapipython\models\artist.py" />
+    <Compile Include="spotifywebapipython\models\externalids.py" />
+    <Compile Include="spotifywebapipython\models\externalurls.py" />
+    <Compile Include="spotifywebapipython\models\restrictions.py" />
+    <Compile Include="spotifywebapipython\models\followers.py" />
+    <Compile Include="spotifywebapipython\models\imageobject.py" />
+    <Compile Include="spotifywebapipython\models\__init__.py" />
+    <Compile Include="spotifywebapipython\oauthcli\authclient.py" />
+    <Compile Include="spotifywebapipython\oauthcli\__init__.py" />
+    <Compile Include="spotifywebapipython\saappmessages.py" />
+    <Compile Include="spotifywebapipython\sautils.py" />
+    <Compile Include="spotifywebapipython\spotifywebapiauthenticationerror.py" />
+    <Compile Include="spotifywebapipython\spotifyapierror.py" />
+    <Compile Include="spotifywebapipython\spotifywebapierror.py" />
+    <Compile Include="spotifywebapipython\spotifyapimessage.py" />
+    <Compile Include="spotifywebapipython\spotifyauthtoken.py" />
+    <Compile Include="spotifywebapipython\spotifyclient.py" />
+    <Compile Include="spotifywebapipython\__init__.py" />
+    <Compile Include="test\testVS_SpotifyClient_Chapters.py" />
+    <Compile Include="test\testVS_SpotifyClient_Miscellaneous.py" />
+    <Compile Include="test\testVS_SpotifyClient_Categories.py" />
+    <Compile Include="test\testVS_SpotifyClient_Player.py" />
+    <Compile Include="test\testVS_SpotifyClient_Playlists.py" />
+    <Compile Include="test\testVS_SpotifyClient_Episodes.py" />
+    <Compile Include="test\testVS_SpotifyClient_Audiobooks.py" />
+    <Compile Include="test\testVS_SpotifyClient_Shows.py" />
+    <Compile Include="test\testVS_SpotifyClient_Tracks.py" />
+    <Compile Include="test\testVS_SpotifyClient_Base.py" />
+    <Compile Include="test\testVS_SpotifyClient_Artists.py" />
+    <Compile Include="test\testVS_SpotifyClient_Albums.py" />
+    <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_FreeAccount.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_BOSE.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Refresh.py" />
+    <Compile Include="test\test_AuthToken_ClientCredentials_Refresh.py" />
+    <Compile Include="test\test_SampleCode_Public.py" />
+    <Compile Include="test\test_SampleCode_Private.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCode.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE.py" />
+    <Compile Include="test\test_AuthToken_ClientCredentials.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="docspdoc\" />
+    <Folder Include="docspdoc\include\" />
+    <Folder Include="docspdoc\templates\" />
+    <Folder Include="docspdoc\templates\darkmode\" />
+    <Folder Include="docspdoc\templates\default\" />
+    <Folder Include="docspdoc\templates\lightmode\" />
+    <Folder Include="docs\" />
+    <Folder Include="docs\include\" />
+    <Folder Include="docs\include\samplecode\" />
+    <Folder Include="docs\include\samplecode\SpotifyClient\" />
+    <Folder Include="research\" />
+    <Folder Include="spotifywebapipython\" />
+    <Folder Include="spotifywebapipython\models\" />
+    <Folder Include="spotifywebapipython\oauthcli\" />
+    <Folder Include="test\" />
+    <Folder Include="test\testdata\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include=".gitattributes" />
+    <Content Include=".gitignore" />
+    <Content Include="build.bat" />
+    <Content Include="builddocs.bat" />
+    <Content Include="CHANGELOG.md" />
+    <Content Include="docspdoc\include\spotifywebapipython.ico" />
+    <Content Include="docspdoc\include\codecopy.js" />
+    <Content Include="docspdoc\make.bat" />
+    <Content Include="docspdoc\templates\darkmode\codecopy.js" />
+    <Content Include="docspdoc\templates\darkmode\custom.css" />
+    <Content Include="docspdoc\templates\darkmode\index.html.jinja2" />
+    <Content Include="docspdoc\templates\darkmode\module.html.jinja2" />
+    <Content Include="docspdoc\templates\darkmode\syntax-highlighting.css" />
+    <Content Include="docspdoc\templates\darkmode\theme.css" />
+    <Content Include="docspdoc\templates\default\error.html.jinja2" />
+    <Content Include="docspdoc\templates\default\frame.html.jinja2" />
+    <Content Include="docspdoc\templates\default\index.html.jinja2" />
+    <Content Include="docspdoc\templates\default\module.html.jinja2" />
+    <Content Include="docspdoc\templates\lightmode\codecopy.js" />
+    <Content Include="docspdoc\templates\lightmode\custom.css" />
+    <Content Include="docspdoc\templates\lightmode\error.html.jinja2" />
+    <Content Include="docspdoc\templates\lightmode\frame.html.jinja2" />
+    <Content Include="docspdoc\templates\lightmode\index.html.jinja2" />
+    <Content Include="docspdoc\templates\lightmode\module.html.jinja2" />
+    <Content Include="docspdoc\templates\lightmode\syntax-highlighting.css" />
+    <Content Include="docspdoc\templates\lightmode\theme.css" />
+    <Content Include="LICENSE" />
+    <Content Include="README.md" />
+    <Content Include="readthedocs.yaml" />
+    <Content Include="requirements.txt" />
+    <Content Include="research\developer_notes.txt" />
+    <Content Include="test\smartinspect.cfg" />
+    <Content Include="test\testdata\PlaylistCoverImage.jpg" />
+    <Content Include="test\testdata\PlaylistCoverImage_TooLarge.jpg" />
+    <Content Include="test\testdata\tokens.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Interpreter Include="env\">
+      <Id>env</Id>
+      <Version>3.9</Version>
+      <Description>env (Python 3.9 (64-bit))</Description>
+      <InterpreterPath>Scripts\python.exe</InterpreterPath>
+      <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>
