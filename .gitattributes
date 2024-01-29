@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# correct GitHub "Languages" detection behavior.
+# without this, GitHub reports the repository as an HTML application.
+*.html linguist-detectable=false
+.docspdoc/** linguist-vendored
