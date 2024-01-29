@@ -6,7 +6,9 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
-SpotifyAuthToken
+###### [ 1.0.4 ] - 2023/01/29
+
+  * Removed invalid requirement from setup.py.
 
 ###### [ 1.0.3 ] - 2023/01/29
 

@@ -57,7 +57,6 @@ setup(
     
     # set minimum dependencies requirements.
     install_requires=[
-        'spotifywebapiPython==1.0.1',
         'oauthlib==3.2.2',
         'platformdirs==4.1.0',
         'smartinspectPython==3.0.30',
@@ -65,7 +64,7 @@ setup(
         'requests_oauthlib==1.3.1',
         'urllib3==2.1.0'
     ],
-    
+
     # set keywords to associate this package with on Pypi.org.
     keywords=['spotify', 'spotifywebapi', 'api', 'audio', 'music', 'library'],
     
