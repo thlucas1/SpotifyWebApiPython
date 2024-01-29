@@ -589,9 +589,6 @@ class AuthClient:
         Note that you must have 'urn:ietf:wg:oauth:2.0:oob' as a redirect URI value 
         in the provider app settings for this to work.
         """
-        # set authorization type.
-        self._AuthorizationType = 'Authorization Code'
-        
         # is the access token authorized?  if so, then we are done.
         if self._CheckAuthorization(force, token_test):
             return self
@@ -629,7 +626,7 @@ class AuthClient:
         success_message: str = _DEFAULT_WEB_SUCCESS_MESSAGE,
         open_browser: bool = True,
         redirect_uri_trailing_slash: bool = True,
-        timeout_seconds: Optional[int] = None,
+        timeout_seconds: Optional[int] = 120,
         token_audience: Optional[str] = None,
         force: bool = False,
         token_test: Optional[Callable] = None,
@@ -679,7 +676,7 @@ class AuthClient:
                 If set, an error will be raised after the timeout value if the user did not
                 respond to the authorization request.  The value is in seconds.  
                 When set to None there is no timeout.  
-                Default value is None.
+                Default value is 120 (2 minutes).
             token_audience (str):  
                 Passed along with the request for an access token.  
                 It determines the endpoints with which the token can be used.  
@@ -697,9 +694,6 @@ class AuthClient:
         Returns:
             The OAuth 2.0 credentials for the user.
         """
-        # set authorization type.
-        self._AuthorizationType = 'Authorization Code with PKCE'
-        
         # is the access token authorized?  if so, then we are done.
         if self._CheckAuthorization(force, token_test):
             return self

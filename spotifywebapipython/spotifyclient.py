@@ -5241,6 +5241,9 @@ class SpotifyClient:
             {
                 'limit': limit
             }
+            if market is not None:
+                urlParms['market'] = market
+
             if seedArtists is not None:
                 urlParms['seed_artists'] = seedArtists
             if seedGenres is not None:
@@ -5320,10 +5323,10 @@ class SpotifyClient:
                 
             if minSpeechiness is not None:
                 urlParms['min_speechiness'] = minSpeechiness
-            if maxPopularity is not None:
-                urlParms['max_popularity'] = maxPopularity
-            if targetPopularity is not None:
-                urlParms['target_popularity'] = targetPopularity
+            if maxSpeechiness is not None:
+                urlParms['max_speechiness'] = maxSpeechiness
+            if targetSpeechiness is not None:
+                urlParms['target_speechiness'] = targetSpeechiness
                 
             if minTempo is not None:
                 urlParms['min_tempo'] = minTempo
@@ -7678,7 +7681,8 @@ class SpotifyClient:
                     port=8080, 
                     open_browser=True, 
                     redirect_uri_trailing_slash=True, 
-                    force=forceAuthorize
+                    force=forceAuthorize,
+                    timeout_seconds=120
                 )
                 
             else:
@@ -7839,7 +7843,8 @@ class SpotifyClient:
                     port=8080, 
                     open_browser=True, 
                     redirect_uri_trailing_slash=True, 
-                    force=forceAuthorize
+                    force=forceAuthorize,
+                    timeout_seconds=120
                 )
                 
             else:
@@ -7956,74 +7961,6 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-
-    # def SetAuthTokenClientCredentials(self, 
-    #                                   clientId:str, 
-    #                                   clientSecret:str
-    #                                   ) -> None:
-    #     """
-    #     Generates a new client credentials type of authorization token used to access 
-    #     the Spotify Web API.
-        
-    #     Args:
-    #         clientId (str):
-    #             The unique identifier of the application.
-    #         clientSecret (str):
-    #             The application's secret key, used to authorize your Web API or SDK calls.
-                
-    #     The Client Credentials flow is used in server-to-server authentication. Since this flow does
-    #     not include authorization, only endpoints that do not access user information can be accessed.
-        
-    #     There is also no persistant token storage, as a new token is retrieved when this method
-    #     is called initially, and when the token needs to be refreshed.
-    #     """
-    #     apiMethodName:str = 'SetAuthTokenClientCredentials'
-    #     authorizationType:str = 'Client Credentials'
-        
-    #     try:
-
-    #         _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-            
-    #         # authorization token data - client credentials type.
-    #         # this flow does not include authorization, therefore only endpoints that do not 
-    #         # access user information can be accessed.
-    #         reqData_form_urlencoded:dict = \
-    #             { 
-    #                 'grant_type': 'client_credentials',
-    #                 'client_id': clientId,
-    #                 'client_secret': clientSecret,
-    #             }
-        
-    #         # execute spotify web api request.
-    #         msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, self.SpotifyApiTokenUrl, requestData=reqData_form_urlencoded)
-    #         self.MakeRequest('POST', msg)
-            
-    #         # process results.
-    #         self._AuthToken = SpotifyAuthToken(authorizationType, root=msg.ResponseData)
-    #         _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
-        
-    #         # note that we cannot retrieve spotify user basic details, as the client credentials
-    #         # authentication type does not utilize an authorization token.  in this case, we will
-    #         # build a "public access" user profile, just so we have something there.
-    #         userProfile:UserProfile = UserProfile()
-    #         userProfile._DisplayName = 'Public Access'
-    #         userProfile._Followers = Followers()
-    #         userProfile._Followers._Total = 0
-    #         userProfile._Id = 'unknown'
-    #         userProfile._Uri = 'spotify.user.' + userProfile._Id
-    #         userProfile._Country = 'unknown'
-    #         self._UserProfile = userProfile
-
-    #         # trace.
-    #         _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
-
-    #     except SpotifyWebApiError: raise  # pass handled exceptions on thru
-    #     except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-    #     except Exception as ex:
-            
-    #         # format unhandled exception.
-    #         raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
 
     def UnfollowArtists(self, 
