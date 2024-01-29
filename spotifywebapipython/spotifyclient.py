@@ -332,10 +332,10 @@ class SpotifyClient:
                 # refresh / renew the token.  
                 if self._AuthToken.RefreshToken is None:
                     oauth2token:dict = self._AuthClient.FetchToken()
-                    self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, root=oauth2token)
+                    self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
                 else:
                     oauth2token:dict = self._AuthClient.RefreshToken()
-                    self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, root=oauth2token)
+                    self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
 
                 _logsi.LogObject(SILevel.Verbose, 'Authorization token was successfully renewed', self._AuthToken, excludeNonPublic=True)
                 
@@ -7691,7 +7691,7 @@ class SpotifyClient:
 
             # process results.
             oauth2token:dict = self._AuthClient.Session.token
-            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, root=oauth2token)
+            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
             
             # does token need to be refreshed?
@@ -7701,7 +7701,7 @@ class SpotifyClient:
                 # this will also store the refreshed token to disk to be used later if required.
                 _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
                 oauth2token:dict = self._AuthClient.RefreshToken()
-                self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, root=oauth2token)
+                self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
             
             else:
@@ -7853,7 +7853,7 @@ class SpotifyClient:
 
             # process results.
             oauth2token:dict = self._AuthClient.Session.token
-            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, root=oauth2token)
+            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
             
             # does token need to be refreshed?
@@ -7863,7 +7863,7 @@ class SpotifyClient:
                 # this will also store the refreshed token to disk to be used later if required.
                 _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
                 oauth2token:dict = self._AuthClient.RefreshToken()
-                self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, root=oauth2token)
+                self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
             
             else:
@@ -7937,7 +7937,7 @@ class SpotifyClient:
                 
             # process results.
             oauth2token:dict = self._AuthClient.Session.token
-            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, root=oauth2token)
+            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
             
             # note that we cannot retrieve spotify user basic details, as the client credentials

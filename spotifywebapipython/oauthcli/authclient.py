@@ -219,6 +219,14 @@ class AuthClient:
 
 
     @property
+    def TokenProfileId(self) -> str:
+        """
+        Profile identifier used when loading / storing the token from / to disk.
+        """
+        return self._TokenProfileId
+
+
+    @property
     def TokenUrl(self) -> str:
         """
         Url used to request or renew an authorization token.

@@ -10,13 +10,15 @@ class SpotifyAuthToken:
     Spotify Authorization Token class.
     """
 
-    def __init__(self, authorizationType:str, root:dict=None) -> None:
+    def __init__(self, authorizationType:str, profileId:str, root:dict=None) -> None:
         """
         Initializes a new instance of the class.
         
         Args:
             authorizationType (str):
                 Authorization type chosen when this token was generated.
+            profileId (str):
+                Profile identifier used when loading / storing the token to disk.  
             root (dict):
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
@@ -31,6 +33,7 @@ class SpotifyAuthToken:
         self._ExpireDateTimeUtc:datetime = None
         self._ExpiresAt:int = None
         self._ExpiresIn:int = None
+        self._ProfileId:str = profileId
         self._RefreshToken:str = None
         self._Scope:str = None
         self._TokenType:str = None
@@ -140,6 +143,14 @@ class SpotifyAuthToken:
     
 
     @property
+    def ProfileId(self) -> str:
+        """ 
+        Profile identifier used when loading / storing the token to disk.
+        """
+        return self._ProfileId
+    
+
+    @property
     def RefreshToken(self) -> str:
         """ 
         The refresh token returned from the authorization token request.
@@ -199,6 +210,7 @@ class SpotifyAuthToken:
         if self._ExpiresAt is not None: msg = '%s\n ExpiresAt="%s"' % (msg, str(self._ExpiresAt))
         if self._ExpiresIn is not None: msg = '%s\n ExpiresIn="%s"' % (msg, str(self._ExpiresIn))
         if self._ExpireDateTimeUtc is not None: msg = '%s\n ExpireDateTimeUtc="%s"' % (msg, str(self._ExpireDateTimeUtc))
+        if self._ProfileId is not None: msg = '%s\n ProfileId="%s"' % (msg, str(self._ProfileId))
         if self._RefreshToken is not None: msg = '%s\n RefreshToken="%s"' % (msg, str(self._RefreshToken))
         if self._Scope is not None: msg = '%s\n Scope="%s"' % (msg, ", ".join(self._Scope))
         if self._TokenType is not None: msg = '%s\n TokenType="%s"' % (msg, str(self._TokenType))

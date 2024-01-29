@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+SpotifyAuthToken
+
+###### [ 1.0.3 ] - 2023/01/29
+
+  * Added `SpotifyAuthToken.ProfileId` property that indicates the token profile that was loaded.
+
 ###### [ 1.0.2 ] - 2023/01/29
 
   * Corrected the `SpotifyClient.GetTrackRecommendations` method to process the `market`, `maxSpeechiness`, and `targetSpeechiness` arguments correctly.
