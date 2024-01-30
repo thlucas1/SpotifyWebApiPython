@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.7 ] - 2023/01/29
+
+  * Allow customization of the redirect uri host and port values in the token authorization process.
+
 ###### [ 1.0.6 ] - 2023/01/29
 
   * Changed urllib3 requirements to a non-specific version so it could run with Home Assistant addons.

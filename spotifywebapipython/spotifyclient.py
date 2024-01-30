@@ -7677,8 +7677,8 @@ class SpotifyClient:
                 # at this point, we need a new authorization token.
                 _logsi.LogVerbose('Preparing to retrieve a new OAuth2 authorization access token')
                 self._AuthClient.AuthorizeWithServer(
-                    host='localhost', 
-                    port=8080, 
+                    host=redirectUriHost, 
+                    port=redirectUriPort, 
                     open_browser=True, 
                     redirect_uri_trailing_slash=True, 
                     force=forceAuthorize,
@@ -7839,8 +7839,8 @@ class SpotifyClient:
                 # at this point, we need a new authorization token.
                 _logsi.LogVerbose('Preparing to retrieve a new OAuth2 authorization access token')
                 self._AuthClient.AuthorizeWithServer(
-                    host='localhost', 
-                    port=8080, 
+                    host=redirectUriHost, 
+                    port=redirectUriPort, 
                     open_browser=True, 
                     redirect_uri_trailing_slash=True, 
                     force=forceAuthorize,
