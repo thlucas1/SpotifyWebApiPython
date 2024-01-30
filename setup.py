@@ -59,10 +59,10 @@ setup(
     install_requires=[
         'oauthlib==3.2.2',
         'platformdirs==4.1.0',
-        'smartinspectPython==3.0.30',
         'requests==2.31.0',
         'requests_oauthlib==1.3.1',
-        'urllib3==2.1.0'
+        'smartinspectPython==3.0.30',
+        'urllib3'
     ],
 
     # set keywords to associate this package with on Pypi.org.

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.6 ] - 2023/01/29
+
+  * Changed urllib3 requirements to a non-specific version so it could run with Home Assistant addons.
+
 ###### [ 1.0.5 ] - 2023/01/29
 
   * Changed Development Status to 5 - Production / Stable.
