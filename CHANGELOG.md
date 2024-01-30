@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.5 ] - 2023/01/29
+
+  * Changed Development Status to 5 - Production / Stable.
+
 ###### [ 1.0.4 ] - 2023/01/29
 
   * Removed invalid requirement from setup.py.
