@@ -7995,6 +7995,11 @@ class SpotifyClient:
         try:
 
             _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
+
+            # trace oauth2 session object and its type.
+            sessionType:type = type(oauth2Session)
+            _logsi.LogObject(SILevel.Verbose, 'oauth2Session object type: name="%s", module="%s"' % (sessionType.__name__, sessionType.__module__), sessionType)
+            _logsi.LogObject(SILevel.Verbose, 'oauth2Session object', oauth2Session)
         
             # validation.
             if scopes is not None:
@@ -8002,7 +8007,7 @@ class SpotifyClient:
                     scopes = [scopes]
                 if (not isinstance(scopes, list)):
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scopes', 'list', type(scopes).__name__), logsi=_logsi)
-            if oauth2Session is None or (not isinstance(oauth2Session, OAuth2Session)):
+            if oauth2Session is None:
                 raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'oauth2Session', 'OAuth2Session', type(oauth2Session).__name__), logsi=_logsi)
 
             # create oauth provider for existing oauth2 session.

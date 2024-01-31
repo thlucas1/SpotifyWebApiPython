@@ -196,14 +196,23 @@ class AuthClient:
     @property
     def IsAuthorized(self) -> bool:
         """
-        Indicates whether this session has an OAuth token or not. 
+        Indicates whether this session has an OAuth token 'access_token' value or not. 
         
         If True, you can reasonably expect OAuth-protected requests to the resource to succeed.  
         
         If False, you need the user to go through the OAuth authentication dance before 
         OAuth-protected requests to the resource will succeed.
         """
-        return self._Session.authorized
+        # mimic behavior of self._Session.authorized, in case we are using a Home Assistant OAuth2Session
+        # instance, which does not have an 'authorized' method.
+        result:bool = False
+        if self._Session is None:
+            return result
+        if self._Session.token is None:
+            return result
+        if self._Session.token.get('access_token') is None:
+            return result
+        return True
 
 
     @property
@@ -301,7 +310,7 @@ class AuthClient:
         """
         # force the user to authorize the application access if we do not have an authorized 
         # access token, if the scope has changed, or if the caller requested us to (by force).
-        if (not self._Session.authorized) or (force == True):
+        if (not self.IsAuthorized) or (force == True):
             return False
         
         result:bool = True
