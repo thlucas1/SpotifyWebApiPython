@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.8 ] - 2023/01/31
+
+  * Added `SpotifyClient.SetAuthTokenFromSession` method to allow the authorization token to be used from an existing OAuth2Session.
+
 ###### [ 1.0.7 ] - 2023/01/29
 
   * Allow customization of the redirect uri host and port values in the token authorization process.

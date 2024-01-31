@@ -3,6 +3,7 @@ import base64
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 from requests import Response
+from requests_oauthlib import OAuth2Session
 from typing import Sequence, Tuple
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
@@ -327,13 +328,13 @@ class SpotifyClient:
             # is the authorization token expired?
             if self._AuthToken is not None and self._AuthToken.IsExpired:
 
-                _logsi.LogVerbose("OAuth2 authorization token has expired; token will be renewed")
-                
                 # refresh / renew the token.  
                 if self._AuthToken.RefreshToken is None:
+                    _logsi.LogVerbose("OAuth2 authorization token has expired; token will be renewed")
                     oauth2token:dict = self._AuthClient.FetchToken()
                     self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
                 else:
+                    _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
                     oauth2token:dict = self._AuthClient.RefreshToken()
                     self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
 
@@ -352,7 +353,6 @@ class SpotifyClient:
                 
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with urlparms)" % (url), msg.UrlParameters, prettyPrint=True)
                 response = self._Manager.request_encode_url(method, url, fields=None, headers=msg.RequestHeaders)
-                #response = self._Manager.request_encode_url(method, url, fields=msg.UrlParameters, headers=msg.RequestHeaders)
             
             elif msg.HasRequestData:
 
@@ -7957,6 +7957,116 @@ class SpotifyClient:
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+
+    def SetAuthTokenFromSession(self, 
+                                oauth2Session:OAuth2Session, 
+                                scopes:Sequence[str]=None, 
+                                tokenProfileId:str=None
+                                ) -> None:
+        """
+        Uses an existing OAuth2Session to access the Spotify Web API.
+        
+        Args:
+            oauth2Session (OAuth2Session):
+                OAuth2 Session instance to use for this request.  
+            scopes (Sequence[str]):
+                A list of scopes you wish to request access to.  
+                If no scopes are specified, authorization will be granted only to access publicly 
+                available information; that is, only information normally visible in the Spotify 
+                desktop, web, and mobile players.  
+                Default is None.
+            tokenProfileId (str):
+                Profile identifier used when loading / storing the token to disk.  
+                A null value will default to `Shared`.  
+                Default: `Shared`               
+                
+        Raises:
+            SpotifApiError: 
+                If the method fails for any reason.               
+        """
+        apiMethodName:str = 'SetAuthTokenFromSession'
+        authorizationType:str = 'OAuth2Session'
+        
+        try:
+
+            _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
+        
+            # validation.
+            if scopes is not None:
+                if isinstance(scopes, str):
+                    scopes = [scopes]
+                if (not isinstance(scopes, list)):
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scopes', 'list', type(scopes).__name__), logsi=_logsi)
+            if oauth2Session is None or (not isinstance(oauth2Session, OAuth2Session)):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'oauth2Session', 'OAuth2Session', type(oauth2Session).__name__), logsi=_logsi)
+
+            # create oauth provider for existing oauth2 session.
+            # the client secret is not needed, as the OAuth2Session has already been established and the
+            # initial token generated.  after this, we will only need to REFRESH the token, which does not
+            # require knowing the secret.
+            self._AuthClient:AuthClient = AuthClient(
+                authorizationType=authorizationType,
+                authorizationUrl=self.SpotifyApiAuthorizeUrl,
+                tokenUrl=self.SpotifyApiTokenUrl,
+                scopes=scopes,
+                clientId=oauth2Session.client_id,
+                clientSecret=None,
+                oauth2Session=oauth2Session,
+                tokenStorageDir=self._TokenStorageDir,
+                tokenProviderId='SpotifyWebApiOAuth2Session',
+                tokenProfileId=tokenProfileId
+            )
+           
+            # force the user to logon to spotify to authorize the application access if we 
+            # do not have an authorized access token, or if the calling application requested 
+            # us (by force) to re-authorize, or if the scope has changed.
+            isAuthorized = self._AuthClient.IsAuthorized
+            _logsi.LogVerbose('Checking OAuth2 authorization status: IsAuthorized=%s' % (isAuthorized))
+
+            if (isAuthorized == False):
+                
+                _logsi.LogWarning('OAuth2 authorization token is NOT authorized')
+                
+            else:
+                
+                _logsi.LogVerbose('OAuth2 authorization token is authorized')
+
+            # process the oauth2 session token.
+            oauth2token:dict = self._AuthClient.Session.token
+            self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
+            
+            # does token need to be refreshed?
+            if self._AuthToken.IsExpired:
+
+                # refresh the token.  
+                # this will also store the refreshed token to disk to be used later if required.
+                _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
+                oauth2token:dict = self._AuthClient.RefreshToken()
+                self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
+                _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
+            
+            else:
+                
+                _logsi.LogVerbose('OAuth2 authorization token has not expired')
+
+            # retrieve spotify user basic details.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
+            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            self.MakeRequest('GET', msg)
+
+            # process results.
+            self._UserProfile = UserProfile(root=msg.ResponseData)
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
             # format unhandled exception.

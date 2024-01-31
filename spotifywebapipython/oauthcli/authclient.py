@@ -10,7 +10,7 @@ import secrets
 import socket
 import webbrowser
 
-from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient
+from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient, TokenExpiredError
 from requests_oauthlib import OAuth2Session
 from typing import Optional, Union, Callable, Sequence, Iterable
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server as WSGIMakeServer
@@ -145,8 +145,10 @@ class AuthClient:
             # inform OAuth2 to execute the SaveToken method when a token is automatically refreshed.
             self._Session.token_updater = self._SaveToken
             
-        # load the token from storage (if one exists).
-        token:dict = self._LoadToken()
+        # load the token from storage, if session does not currently have a token assigned.
+        token:dict = self._Session.token
+        if self._Session.token is None or len(self._Session.token) == 0:
+            token:dict = self._LoadToken()
         
         # was a token loaded?
         if token is not None:
@@ -789,13 +791,18 @@ class AuthClient:
 
             # trace.
             _logsi.LogVerbose('Refreshing OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
+            
+            # get refresh token from session token.  if not present, then it's an error.
+            refreshToken:str = self._Session.token.get('refresh_token')
+            if refreshToken is None:
+                raise TokenExpiredError('Token cannot be refreshed as there is no "refresh_token" key in the session token.')
 
             # add the clientId if the session has been established.
             if self._Session.client_id is not None:
                 kwargs.setdefault("client_id", self._Session.client_id)
                 
             # refresh the authorization token, using it's refresh token value.
-            token = self._Session.refresh_token(self._TokenUrl, self._Session.token["refresh_token"], **kwargs)
+            token = self._Session.refresh_token(self._TokenUrl, refreshToken, **kwargs)
             
             # store the refresh token to the token storage file.
             self._SaveToken(token)

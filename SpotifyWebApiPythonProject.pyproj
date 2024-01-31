@@ -227,6 +227,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_SpotifyClient_Artists.py" />
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_AuthToken_OAuth2Session.py" />
     <Compile Include="test\test_FreeAccount.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_BOSE.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Refresh.py" />
