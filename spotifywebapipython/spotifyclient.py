@@ -166,12 +166,37 @@ class SpotifyClient:
         
         try:
 
+            # trace.
+            if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, 'SpotifyClient http response object - type="%s", module="%s"' % (type(response).__name__, type(response).__module__), response)
+
+            # safely get the response url value.
+            # for some reason, the 'url' attribute is not present sometimes if a redirect occurs on the request.
+            responseUrl:str = None
+            if hasattr(response, 'url'):
+                responseUrl = response.url
+            elif hasattr(response, '_request_url'):
+                _logsi.LogObject(SILevel.Verbose, 'HTTPResponse does not contain a "url" attribute - using "_request_url" instead', response)
+                responseUrl = response._request_url
+            else:
+                _logsi.LogObject(SILevel.Verbose, 'HTTPResponse does not contain a "url" nor "_request_url" attribute - using "geturl()" instead', response)
+                try:
+                    responseUrl = response.geturl()
+                except Exception:
+                    _logsi.LogVerbose('HTTPResponse method "geturl()" could not be called - defaulting to "unknown response url"')
+                    responseUrl = 'Unknown response url'
+                
+            # trace.
+            if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (response)" % (response.status, response.reason, responseUrl), response)
+                if (response.headers):
+                    _logsi.LogCollection(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, responseUrl), response.headers.items())
+
             if response.data is not None:
                 
                 # do response headers contain a content-type value?
                 # if so, we will use it to determine how to convert the response data.
                 if response.headers:
-                    _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, response.url), response.headers)
                     if 'content-type' in response.headers:
                         contentType = response.headers['content-type']
 
@@ -180,7 +205,7 @@ class SpotifyClient:
                     
                     # some requests will not return a response, which is ok.
                     responseData = None
-                    _logsi.LogVerbose("SpotifyClient http response [%s-%s]: '%s' (no data)" % (response.status, response.reason, response.url))
+                    _logsi.LogVerbose("SpotifyClient http response [%s-%s]: '%s' (no data)" % (response.status, response.reason, responseUrl))
 
                 elif (contentType is not None) and (contentType.find('json') > -1):
                     
@@ -189,17 +214,17 @@ class SpotifyClient:
                     
                     if _logsi.IsOn(SILevel.Verbose):
                         if isinstance(responseData, dict):
-                            _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json dict)" % (response.status, response.reason, response.url), responseData)
+                            _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json dict)" % (response.status, response.reason, responseUrl), responseData)
                         elif isinstance(responseData, list):
-                            _logsi.LogArray(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json array)" % (response.status, response.reason, response.url), responseData)
+                            _logsi.LogArray(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json array)" % (response.status, response.reason, responseUrl), responseData)
                         else:
-                            _logsi.LogObject(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json object)" % (response.status, response.reason, response.url), responseData)
+                            _logsi.LogObject(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (json object)" % (response.status, response.reason, responseUrl), responseData)
                     
                 else:
                     
                     # no - treat it as utf-8 encoded data.
                     responseUTF8 = response.data.decode('utf-8')
-                    _logsi.LogText(SILevel.Error, "SpotifyClient http response [%s-%s]: '%s' (utf-8)" % (response.status, response.reason, response.url), responseUTF8)
+                    _logsi.LogText(SILevel.Error, "SpotifyClient http response [%s-%s]: '%s' (utf-8)" % (response.status, response.reason, responseUrl), responseUTF8)
 
                     # at this point we don't know what Spotify Web Api returned, so let's 
                     # just raise a new exception with the non-JSON response data.
@@ -213,7 +238,7 @@ class SpotifyClient:
             # if json conversion failed, then convert to utf-8 response.
             if response.data is not None:
                 responseUTF8 = response.data.decode('utf-8')
-                _logsi.LogText(SILevel.Error, "SpotifyClient http response [%s-%s]: '%s' (utf-8)" % (response.status, response.reason, response.url), responseUTF8)
+                _logsi.LogText(SILevel.Error, "SpotifyClient http response [%s-%s]: '%s' (utf-8)" % (response.status, response.reason, responseUrl), responseUTF8)
             
             # at this point we don't know what Spotify Web Api returned, so let's 
             # just raise a new exception with the non-JSON response data.
@@ -381,13 +406,6 @@ class SpotifyClient:
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (no body)" % (url), msg.RequestData, prettyPrint=True)
                 response = self._Manager.request(method, url, headers=msg.RequestHeaders)
                 
-            # trace.
-            if _logsi.IsOn(SILevel.Debug):
-                _logsi.LogObject(SILevel.Debug, 'SpotifyClient http response object - type="%s", module="%s"' % (type(response).__name__, type(response).__module__), response)
-                _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (response)" % (response.status, response.reason, response.url), response)
-                if (response.headers):
-                    _logsi.LogCollection(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, response.url), response.headers.items())
-
             # process based upon response status code; some requests will not return response data.
             # I know this could have been simplified, but I broke it down into possible return code ranges.
             if response.status >= 200 and response.status <= 299:
