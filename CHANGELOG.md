@@ -7,6 +7,10 @@ Change are listed in reverse chronological order (newest to oldest).
 <span class="changelog">
 
 
+###### [ 1.0.11 ] - 2023/02/01
+
+  * Updated `SpotifyClient._CheckResponseForErrors` method with better logging information.
+
 ###### [ 1.0.10 ] - 2023/02/01
 
   * Added `SpotifyClient.SetAuthTokenFromToken` method to allow the authorization token to be used from an existing OAuth2 token.

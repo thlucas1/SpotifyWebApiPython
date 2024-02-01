@@ -167,7 +167,7 @@ class SpotifyClient:
         try:
 
             if response.data is not None:
-            
+                
                 # do response headers contain a content-type value?
                 # if so, we will use it to determine how to convert the response data.
                 if response.headers:
@@ -208,7 +208,7 @@ class SpotifyClient:
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
-            _logsi.LogWarning("SpotifyClient http response could not be converted to JSON and will be converted to utf-8.\nConversion exception returned was:\n{ex}".format(ex=str(ex)))
+            _logsi.LogException("SpotifyClient http response could not be converted to JSON and will be converted to utf-8.\nConversion exception returned was:\n{ex}".format(ex=str(ex)), ex, logToSystemLogger=False)
 
             # if json conversion failed, then convert to utf-8 response.
             if response.data is not None:
@@ -383,6 +383,7 @@ class SpotifyClient:
                 
             # trace.
             if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, 'SpotifyClient http response object - type="%s", module="%s"' % (type(response).__name__, type(response).__module__), response)
                 _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (response)" % (response.status, response.reason, response.url), response)
                 if (response.headers):
                     _logsi.LogCollection(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, response.url), response.headers.items())
