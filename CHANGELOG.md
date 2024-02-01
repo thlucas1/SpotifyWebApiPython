@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.13 ] - 2023/02/01
+
+  * Updated `SpotifyClient._CheckResponseForErrors` method to use json library to parse JSON response, instead of the urllib3 `HTTPResponse.json()` method.  The urllib3 `HTTPResponse` class can return missing attributes and methods when processing redirects.
+
 ###### [ 1.0.12 ] - 2023/02/01
 
   * Updated `SpotifyClient._CheckResponseForErrors` method with better logging information.

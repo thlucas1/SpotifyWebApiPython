@@ -1,5 +1,6 @@
 # external package imports.
 import base64
+import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 from requests import Response
@@ -210,7 +211,9 @@ class SpotifyClient:
                 elif (contentType is not None) and (contentType.find('json') > -1):
                     
                     # response is json.
-                    responseData = response.json()
+                    # do not use the "response.json()" method to parse JSON responses, as it is unreliable!
+                    data = response.data.decode('utf-8')
+                    responseData = json.loads(data)
                     
                     if _logsi.IsOn(SILevel.Verbose):
                         if isinstance(responseData, dict):
