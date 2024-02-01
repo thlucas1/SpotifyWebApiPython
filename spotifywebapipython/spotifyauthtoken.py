@@ -67,6 +67,9 @@ class SpotifyAuthToken:
                 self._ExpiresAt = int((dtUtcNow - unix_epoch).total_seconds())  # seconds from epoch, current date
                 self._ExpiresAt = self._ExpiresAt + self._ExpiresIn             # add ExpiresIn seconds
 
+        # if scope is a list then convert to space-delimited value.
+        if isinstance(self._Scope, list):
+            self._Scope = ' '.join(self._Scope)
         
     def __repr__(self) -> str:
         return self.ToString()
@@ -182,6 +185,16 @@ class SpotifyAuthToken:
     
 
     @property
+    def Scopes(self) -> list[str]:
+        """ 
+        A list of scopes which have been granted for the `AccessToken`.       
+        """
+        if self._Scope is None:
+            return []
+        return self._Scope.split(' ')
+    
+
+    @property
     def TokenType(self) -> str:
         """ 
         How the access token may be used: always "Bearer" in this case.
@@ -212,6 +225,6 @@ class SpotifyAuthToken:
         if self._ExpireDateTimeUtc is not None: msg = '%s\n ExpireDateTimeUtc="%s"' % (msg, str(self._ExpireDateTimeUtc))
         if self._ProfileId is not None: msg = '%s\n ProfileId="%s"' % (msg, str(self._ProfileId))
         if self._RefreshToken is not None: msg = '%s\n RefreshToken="%s"' % (msg, str(self._RefreshToken))
-        if self._Scope is not None: msg = '%s\n Scope="%s"' % (msg, ", ".join(self._Scope))
+        if self._Scope is not None: msg = '%s\n Scope="%s"' % (msg, str(self._Scope))
         if self._TokenType is not None: msg = '%s\n TokenType="%s"' % (msg, str(self._TokenType))
         return msg 

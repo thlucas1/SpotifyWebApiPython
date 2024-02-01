@@ -50,7 +50,7 @@ class AuthClient:
                  authorizationType:str,
                  authorizationUrl:str=None,
                  tokenUrl:str=None,
-                 scopes:Sequence[str] = None,
+                 scope:str = None,
                  clientId:str=None,
                  clientSecret:str=None,
                  oauth2Client:Client=None,
@@ -58,6 +58,7 @@ class AuthClient:
                  tokenProviderId:str=None,
                  tokenProfileId:str=None,
                  tokenStorageDir:str=None,
+                 tokenUpdater:Callable=None
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -69,8 +70,8 @@ class AuthClient:
                 URL used to authorize the requested access.  
             tokenUrl (str):
                 URL used to request an access token.  
-            scopes (Sequence[str]):
-                A sequence list of scopes you wish to request access to.  
+            scope (str | list[str]):
+                A space-delimited list of scopes you wish to request access to.  
                 If no scopes are specified, authorization will be granted only to access publicly 
                 available information.
             clientId (str):
@@ -80,9 +81,10 @@ class AuthClient:
             oauth2Client (Client):
                 OAuth2 Client instance to use for this request.  
                 If null, a new WebApplicationClient will be created with the specified clientId and scope argument values.
-            oauth2Session (OAuth2Session):
-                OAuth2 Session instance to use for this request.  
-                If null, a new one will be created with the specified clientId and scope argument values.
+            oauth2Session (requests_oauthlib.oauth2_session.OAuth2Session):
+                A `OAuth2Session` instance to use for this request.  
+                If null, a new 'requests_oauthlib.oauth2_session.OAuth2Session' will be created with the specified 
+                clientId and scope argument values.
             tokenProviderId (str):
                 Provider identifier used when storing the token to disk.
                 A null value will default to `Shared`.  
@@ -95,16 +97,14 @@ class AuthClient:
                 The directory path that will contain the `tokens.json` file.  
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenUpdater (Callable):
+                A method to call when a token has been refreshed and needs to be stored externally.  
+                The defined method should accept one argument, the token dictionary.  
+                Default is null.  
         """
-        # validations.
-        if oauth2Session is not None:
-            if (not isinstance(oauth2Session, OAuth2Session)):
-                oauth2Session = None
-                
-        if isinstance(scopes, str):
-            scopes = [scopes]
-        if scopes is None:
-            scopes = []
+        # if scope is a list then convert it to space-delimited string.
+        if isinstance(scope, list):
+            scope = ' '.join(scope)
 
         # verify token storage directory exists.
         if tokenStorageDir is None:
@@ -115,7 +115,7 @@ class AuthClient:
         if tokenProviderId is None:
             tokenProviderId = 'Shared'
 
-        # if token userId not set, then default to shared.
+        # if token profileId not set, then default to shared.
         if tokenProfileId is None:
             tokenProfileId = 'Shared'
 
@@ -126,10 +126,10 @@ class AuthClient:
         self._ClientSecret:str = clientSecret
         self._CodeVerifier:str = None
         self._DefaultLocalHost:str = 'localhost'
-        self._Scopes:Sequence[str] = scopes
         self._Session:OAuth2Session = oauth2Session
         self._TokenProviderId:str = tokenProviderId
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenUpdater:Callable = tokenUpdater
         self._TokenUrl:str = tokenUrl
         self._TokenProfileId:str = tokenProfileId
                
@@ -139,11 +139,13 @@ class AuthClient:
             if oauth2Client is None:
                 oauth2Client = WebApplicationClient(client_id=clientId)
             
-            # create the OAuth2 session with the specified clientId and scopes.
-            self._Session:OAuth2Session = OAuth2Session(clientId, scope=scopes, client=oauth2Client)
+            # create the OAuth2 session with the specified clientId and scope.
+            # note that this will not load the 'token' property!
+            self._Session:OAuth2Session = OAuth2Session(clientId, scope=scope, client=oauth2Client)
             
             # inform OAuth2 to execute the SaveToken method when a token is automatically refreshed.
-            self._Session.token_updater = self._SaveToken
+            if self._TokenUpdater is not None:
+                self._Session.token_updater = self._TokenUpdater
             
         # load the token from storage, if session does not currently have a token assigned.
         token:dict = self._Session.token
@@ -154,13 +156,12 @@ class AuthClient:
         if token is not None:
             
             # check for scope change between the existing token and the newly requested session.
-            _logsi.LogVerbose('Verifying OAuth2 authorization access scopes have not changed')
-            hasScopeChanged:bool = self.HasScopeChanged(token)
+            _logsi.LogVerbose('Verifying OAuth2 authorization access scope has not changed')
+            hasScopeChanged:bool = self.HasScopeChanged(token, scope)
             if hasScopeChanged == True:
                 # if scope change detected, then destroy the token as we need to force an auth refresh.
                 self._SaveToken(None)
             else:
-                # scopes are the same.
                 # set session token reference to the loaded token.
                 self._Session.token = token
 
@@ -454,6 +455,11 @@ class AuthClient:
         except Exception as ex:
             _logsi.LogException('Could not save OAuth2 Token to token storage file: "%s"' % (tokenStoragePath), ex)
 
+        # was a token updater supplied?
+        if self._TokenUpdater is not None:
+            _logsi.LogDictionary(SILevel.Verbose, 'Calling Token Updater to store the "%s" token externally' % (tokenKey), token)
+            self._TokenUpdater(token)
+
 
     def authorization_url(self, **kwargs):
         """
@@ -540,7 +546,7 @@ class AuthClient:
         return token
 
 
-    def HasScopeChanged(self, token:dict) -> bool:
+    def HasScopeChanged(self, token:dict, scope:str=None) -> bool:
         """
         Indicates whether the scope has changed between this session and the authorization
         access token scope values.
@@ -548,6 +554,8 @@ class AuthClient:
         Args:
             token (dict):
                 The authorization access token dictionary to check the scope of.
+            scope (str | list[str]):
+                A space-delimited list of scope identifiers you wish to request access to.  
         
         If True, you need the user to go through the OAuth authentication dance before 
         OAuth-protected requests to the resource will succeed.
@@ -558,34 +566,31 @@ class AuthClient:
         if token is None:
             return True
         
-        tokenScope:list[str] = None 
-        sessionScope:list[str] = None
+        arrScopeSession:list[str] = []
+        arrScopeToken:list[str] = []
 
         # get scope values for session and token.
-        # also sort them both before comparing for differences.
-        if self._Session is not None:
-            sessionScope:list[str] = self._Session.scope
-            if isinstance(sessionScope, list):
-                sessionScope.sort()
+        # we will convert them to array and sort them before comparing for differences.
+        if scope is not None:
+            arrScopeSession = scope
+            if isinstance(arrScopeSession, str):
+                arrScopeSession = arrScopeSession.split(' ')
+            arrScopeSession.sort()
 
         if token is not None and isinstance(token, dict):
-            tokenScope = token.get('scope')
-            if isinstance(tokenScope, list):
-                tokenScope.sort()
+            arrScopeToken = token.get('scope', [])
+            if isinstance(arrScopeToken, str):
+                arrScopeToken = arrScopeSession.split(' ')
+            arrScopeToken.sort()
             
-        # get string values for both scopes for comparison.
-        if tokenScope is None:
-            tokenScope = []
-        tokenScopeString = " ".join(tokenScope)
-
-        if sessionScope is None:
-            sessionScope = []
-        sessionScopeString = " ".join(sessionScope)
+        # get string values for both scope's for comparison.
+        strScopeToken = ' '.join(arrScopeToken)
+        strScopeSession = ' '.join(arrScopeSession)
         
         # does the token scope match the requested session scope?
-        if tokenScope != sessionScope:
+        if strScopeToken != strScopeSession:
             
-            _logsi.LogVerbose('OAuth2 scope change detected, forcing authorization access; token scope="%s", session scope="%s"' % (tokenScopeString, sessionScopeString))
+            _logsi.LogVerbose('OAuth2 scope change detected, forcing authorization access; token scope="%s", session scope="%s"' % (strScopeToken, strScopeSession))
             return True
         
         # indicate scope has not changed.
@@ -822,15 +827,18 @@ class AuthClient:
             # return the refreshed authorization token to the caller.
             return token
         
-        except InvalidGrantError as ex:
+        except Exception as ex:
             
             # trace.
-            _logsi.LogException('OAuth2 token refresh error: %s' % str(ex))
+            #_logsi.LogException('OAuth2 token refresh error: %s' % str(ex), ex)
             
             # if refresh token was revoked, then remove the token from the token storage file
             # so that it will force an authorization refresh next time around.
-            if ex.description == 'Refresh token revoked':
-                self._SaveToken(None)
+            if isinstance(ex, InvalidGrantError):
+                if ex.description == 'Refresh token revoked':
+                    if self.AuthorizationType in ['OAuth2Token']:
+                        _logsi.LogWarning('Refresh token was revoked for authorization type "%s".  Ensure that you are saving the refreshed token in the host provider session to avoid this problem; see the "tokenUpdater" argument for more details' % self.AuthorizationType)
+                    self._SaveToken(None)
                 
             # pass exception on thru.
             raise

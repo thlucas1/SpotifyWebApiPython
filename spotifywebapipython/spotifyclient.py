@@ -3,8 +3,7 @@ import base64
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 from requests import Response
-from requests_oauthlib import OAuth2Session
-from typing import Sequence, Tuple
+from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
 
@@ -58,6 +57,7 @@ class SpotifyClient:
     def __init__(self, 
                  manager:PoolManager=None,
                  tokenStorageDir:str=None,
+                 tokenUpdater:Callable=None
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -69,11 +69,16 @@ class SpotifyClient:
                 The directory path that will contain the `tokens.json` file.  
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenUpdater (Callable):
+                A method to call when a token has been refreshed and needs to be stored externally.  
+                The defined method should accept one argument, the token dictionary.  
+                Default is null.  
         """
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
         self._Manager:PoolManager = manager
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenUpdater:Callable = tokenUpdater
         self._UserProfile:UserProfile = None
         
         # if pool manager instance is none or not a PoolManager instance, then create one.
@@ -126,7 +131,7 @@ class SpotifyClient:
         This information is only populated for authorized access types; furthermore, some 
         properties may not be populated if the appropriate scope(s) was not specified when
         the access token was created.  Please refer to the `UserProfile` model for the
-        properties that require specific scopes.
+        properties that require specific scope.
         """
         return self._UserProfile
     
@@ -1423,7 +1428,7 @@ class SpotifyClient:
                 If true, the playlist will be collaborative.  
                 Note: to create a collaborative playlist you must also set public to false. 
                 To create collaborative playlists you must have granted `playlist-modify-private`
-                and `playlist-modify-public` scopes.  
+                and `playlist-modify-public` scope.  
                 Defaults to false.
 
         The playlist will be empty until you add tracks. 
@@ -7563,7 +7568,7 @@ class SpotifyClient:
     def SetAuthTokenAuthorizationCode(self, 
                                       clientId:str, 
                                       clientSecret:str, 
-                                      scopes:Sequence[str]=None, 
+                                      scope:str=None, 
                                       tokenProfileId:str=None,
                                       forceAuthorize:bool=False,
                                       redirectUriHost:str='localhost', 
@@ -7578,9 +7583,9 @@ class SpotifyClient:
                 The unique identifier of the application.
             clientSecret (str):
                 The client secret, which is the key you will use to authorize your Web API or SDK calls.
-            scopes (Sequence[str]):
-                A list of scopes you wish to request access to.  
-                If no scopes are specified, authorization will be granted only to access publicly 
+            scope (str | list[str]):
+                A space-delimited list of scope identifiers you wish to request access to.  
+                If no scope is specified, authorization will be granted only to access publicly 
                 available information; that is, only information normally visible in the Spotify 
                 desktop, web, and mobile players.  
                 Default is None.
@@ -7590,7 +7595,7 @@ class SpotifyClient:
                 Default: `Shared`               
             forceAuthorize (bool):
                 True to force authorization, even if we already have a token.  
-                This can be useful if dynamically changing scopes.  
+                This can be useful if dynamically changing scope.  
                 Default is False.
             redirectUriHost (str):
                 The value to use for the host portion of the redirect URI.  
@@ -7614,7 +7619,7 @@ class SpotifyClient:
         This allows you to specify scope values, which allow more granular access to data that
         is not public (e.g. a user's email, playlist, profile, etc).  The user gets final approval
         for the requested scope(s) when they login to approve the access, as the login form will
-        show what scopes they are about to approve.  The user also has the ability to remove the
+        show what scope they are about to approve.  The user also has the ability to remove the
         application access at any time, in the event that the client is abusing the given scope
         privileges.
         
@@ -7646,24 +7651,23 @@ class SpotifyClient:
                 redirectUriHost = 'localhost'
             if redirectUriPort is None:
                 redirectUriPort = 8080
-            if scopes is not None:
-                if isinstance(scopes, str):
-                    scopes = [scopes]
-                if (not isinstance(scopes, list)):
-                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scopes', 'list', type(scopes).__name__), logsi=_logsi)
+            if scope is not None:
+                if (not isinstance(scope, list)) and (not isinstance(scope, str)):
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scope', 'list', type(scope).__name__), logsi=_logsi)
 
             # create oauth provider for spotify authentication code with pkce.
             self._AuthClient:AuthClient = AuthClient(
                 authorizationType=authorizationType,
                 authorizationUrl=self.SpotifyApiAuthorizeUrl,
                 tokenUrl=self.SpotifyApiTokenUrl,
-                scopes=scopes,
+                scope=scope,
                 clientId=clientId,
                 clientSecret=clientSecret,
                 oauth2Client=WebApplicationClient(client_id=clientId),  # required for grant_type = authorization_code
                 tokenStorageDir=self._TokenStorageDir,
                 tokenProviderId='SpotifyWebApiAuthCode',
-                tokenProfileId=tokenProfileId
+                tokenProfileId=tokenProfileId,
+                tokenUpdater=self._TokenUpdater
             )
            
             # force the user to logon to spotify to authorize the application access if we 
@@ -7722,13 +7726,14 @@ class SpotifyClient:
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # trace.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
+            raise
 
 
     def SetAuthTokenAuthorizationCodePKCE(self, 
                                           clientId:str, 
-                                          scopes:Sequence[str]=None, 
+                                          scope:str=None, 
                                           tokenProfileId:str=None,
                                           forceAuthorize:bool=False,
                                           redirectUriHost:str='localhost', 
@@ -7741,9 +7746,9 @@ class SpotifyClient:
         Args:
             clientId (str):
                 The unique identifier of the application.
-            scopes (Sequence[str]):
-                A list of scopes you wish to request access to.  
-                If no scopes are specified, authorization will be granted only to access publicly 
+            scope (str | list[str]):
+                A space-delimited list of scope identifiers you wish to request access to.  
+                If no scope is specified, authorization will be granted only to access publicly 
                 available information; that is, only information normally visible in the Spotify 
                 desktop, web, and mobile players.  
                 Default is None.
@@ -7753,7 +7758,7 @@ class SpotifyClient:
                 Default: `Shared`               
             forceAuthorize (bool):
                 True to force authorization, even if we already have a token.  
-                This can be useful if dynamically changing scopes.  
+                This can be useful if dynamically changing scope.  
                 Default is False.
             redirectUriHost (str):
                 The value to use for the host portion of the redirect URI.  
@@ -7776,7 +7781,7 @@ class SpotifyClient:
         This allows you to specify scope values, which allow more granular access to data that
         is not public (e.g. a user's email, playlist, profile, etc).  The user gets final approval
         for the requested scope(s) when they login to approve the access, as the login form will
-        show what scopes they are about to approve.  The user also has the ability to remove the
+        show what scope they are about to approve.  The user also has the ability to remove the
         application access at any time, in the event that the client is abusing the given scope
         privileges.
         
@@ -7808,24 +7813,23 @@ class SpotifyClient:
                 redirectUriHost = 'localhost'
             if redirectUriPort is None:
                 redirectUriPort = 8080
-            if scopes is not None:
-                if isinstance(scopes, str):
-                    scopes = [scopes]
-                if (not isinstance(scopes, list)):
-                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scopes', 'list', type(scopes).__name__), logsi=_logsi)
+            if scope is not None:
+                if (not isinstance(scope, list)) and (not isinstance(scope, str)):
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scope', 'list', type(scope).__name__), logsi=_logsi)
 
             # create oauth provider for spotify authentication code with pkce.
             self._AuthClient:AuthClient = AuthClient(
                 authorizationType=authorizationType,
                 authorizationUrl=self.SpotifyApiAuthorizeUrl,
                 tokenUrl=self.SpotifyApiTokenUrl,
-                scopes=scopes,
+                scope=scope,
                 clientId=clientId,
                 clientSecret=None,  # client_secret not used for authorization code with pkce type
                 oauth2Client=WebApplicationClient(client_id=clientId),  # required for grant_type = authorization_code
                 tokenStorageDir=self._TokenStorageDir,
                 tokenProviderId='SpotifyWebApiAuthCodePkce',
-                tokenProfileId=tokenProfileId
+                tokenProfileId=tokenProfileId,
+                tokenUpdater=self._TokenUpdater
             )
            
             # force the user to logon to spotify to authorize the application access if we 
@@ -7884,8 +7888,9 @@ class SpotifyClient:
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # trace.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
+            raise
 
 
     def SetAuthTokenClientCredentials(self, 
@@ -7929,7 +7934,8 @@ class SpotifyClient:
                 oauth2Client=BackendApplicationClient(client_id=clientId),  # required for grant_type = client_credentials
                 tokenStorageDir=self._TokenStorageDir,
                 tokenProviderId='SpotifyWebApiClientCredentials',
-                tokenProfileId=tokenProfileId
+                tokenProfileId=tokenProfileId,
+                tokenUpdater=self._TokenUpdater
             )
 
             # fetch a new access token.
@@ -7959,27 +7965,25 @@ class SpotifyClient:
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # trace.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
+            raise
 
 
-    def SetAuthTokenFromSession(self, 
-                                oauth2Session:OAuth2Session, 
-                                scopes:Sequence[str]=None, 
-                                tokenProfileId:str=None
-                                ) -> None:
+    def SetAuthTokenFromToken(self, 
+                              clientId:str,
+                              token:dict, 
+                              tokenProfileId:str=None
+                              ) -> None:
         """
-        Uses an existing OAuth2Session to access the Spotify Web API.
-        
+        Uses an OAuth2 authorization token that was generated from an external provider to access 
+        the Spotify Web API.
+
         Args:
-            oauth2Session (OAuth2Session):
-                OAuth2 Session instance to use for this request.  
-            scopes (Sequence[str]):
-                A list of scopes you wish to request access to.  
-                If no scopes are specified, authorization will be granted only to access publicly 
-                available information; that is, only information normally visible in the Spotify 
-                desktop, web, and mobile players.  
-                Default is None.
+            clientId (str):
+                The unique identifier of the application.
+            token (dict):
+                A dictionary object that contains OAuth2 token data.
             tokenProfileId (str):
                 Profile identifier used when loading / storing the token to disk.  
                 A null value will default to `Shared`.  
@@ -7987,60 +7991,42 @@ class SpotifyClient:
                 
         Raises:
             SpotifApiError: 
-                If the method fails for any reason.               
+                If the method fails for any reason.  
+                
+        Make sure you have the `tokenUpdater` argument supplied on the class constructor so that
+        token updates are passed on to the external provider.
         """
-        apiMethodName:str = 'SetAuthTokenFromSession'
-        authorizationType:str = 'OAuth2Session'
+        apiMethodName:str = 'SetAuthTokenFromToken'
+        authorizationType:str = 'OAuth2Token'
         
         try:
 
             _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-
-            # trace oauth2 session object and its type.
-            sessionType:type = type(oauth2Session)
-            _logsi.LogObject(SILevel.Verbose, 'oauth2Session object type: name="%s", module="%s"' % (sessionType.__name__, sessionType.__module__), sessionType)
-            _logsi.LogObject(SILevel.Verbose, 'oauth2Session object', oauth2Session)
+            _logsi.LogObject(SILevel.Verbose, 'token object', token)
         
             # validation.
-            if scopes is not None:
-                if isinstance(scopes, str):
-                    scopes = [scopes]
-                if (not isinstance(scopes, list)):
-                    raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scopes', 'list', type(scopes).__name__), logsi=_logsi)
-            if oauth2Session is None:
-                raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'oauth2Session', 'OAuth2Session', type(oauth2Session).__name__), logsi=_logsi)
+            if token is None:
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'token', 'dict', type(token).__name__), logsi=_logsi)
 
             # create oauth provider for existing oauth2 session.
-            # the client secret is not needed, as the OAuth2Session has already been established and the
-            # initial token generated.  after this, we will only need to REFRESH the token, which does not
-            # require knowing the secret.
+            # the client secret is not needed, as the OAuth2 Session has already been established externally
+            # and the initial token generated.  after this, we will only need to REFRESH the token, which 
+            # does not require knowing the secret.
             self._AuthClient:AuthClient = AuthClient(
                 authorizationType=authorizationType,
-                authorizationUrl=self.SpotifyApiAuthorizeUrl,
                 tokenUrl=self.SpotifyApiTokenUrl,
-                scopes=scopes,
-                clientId=oauth2Session.client_id,
-                clientSecret=None,
-                oauth2Session=oauth2Session,
+                scope=token.get('scope'),
+                clientId=clientId,
                 tokenStorageDir=self._TokenStorageDir,
-                tokenProviderId='SpotifyWebApiOAuth2Session',
-                tokenProfileId=tokenProfileId
+                tokenProviderId='SpotifyWebApiOAuth2Token',
+                tokenProfileId=tokenProfileId,
+                tokenUpdater=self._TokenUpdater
             )
+            
+            # assign the token if one is not present.
+            if self._AuthClient.Session.token is None or len(self._AuthClient.Session.token) == 0:
+                self._AuthClient.Session.token = token
            
-            # force the user to logon to spotify to authorize the application access if we 
-            # do not have an authorized access token, or if the calling application requested 
-            # us (by force) to re-authorize, or if the scope has changed.
-            isAuthorized = self._AuthClient.IsAuthorized
-            _logsi.LogVerbose('Checking OAuth2 authorization status: IsAuthorized=%s' % (isAuthorized))
-
-            if (isAuthorized == False):
-                
-                _logsi.LogWarning('OAuth2 authorization token is NOT authorized')
-                
-            else:
-                
-                _logsi.LogVerbose('OAuth2 authorization token is authorized')
-
             # process the oauth2 session token.
             oauth2token:dict = self._AuthClient.Session.token
             self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
@@ -8074,8 +8060,9 @@ class SpotifyClient:
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # trace.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
+            raise
 
 
     def UnfollowArtists(self, 
