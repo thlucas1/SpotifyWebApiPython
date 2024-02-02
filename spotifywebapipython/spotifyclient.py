@@ -177,14 +177,14 @@ class SpotifyClient:
             if hasattr(response, 'url'):
                 responseUrl = response.url
             elif hasattr(response, '_request_url'):
-                _logsi.LogObject(SILevel.Verbose, 'HTTPResponse does not contain a "url" attribute - using "_request_url" instead', response)
+                _logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" attribute - using "_request_url" instead', response)
                 responseUrl = response._request_url
             else:
-                _logsi.LogObject(SILevel.Verbose, 'HTTPResponse does not contain a "url" nor "_request_url" attribute - using "geturl()" instead', response)
+                _logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" nor "_request_url" attribute - using "geturl()" instead', response)
                 try:
                     responseUrl = response.geturl()
                 except Exception:
-                    _logsi.LogVerbose('HTTPResponse method "geturl()" could not be called - defaulting to "unknown response url"')
+                    _logsi.LogWarning('HTTPResponse method "geturl()" could not be called - defaulting to "unknown response url"')
                     responseUrl = 'Unknown response url'
                 
             # trace.
@@ -1829,6 +1829,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1904,6 +1910,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2062,6 +2074,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2200,6 +2218,12 @@ class SpotifyClient:
         result:AlbumPageSimplified = None
         
         try:
+
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -2618,6 +2642,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2688,6 +2718,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2930,6 +2966,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 50
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3096,6 +3138,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3399,6 +3447,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3573,6 +3627,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4256,6 +4316,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4330,6 +4396,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4402,6 +4474,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4556,6 +4634,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4626,6 +4710,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4888,6 +4978,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -5545,6 +5641,14 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if timeRange is None:
+                timeRange = 'medium_term'
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -5621,6 +5725,14 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if timeRange is None:
+                timeRange = 'medium_term'
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -7553,6 +7665,12 @@ class SpotifyClient:
         
         try:
             
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -8023,8 +8141,7 @@ class SpotifyClient:
         
         try:
 
-            _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-            _logsi.LogObject(SILevel.Verbose, 'token object', token)
+            _logsi.LogDictionary(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, token, prettyPrint=True)
         
             # validation.
             if token is None:
