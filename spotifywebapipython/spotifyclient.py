@@ -30,7 +30,7 @@ from .const import (
 )
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -341,23 +341,36 @@ class SpotifyClient:
         - 503 Service Unavailable - The server is currently unable to handle the request due to a temporary condition which will be alleviated after some delay. You can choose to resend the request again.  
         """
         apiMethodName:str = 'MakeRequest'
-        
-        # validation.
-        if method is None or msg is None or (not isinstance(msg,SpotifyApiMessage)):
-            return 400
-
-        # formulate the request url.
-        url:str = None
-        uri:str = msg.Uri
-        if (uri == self.SpotifyApiTokenUrl) or (uri == self.SpotifyApiAuthorizeUrl):
-            url = uri
-        else:
-            url = f'{self.SpotifyWebApiUrlBase}{uri}'
-
+        apiMethodParms:SIMethodParmListContext = None
         response:Response = None
         
         try:
             
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            
+            # validation.
+            if method is None or msg is None or (not isinstance(msg,SpotifyApiMessage)):
+                _logsi.LogVerbose("msg argument was not a valid SpotifyApiMessage instance")
+                return 400
+
+            # trace.
+            apiMethodParms = SIMethodParmListContext(apiMethodName)
+            apiMethodParms.AppendKeyValue("method", method)
+            apiMethodParms.AppendKeyValue("msg.Uri", msg.Uri)
+            apiMethodParms.AppendKeyValue("msg.UrlParameters", msg.UrlParameters)
+            apiMethodParms.AppendKeyValue("msg.RequestData", msg.RequestData)
+            apiMethodParms.AppendKeyValue("msg.RequestJson", msg.RequestJson)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Making HTTPS request to the Spotify Web API", apiMethodParms)
+                
+            # formulate the request url.
+            url:str = None
+            uri:str = msg.Uri
+            if (uri == self.SpotifyApiTokenUrl) or (uri == self.SpotifyApiAuthorizeUrl):
+                url = uri
+            else:
+                url = f'{self.SpotifyWebApiUrlBase}{uri}'
+
             # is the authorization token expired?
             if self._AuthToken is not None and self._AuthToken.IsExpired:
 
@@ -443,6 +456,9 @@ class SpotifyClient:
                 if response.closed == False:
                     response.close()
 
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def AddPlayerQueueItem(self, 
                            uri:str,
@@ -481,9 +497,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'AddPlayerQueueItem'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uri", uri)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add item to playback queue", apiMethodParms)
+                
             urlParms:dict = \
             {
                 'uri': uri
@@ -507,6 +530,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def AddPlaylistCoverImage(self, 
@@ -542,9 +570,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'AddPlaylistCoverImage'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("imagePath", imagePath)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add playlist cover image", apiMethodParms)
+                
             fData:BytesIO = BytesIO()
             
             # read all bytes from the file in 8192 byte chunks, and writes
@@ -583,6 +618,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def AddPlaylistItems(self, 
@@ -629,10 +669,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'AddPlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            apiMethodParms.AppendKeyValue("position", position)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add items to a user's playlist", apiMethodParms)
+                
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -666,6 +714,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def ChangePlaylistDetails(self, 
@@ -725,9 +778,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'ChangePlaylistDetails'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("name", name)
+            apiMethodParms.AppendKeyValue("description", description)
+            apiMethodParms.AppendKeyValue("public", public)
+            apiMethodParms.AppendKeyValue("collaborative", collaborative)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Change a playlist details", apiMethodParms)
+                
             # if collaborative is True, then force public to false as Spotify requires it.
             if collaborative:
                 public = False
@@ -764,9 +827,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckAlbumFavorites(self, 
-                            albumIds:str
+                            ids:str
                             ) -> dict:
         """
         Check if one or more albums is already saved in the current Spotify user's 
@@ -775,13 +843,13 @@ class SpotifyClient:
         This method requires the `user-library-read` scope.
 
         Args:
-            albumIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 20 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,2noRn2Aes5aoNVsU6iWThc`
                 
         Returns:
-            A dictionary of the albumIds, along with a boolean status for each that indicates 
+            A dictionary of the ids, along with a boolean status for each that indicates 
             if the album is saved (True) in the users 'Your Library' or not (False).
                 
         Raises:
@@ -799,14 +867,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckAlbumFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more albums are saved in a user's favorites", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': albumIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -816,7 +890,7 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
             
             # build list of all input album id's.
-            arrIds:list[str] = albumIds.split(',')
+            arrIds:list[str] = ids.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
@@ -836,6 +910,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def CheckArtistsFollowing(self, 
@@ -871,10 +950,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckArtistsFollowing'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if user is following one or more artists", apiMethodParms)
+                
             # remove any leading / trailing spaces in case user put a space between the items.
             if ids is not None:
                 ids = ids.replace(' ','')
@@ -914,9 +999,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckAudiobookFavorites(self, 
-                                audiobookIds:str
+                                ids:str
                                 ) -> dict:
         """
         Check if one or more audiobooks is already saved in the current Spotify user's 
@@ -925,13 +1015,13 @@ class SpotifyClient:
         This method requires the `user-library-read` scope.
 
         Args:
-            audiobookIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `74aydHJKgYz3AIq3jjBSv1,4nfQ1hBJWjD0Jq9sK3YRW8,3PFyizE2tGCSRLusl2Qizf`
                 
         Returns:
-            A dictionary of the audiobookIds, along with a boolean status for each that indicates 
+            A dictionary of the ids, along with a boolean status for each that indicates 
             if the audiobook is saved (True) in the users 'Your Library' or not (False).
                 
         Raises:
@@ -949,14 +1039,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckAudiobookFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more audiobooks are saved in a user's favorites", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': audiobookIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -966,7 +1062,7 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
             
             # build list of all input album id's.
-            arrIds:list[str] = audiobookIds.split(',')
+            arrIds:list[str] = ids.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
@@ -987,9 +1083,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckEpisodeFavorites(self, 
-                              episodeIds:str
+                              ids:str
                               ) -> dict:
         """
         Check if one or more episodes is already saved in the current Spotify user's 
@@ -998,13 +1099,13 @@ class SpotifyClient:
         This method requires the `user-library-read` scope.
 
         Args:
-            episodeIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 
         Returns:
-            A dictionary of the episodeIds, along with a boolean status for each that indicates 
+            A dictionary of the ids, along with a boolean status for each that indicates 
             if the episode is saved (True) in the users 'Your Library' or not (False).
                 
         Raises:
@@ -1022,14 +1123,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckEpisodeFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more episodes are saved in a user's favorites", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': episodeIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -1039,7 +1146,7 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
             
             # build list of all input album id's.
-            arrIds:list[str] = episodeIds.split(',')
+            arrIds:list[str] = ids.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
@@ -1060,6 +1167,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckPlaylistFollowers(self, 
                                playlistId:str,
@@ -1069,6 +1181,9 @@ class SpotifyClient:
         Check to see if one or more Spotify users are following a specified playlist.
         
         Args:
+            playlistId (str):  
+                The Spotify ID of the playlist.  
+                Example: `3cEYpjA9oz9GiPac4AsH4n`
             userIds (str):  
                 A comma-separated list of Spotify User ID's to check.  
                 Maximum: 5 ID's.  
@@ -1093,10 +1208,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckPlaylistFollowers'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("userIds", userIds)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check to see if users are following a playlist", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1131,9 +1253,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckShowFavorites(self, 
-                           showIds:str
+                           ids:str
                            ) -> dict:
         """
         Check if one or more shows is already saved in the current Spotify user's 
@@ -1142,13 +1269,13 @@ class SpotifyClient:
         This method requires the `user-library-read` scope.
 
         Args:
-            showIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 
         Returns:
-            A dictionary of the showIds, along with a boolean status for each that indicates 
+            A dictionary of the ids, along with a boolean status for each that indicates 
             if the show is saved (True) in the users 'Your Library' or not (False).
                 
         Raises:
@@ -1166,14 +1293,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckShowFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more shows are saved in a user's favorites", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': showIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -1183,7 +1316,7 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
             
             # build list of all input album id's.
-            arrIds:list[str] = showIds.split(',')
+            arrIds:list[str] = ids.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
@@ -1204,9 +1337,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def CheckTrackFavorites(self, 
-                            trackIds:str
+                            ids:str
                             ) -> dict:
         """
         Check if one or more tracks is already saved in the current Spotify user's 
@@ -1215,13 +1353,13 @@ class SpotifyClient:
         This method requires the `user-library-read` scope.
 
         Args:
-            trackIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 
         Returns:
-            A dictionary of the trackIds, along with a boolean status for each that indicates 
+            A dictionary of the ids, along with a boolean status for each that indicates 
             if the track is saved (True) in the users 'Your Library' or not (False).
                 
         Raises:
@@ -1239,14 +1377,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckTrackFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more tracks are saved in a user's favorites", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': trackIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -1256,7 +1400,7 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
             
             # build list of all input album id's.
-            arrIds:list[str] = trackIds.split(',')
+            arrIds:list[str] = ids.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
@@ -1276,6 +1420,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def CheckUsersFollowing(self, 
@@ -1311,10 +1460,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CheckUsersFollowing'
+        apiMethodParms:SIMethodParmListContext = None
         result:dict = {}
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if user is following one or more users", apiMethodParms)
+                
             # remove any leading / trailing spaces in case user put a space between the items.
             if ids is not None:
                 ids = ids.replace(' ','')
@@ -1354,6 +1509,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def ClearPlaylistItems(self, 
                            playlistId:str
@@ -1387,10 +1547,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'ClearPlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Clear (remove) all items from a user's playlist", apiMethodParms)
+                
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -1416,6 +1582,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def CreatePlaylist(self, 
@@ -1483,10 +1654,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'CreatePlaylist'
+        apiMethodParms:SIMethodParmListContext = None
         result:Playlist = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("userId", userId)
+            apiMethodParms.AppendKeyValue("name", name)
+            apiMethodParms.AppendKeyValue("description", description)
+            apiMethodParms.AppendKeyValue("public", public)
+            apiMethodParms.AppendKeyValue("collaborative", collaborative)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Create an empty playlist for a user", apiMethodParms)
+                
             # if userId is not supplied, then use profile value.
             if userId is None or len(userId.strip()) == 0:
                 userId = self.UserProfile.Id
@@ -1524,6 +1705,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def FollowArtists(self, 
                       ids:str,
@@ -1556,9 +1742,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'FollowArtists'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of one or more artists", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -1587,6 +1779,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def FollowPlaylist(self, 
@@ -1622,9 +1819,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'FollowPlaylist'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("public", public)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of a playlist", apiMethodParms)
+                
             # build spotify web api request parameters.
             reqData:dict = {}
             if public is not None:
@@ -1646,6 +1850,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def FollowUsers(self, 
@@ -1679,9 +1888,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'FollowUsers'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of one or more users", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -1710,6 +1925,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAlbum(self, 
@@ -1750,10 +1970,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAlbum'
+        apiMethodParms:SIMethodParmListContext = None
         result:Album = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("albumId", albumId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single album", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -1778,6 +2005,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAlbumFavorites(self, 
@@ -1825,10 +2057,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAlbumFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:AlbumPageSaved = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the user's album favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -1863,6 +2102,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAlbumNewReleases(self, 
@@ -1906,10 +2150,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAlbumNewReleases'
+        apiMethodParms:SIMethodParmListContext = None
         result:AlbumPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("country", country)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of new album releases", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -1947,16 +2199,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetAlbums(self, 
-                  albumIds:str, 
+                  ids:str, 
                   market:str=None,
                   ) -> list[Album]:
         """
         Get Spotify catalog information for multiple albums.
         
         Args:
-            albumIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 20 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,2noRn2Aes5aoNVsU6iWThc`
@@ -1987,14 +2244,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAlbums'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Album] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple albums", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': albumIds,
+                'ids': ids,
             }
             if market is not None:
                 urlParms['market'] = market
@@ -2020,6 +2284,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAlbumTracks(self, 
@@ -2070,10 +2339,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAlbumTracks'
+        apiMethodParms:SIMethodParmListContext = None
         result:TrackPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("albumId", albumId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an album's tracks", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -2109,6 +2387,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetArtist(self, 
                   artistId:str, 
@@ -2139,10 +2422,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtist'
+        apiMethodParms:SIMethodParmListContext = None
         result:Artist = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("artistId", artistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single artist", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}'.format(id=artistId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -2161,6 +2450,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetArtistAlbums(self, 
@@ -2215,10 +2509,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtistAlbums'
+        apiMethodParms:SIMethodParmListContext = None
         result:AlbumPageSimplified = None
         
         try:
 
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("artistId", artistId)
+            apiMethodParms.AppendKeyValue("include_groups", include_groups)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's albums", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -2254,6 +2558,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
         
 
     def GetArtistRelatedArtists(self, 
@@ -2286,10 +2595,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtistRelatedArtists'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Artist] = []
         
         try:
 
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("artistId", artistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about artists similar to a given artist", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/related-artists'.format(id=artistId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -2311,15 +2626,20 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetArtists(self, 
-                   artistIds:list[str], 
+                   ids:list[str], 
                    ) -> list[Artist]:
         """
         Get Spotify catalog information for several artists based on their Spotify IDs.
         
         Args:
-            artistIds (list[str]):  
+            ids (list[str]):  
                 A comma-separated list of the Spotify IDs for the artists.  
                 Maximum: 50 IDs.  
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1vCWHaC5f2uS3yhpwWbIA6`
@@ -2342,14 +2662,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtists'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Artist] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple artists", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': artistIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -2373,6 +2699,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetArtistsFollowed(self, 
@@ -2409,10 +2740,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtistsFollowed'
+        apiMethodParms:SIMethodParmListContext = None
         result:ArtistPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("after", after)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's followed artists", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2443,6 +2781,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetArtistTopTracks(self, 
@@ -2483,10 +2826,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetArtistTopTracks'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Artist] = []
         
         try:
 
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("artistId", artistId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's top tracks", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -2513,6 +2863,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAudiobook(self, 
@@ -2560,10 +2915,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAudiobook'
+        apiMethodParms:SIMethodParmListContext = None
         result:Audiobook = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("audiobookId", audiobookId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -2588,6 +2950,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAudiobookChapters(self, 
@@ -2638,10 +3005,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAudiobookChapters'
+        apiMethodParms:SIMethodParmListContext = None
         result:ChapterPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("audiobookId", audiobookId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an audiobook's chapters", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -2676,6 +3052,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetAudiobookFavorites(self, 
@@ -2714,10 +3095,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAudiobookFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:AudiobookPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users audiobook favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -2751,16 +3139,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetAudiobooks(self, 
-                      audiobookIds:str, 
+                      ids:str, 
                       market:str=None,
                       ) -> list[AudiobookSimplified]:
         """
         Get Spotify catalog information for several audiobooks based on their Spotify IDs.
         
         Args:
-            audiobookIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `74aydHJKgYz3AIq3jjBSv1,2kbbNqAvJZxwGyCukHoTLA`
@@ -2796,14 +3189,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetAudiobooks'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[AudiobookSimplified] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple audiobooks", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': audiobookIds,
+                'ids': ids,
             }
             if market is not None:
                 urlParms['market'] = market
@@ -2829,6 +3229,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetBrowseCategory(self, 
@@ -2879,10 +3284,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetBrowseCategory'
+        apiMethodParms:SIMethodParmListContext = None
         result:Category = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("categoryId", categoryId)
+            apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("locale", locale)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a single category used to tag items in Spotify", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if country is not None:
@@ -2909,6 +3322,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetBrowseCategorysPage(self, 
@@ -2962,10 +3380,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetBrowseCategorysPage'
+        apiMethodParms:SIMethodParmListContext = None
         result:CategoryPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("locale", locale)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a page of categories used to tag items in Spotify", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 50
@@ -3004,6 +3431,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetBrowseCategorys(self, 
@@ -3048,10 +3480,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetBrowseCategorys'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Category] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("locale", locale)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a sorted list of ALL browse categories", apiMethodParms)
+                
             # get a page of categories used to tag items in Spotify
             pageObj:CategoryPage = self.GetBrowseCategorysPage(country=country, locale=locale, limit=50)
 
@@ -3085,6 +3524,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetCategoryPlaylists(self, 
@@ -3133,11 +3577,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetCategoryPlaylists'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlaylistPageSimplified = None
         resultMessage:str = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("categoryId", categoryId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("country", country)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify playlists tagged with a particular category", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -3176,6 +3629,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetChapter(self, 
@@ -3223,10 +3681,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetChapter'
+        apiMethodParms:SIMethodParmListContext = None
         result:Chapter = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("chapterId", chapterId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook chapter", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3252,16 +3717,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetChapters(self, 
-                    chapterIds:str, 
+                    ids:str, 
                     market:str=None,
                     ) -> list[Chapter]:
         """
         Get Spotify catalog information for several chapters based on their Spotify IDs.
         
         Args:
-            chapterIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the chapters.  
                 Maximum: 50 IDs.  
                 Example: `5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ`
@@ -3297,14 +3767,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetChapters'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Chapter] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple chapters", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': chapterIds,
+                'ids': ids,
             }
             if market is not None:
                 urlParms['market'] = market
@@ -3330,6 +3807,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetEpisode(self, 
@@ -3377,10 +3859,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetEpisode'
+        apiMethodParms:SIMethodParmListContext = None
         result:Episode = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("episodeId", episodeId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single episode", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3405,6 +3894,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetEpisodeFavorites(self, 
@@ -3443,10 +3937,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetEpisodeFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:EpisodePageSaved = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users episode favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -3480,16 +3981,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetEpisodes(self, 
-                    episodeIds:str, 
+                    ids:str, 
                     market:str=None,
                     ) -> list[Episode]:
         """
         Get Spotify catalog information for several episodes based on their Spotify IDs.
         
         Args:
-            episodeIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ`
@@ -3525,14 +4031,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetEpisodes'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Episode] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple episodes", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': episodeIds,
+                'ids': ids,
             }
             if market is not None:
                 urlParms['market'] = market
@@ -3558,6 +4071,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetFeaturedPlaylists(self, 
@@ -3622,11 +4140,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetFeaturedPlaylists'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlaylistPageSimplified = None
         resultMessage:str = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("locale", locale)
+            apiMethodParms.AppendKeyValue("timestamp", timestamp)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify featured playlists", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -3669,10 +4197,15 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetGenres(self) -> list[str]:
         """
-        Retrieve a sorted list of available genres seed parameter values.
+        Get a sorted list of available genres seed parameter values.
         
         Returns:
             A sorted list of genre strings.
@@ -3692,10 +4225,14 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetGenres'
-        result:CategoryPage = None
+        result:list[str] = None
         
         try:
             
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Get a sorted list of available genres")
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations/available-genre-seeds')
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -3707,7 +4244,7 @@ class SpotifyClient:
                 result.sort()
         
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -3717,10 +4254,15 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetMarkets(self) -> list[str]:
         """
-        Get the list of markets where Spotify is available.
+        Get the list of markets (country codes) where Spotify is available.
         
         Returns:
             A sorted list of market identifier strings.
@@ -3740,10 +4282,14 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetMarkets'
-        result:CategoryPage = None
+        result:list[str] = None
         
         try:
             
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Get a sorted list of available markets (country codes)")
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/markets')
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -3755,7 +4301,7 @@ class SpotifyClient:
                 result.sort()
         
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -3764,6 +4310,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlayerDevices(self) -> list[Device]:
@@ -3796,6 +4347,10 @@ class SpotifyClient:
         
         try:
             
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Get user's available Spotify Connect player devices")
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/devices')
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -3816,6 +4371,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlayerNowPlaying(self, 
@@ -3854,10 +4414,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlayerNowPlaying'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlayerPlayState = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the object currently being played on the user's Spotify account", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3882,6 +4448,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlayerPlaybackState(self, 
@@ -3921,10 +4492,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlayerPlaybackState'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlayerPlayState = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the user's current playback state", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3950,10 +4527,15 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetPlayerQueueInfo(self) -> PlayerQueueInfo:
         """
-        Get the list of objects that make up the user's queue.
+        Get the list of objects that make up the user's playback queue.
         
         This method requires the `user-read-currently-playing` and `user-read-playback-state` scope.
         
@@ -3979,6 +4561,10 @@ class SpotifyClient:
         
         try:
             
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Get the list of objects that make up the user's playback queue")
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -3997,6 +4583,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlayerRecentTracks(self, 
@@ -4055,10 +4646,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlayerRecentTracks'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlayHistoryPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("after", after)
+            apiMethodParms.AppendKeyValue("before", before)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get tracks from the current user's recently played tracks", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4088,6 +4687,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlaylist(self, 
@@ -4150,10 +4754,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlaylist'
+        apiMethodParms:SIMethodParmListContext = None
         result:Playlist = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("fields", fields)
+            apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a playlist owned by a Spotify user", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -4182,6 +4795,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlaylistCoverImage(self, 
@@ -4213,10 +4831,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlaylistCoverImage'
+        apiMethodParms:SIMethodParmListContext = None
         result:ImageObject = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current image associated with a specific playlist", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -4239,6 +4863,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlaylistItems(self, 
@@ -4312,10 +4941,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlaylistPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("fields", fields)
+            apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get full details of the items of a playlist owned by a Spotify user", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -4355,6 +4995,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetPlaylistFavorites(self, 
                              limit:int=20, 
@@ -4392,10 +5037,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlaylistFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlaylistPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users playlist favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -4428,6 +5080,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetPlaylistsForUser(self, 
@@ -4470,10 +5127,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlaylistsForUser'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlaylistPageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("userId", userId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the playlists owned or followed by a Spotify user", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -4507,6 +5172,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetShow(self, 
@@ -4552,10 +5222,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetShow'
+        apiMethodParms:SIMethodParmListContext = None
         result:Show = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("showId", showId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single show", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -4581,6 +5258,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetShowEpisodes(self, 
                         showId:str, 
@@ -4589,7 +5271,7 @@ class SpotifyClient:
                         market:str=None
                         ) -> EpisodePageSimplified:
         """
-        Get Spotify catalog information about an show's episodes.
+        Get Spotify catalog information about a show's episodes.
         
         Optional parameters can be used to limit the number of episodes returned.
         
@@ -4630,10 +5312,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetShowEpisodes'
+        apiMethodParms:SIMethodParmListContext = None
         result:EpisodePageSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("showId", showId)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about a show's episodes", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -4668,6 +5359,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetShowFavorites(self, 
@@ -4706,10 +5402,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetShowFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:ShowPageSaved = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users show favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -4743,16 +5446,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetShows(self, 
-                 showIds:str, 
+                 ids:str, 
                  market:str=None,
                  ) -> list[ShowSimplified]:
         """
         Get Spotify catalog information for several shows based on their Spotify IDs.
         
         Args:
-            showIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `5CfCWKI5pZ28U0uOzXkDHe,5as3aKmN2k11yfDDDSrvaZ`
@@ -4788,14 +5496,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetShows'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[ShowSimplified] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple shows", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': showIds,
+                'ids': ids,
             }
             if market is not None:
                 urlParms['market'] = market
@@ -4821,6 +5536,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetTrack(self, 
@@ -4852,10 +5572,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTrack'
+        apiMethodParms:SIMethodParmListContext = None
         result:Track = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("trackId", trackId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single track", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks/{id}'.format(id=trackId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -4874,6 +5600,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetTrackAudioFeatures(self, 
@@ -4905,10 +5636,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTrackAudioFeatures'
+        apiMethodParms:SIMethodParmListContext = None
         result:AudioFeatures = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("trackId", trackId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get audio feature information for a single track", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features/{id}'.format(id=trackId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -4927,6 +5664,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetTrackFavorites(self, 
@@ -4974,10 +5716,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTrackFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         result:TrackPageSaved = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users track favorites", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -5013,16 +5763,21 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetTracks(self, 
-                  trackIds:list[str], 
+                  ids:list[str], 
                   market:str=None,
                   ) -> list[Track]:
         """
         Get Spotify catalog information for multiple tracks based on their Spotify IDs.
         
         Args:
-            trackIds (list[str]):  
+            ids (list[str]):  
                 A comma-separated list of the Spotify track IDs. 
                 Maximum: 50 IDs.  
                 Example: `7ouMYWpwJ422jRcDASZB7P,4VqPOruhp5EdPBeR92t6lQ,2takcwOaAZWiXQijPHIx7B`
@@ -5053,14 +5808,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTracks'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Track] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple tracks", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': trackIds
+                'ids': ids
             }
             if market is not None:
                 urlParms['market'] = market
@@ -5087,15 +5849,20 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetTracksAudioFeatures(self, 
-                               trackIds:list[str], 
+                               ids:list[str], 
                                ) -> list[AudioFeatures]:
         """
         Get audio features for multiple tracks based on their Spotify IDs.
         
         Args:
-            trackIds (list[str]):  
+            ids (list[str]):  
                 A comma-separated list of the Spotify track IDs. 
                 Maximum: 100 IDs.  
                 Example: `7ouMYWpwJ422jRcDASZB7P,4VqPOruhp5EdPBeR92t6lQ,2takcwOaAZWiXQijPHIx7B`
@@ -5118,14 +5885,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTracksAudioFeatures'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[AudioFeatures] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get audio features for track(s)", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': trackIds
+                'ids': ids
             }
 
             # execute spotify web api request.
@@ -5149,6 +5922,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetTrackRecommendations(self, 
@@ -5355,10 +6133,62 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetTrackRecommendations'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[AudioFeatures] = []
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("seedArtists", seedArtists)
+            apiMethodParms.AppendKeyValue("seedGenres", seedGenres)
+            apiMethodParms.AppendKeyValue("seedTracks", seedTracks)
+            apiMethodParms.AppendKeyValue("minAcousticness", minAcousticness)
+            apiMethodParms.AppendKeyValue("maxAcousticness", maxAcousticness)
+            apiMethodParms.AppendKeyValue("targetAcousticness", targetAcousticness)
+            apiMethodParms.AppendKeyValue("minDanceability", minDanceability)
+            apiMethodParms.AppendKeyValue("maxDanceability", maxDanceability)
+            apiMethodParms.AppendKeyValue("targetDanceability", targetDanceability)
+            apiMethodParms.AppendKeyValue("minDurationMS", minDurationMS)
+            apiMethodParms.AppendKeyValue("maxDurationMS", maxDurationMS)
+            apiMethodParms.AppendKeyValue("targetDurationMS", targetDurationMS)
+            apiMethodParms.AppendKeyValue("minEnergy", minEnergy)
+            apiMethodParms.AppendKeyValue("maxEnergy", maxEnergy)
+            apiMethodParms.AppendKeyValue("targetEnergy", targetEnergy)
+            apiMethodParms.AppendKeyValue("minInstrumentalness", minInstrumentalness)
+            apiMethodParms.AppendKeyValue("maxInstrumentalness", maxInstrumentalness)
+            apiMethodParms.AppendKeyValue("targetInstrumentalness", targetInstrumentalness)
+            apiMethodParms.AppendKeyValue("minKey", minKey)
+            apiMethodParms.AppendKeyValue("maxKey", maxKey)
+            apiMethodParms.AppendKeyValue("targetKey", targetKey)
+            apiMethodParms.AppendKeyValue("minLiveness", minLiveness)
+            apiMethodParms.AppendKeyValue("maxLiveness", maxLiveness)
+            apiMethodParms.AppendKeyValue("targetLiveness", targetLiveness)
+            apiMethodParms.AppendKeyValue("minLoudness", minLoudness)
+            apiMethodParms.AppendKeyValue("maxLoudness", maxLoudness)
+            apiMethodParms.AppendKeyValue("targetLoudness", targetLoudness)
+            apiMethodParms.AppendKeyValue("minMode", minMode)
+            apiMethodParms.AppendKeyValue("maxMode", maxMode)
+            apiMethodParms.AppendKeyValue("targetMode", targetMode)
+            apiMethodParms.AppendKeyValue("minPopularity", minPopularity)
+            apiMethodParms.AppendKeyValue("maxPopularity", maxPopularity)
+            apiMethodParms.AppendKeyValue("targetPopularity", targetPopularity)
+            apiMethodParms.AppendKeyValue("minSpeechiness", minSpeechiness)
+            apiMethodParms.AppendKeyValue("maxSpeechiness", maxSpeechiness)
+            apiMethodParms.AppendKeyValue("targetSpeechiness", targetSpeechiness)
+            apiMethodParms.AppendKeyValue("minTempo", minTempo)
+            apiMethodParms.AppendKeyValue("maxTempo", maxTempo)
+            apiMethodParms.AppendKeyValue("targetTempo", targetTempo)
+            apiMethodParms.AppendKeyValue("minTimeSignature", minTimeSignature)
+            apiMethodParms.AppendKeyValue("maxTimeSignature", maxTimeSignature)
+            apiMethodParms.AppendKeyValue("targetTimeSignature", targetTimeSignature)
+            apiMethodParms.AppendKeyValue("minValence", minValence)
+            apiMethodParms.AppendKeyValue("maxValence", maxValence)
+            apiMethodParms.AppendKeyValue("targetValence", targetValence)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get track recommendations for specified criteria", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -5492,6 +6322,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def GetUsersCurrentProfile(self) -> UserProfileCurrentUser:
         """
@@ -5517,10 +6352,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetUsersCurrentProfile'
+        apiMethodParms:SIMethodParmListContext = None
         result:Track = UserProfile
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get profile information about the current user", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -5539,6 +6379,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetUsersPublicProfile(self,
@@ -5570,10 +6415,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetUsersPublicProfile'
-        result:Track = UserProfile
+        apiMethodParms:SIMethodParmListContext = None
+        result:UserProfileSimplified = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("userId", userId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get public profile information about a Spotify user", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}'.format(user_id=userId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -5592,6 +6443,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetUsersTopArtists(self, 
@@ -5637,10 +6493,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetUsersTopArtists'
+        apiMethodParms:SIMethodParmListContext = None
         result:ArtistPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("timeRange", timeRange)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top artists", apiMethodParms)
+                
             # validations.
             if timeRange is None:
                 timeRange = 'medium_term'
@@ -5676,6 +6540,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetUsersTopTracks(self, 
@@ -5721,10 +6590,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetUsersTopTracks'
+        apiMethodParms:SIMethodParmListContext = None
         result:TrackPage = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("timeRange", timeRange)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top tracks", apiMethodParms)
+                
             # validations.
             if timeRange is None:
                 timeRange = 'medium_term'
@@ -5761,6 +6638,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def PlayerMediaPause(self, 
                          deviceId:str=None
@@ -5795,9 +6677,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaPause'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device pause playback", apiMethodParms)
+                
+            # build spotify web api request parameters.
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -5818,6 +6707,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerMediaPlayContext(self, 
@@ -5893,9 +6787,19 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaPlayContext'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("contextUri", contextUri)
+            apiMethodParms.AppendKeyValue("offsetUri", offsetUri)
+            apiMethodParms.AppendKeyValue("offsetPosition", offsetPosition)
+            apiMethodParms.AppendKeyValue("positionMS", positionMS)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
+                
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -5928,6 +6832,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerMediaPlayTracks(self, 
@@ -5975,9 +6884,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaPlayTracks'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            apiMethodParms.AppendKeyValue("positionMS", positionMS)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
+                
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -6014,6 +6931,11 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def PlayerMediaResume(self, 
                           deviceId:str=None
@@ -6048,9 +6970,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaResume'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device resume playback", apiMethodParms)
+                
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -6071,6 +6999,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerMediaSeek(self, 
@@ -6113,9 +7046,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaSeek'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("positionMS", positionMS)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device seek position", apiMethodParms)
+                
             urlParms:dict = \
             {
                 'position_ms': positionMS
@@ -6139,6 +7079,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerMediaSkipNext(self, 
@@ -6174,9 +7119,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaSkipNext'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip next", apiMethodParms)
+                
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -6197,6 +7148,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerMediaSkipPrevious(self, 
@@ -6232,9 +7188,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerMediaSkipPrevious'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip previous", apiMethodParms)
+                
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -6255,6 +7217,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerSetRepeatMode(self, 
@@ -6297,9 +7264,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerSetRepeatMode'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("state", state)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set repeat mode", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6324,6 +7298,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerSetShuffleMode(self, 
@@ -6365,9 +7344,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerSetShuffleMode'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("state", state)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set shuffle mode", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6392,6 +7378,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerSetVolume(self, 
@@ -6432,9 +7423,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerSetVolume'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("volumePercent", volumePercent)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set volume level", apiMethodParms)
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6459,6 +7457,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerTransferPlayback(self, 
@@ -6499,9 +7502,16 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerTransferPlayback'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("play", play)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Transfer playback to a new Spotify Connect device", apiMethodParms)
+                
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -6526,6 +7536,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def PlayerVerifyDeviceDefault(self, 
@@ -6569,10 +7584,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'PlayerVerifyDeviceDefault'
+        apiMethodParms:SIMethodParmListContext = None
         result:PlayerPlayState = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("defaultDeviceId", defaultDeviceId)
+            apiMethodParms.AppendKeyValue("play", play)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Checks if a Spotify Connect device is active, and activate one if not", apiMethodParms)
+                
             # get current Spotify Connect player state.
             result = self.GetPlayerPlaybackState()
             
@@ -6600,9 +7622,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def RemoveAlbumFavorites(self, 
-                             albumIds:str
+                             ids:str
                              ) -> None:
         """
         Remove one or more albums from the current user's 'Your Library'.
@@ -6610,7 +7637,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            albumIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX`
@@ -6636,12 +7663,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemoveAlbumFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove album(s) from user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = albumIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -6668,9 +7701,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def RemoveAudiobookFavorites(self, 
-                                 audiobookIds:str
+                                 ids:str
                                  ) -> None:
         """
         Remove one or more audiobooks from the current user's 'Your Library'.
@@ -6678,7 +7716,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            audiobookIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
@@ -6704,12 +7742,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemoveAudiobookFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove audiobook(s) from user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = audiobookIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -6736,9 +7780,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def RemoveEpisodeFavorites(self, 
-                               episodeIds:str
+                               ids:str
                                ) -> None:
         """
         Remove one or more episodes from the current user's 'Your Library'.
@@ -6746,7 +7795,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            episodeIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
@@ -6772,12 +7821,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemoveEpisodeFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove episode(s) from user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = episodeIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -6803,6 +7858,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def RemovePlaylistItems(self, 
@@ -6852,10 +7912,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemovePlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
 
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            apiMethodParms.AppendKeyValue("snapshotId", snapshotId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove item(s) from a user's playlist", apiMethodParms)
+                
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -6895,9 +7963,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def RemoveShowFavorites(self, 
-                            showIds:str
+                            ids:str
                             ) -> None:
         """
         Remove one or more shows from the current user's 'Your Library'.
@@ -6905,7 +7978,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            showIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
@@ -6931,12 +8004,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemoveShowFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove show(s) from user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = showIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -6963,9 +8042,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def RemoveTrackFavorites(self, 
-                             trackIds:str
+                             ids:str
                              ) -> None:
         """
         Remove one or more tracks from the current user's 'Your Library'.
@@ -6973,7 +8057,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            trackIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,4eoYKv2kDwJS7gRGh5q6SK`
@@ -6999,12 +8083,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'RemoveTrackFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove track(s) from user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = trackIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7030,6 +8120,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def ReorderPlaylistItems(self, 
@@ -7093,10 +8188,20 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'ReorderPlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
-            
+
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("rangeStart", rangeStart)
+            apiMethodParms.AppendKeyValue("insertBefore", insertBefore)
+            apiMethodParms.AppendKeyValue("rangeLength", rangeLength)
+            apiMethodParms.AppendKeyValue("snapshotId", snapshotId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Reorder items in a user's playlist", apiMethodParms)
+                
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -7126,6 +8231,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def ReplacePlaylistItems(self, 
@@ -7168,10 +8278,17 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'ReplacePlaylistItems'
+        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Replace one or more items in a user's playlist", apiMethodParms)
+                
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -7204,9 +8321,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SaveAlbumFavorites(self, 
-                           albumIds:str
+                           ids:str
                            ) -> None:
         """
         Save one or more albums to the current user's 'Your Library'.
@@ -7214,7 +8336,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            albumIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
@@ -7240,12 +8362,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'SaveAlbumFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save album(s) to user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = albumIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7272,9 +8400,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SaveAudiobookFavorites(self, 
-                               audiobookIds:str
+                               ids:str
                                ) -> None:
         """
         Save one or more audiobooks to the current user's 'Your Library'.
@@ -7282,7 +8415,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            audiobookIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
@@ -7308,12 +8441,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'SaveAudiobookFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save audiobook(s) to user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = audiobookIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7340,9 +8479,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SaveEpisodeFavorites(self, 
-                             episodeIds:str
+                             ids:str
                              ) -> None:
         """
         Save one or more episodes to the current user's 'Your Library'.
@@ -7350,7 +8494,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            episodeIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
@@ -7376,12 +8520,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'SaveEpisodeFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save episode(s) to user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = episodeIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7408,9 +8558,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SaveShowFavorites(self, 
-                          showIds:str
+                          ids:str
                           ) -> None:
         """
         Save one or more shows to the current user's 'Your Library'.
@@ -7418,7 +8573,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            showIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
@@ -7444,12 +8599,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'SaveShowFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save show(s) to user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = showIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7476,9 +8637,14 @@ class SpotifyClient:
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SaveTrackFavorites(self, 
-                           trackIds:str
+                           ids:str
                            ) -> None:
         """
         Save one or more tracks to the current user's 'Your Library'.
@@ -7486,7 +8652,7 @@ class SpotifyClient:
         This method requires the `user-library-modify` scope.
         
         Args:
-            trackIds (str):  
+            ids (str):  
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
@@ -7512,12 +8678,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'SaveTrackFavorites'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save track(s) to user favorites", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = trackIds.split(',')
+            arrIds:list[str] = ids.split(',')
             for idx in range(0, len(arrIds)):
                 arrIds[idx] = arrIds[idx].strip()
                 
@@ -7543,6 +8715,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def Search(self, 
@@ -7661,10 +8838,21 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'Search'
+        apiMethodParms:SIMethodParmListContext = None
         result:SearchResponse = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for information.", apiMethodParms)
+                
             # validations.
             if limit is None: 
                 limit = 20
@@ -7703,6 +8891,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def SetAuthTokenAuthorizationCode(self, 
@@ -7780,12 +8973,22 @@ class SpotifyClient:
         and `redirectUriPort` arguments.
         """
         apiMethodName:str = 'SetAuthTokenAuthorizationCode'
+        apiMethodParms:SIMethodParmListContext = None
         authorizationType:str = 'Authorization Code'
         
         try:
 
-            _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-        
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("clientId", clientId)
+            apiMethodParms.AppendKeyValue("clientSecret", clientSecret)
+            apiMethodParms.AppendKeyValue("scope", scope)
+            apiMethodParms.AppendKeyValue("tokenProfileId", tokenProfileId)
+            apiMethodParms.AppendKeyValue("forceAuthorize", forceAuthorize)
+            apiMethodParms.AppendKeyValue("redirectUriHost", redirectUriHost)
+            apiMethodParms.AppendKeyValue("redirectUriPort", redirectUriPort)
+            _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
+                        
             # validation.
             if redirectUriHost is None or len(redirectUriHost.strip()) == 0:
                 redirectUriHost = 'localhost'
@@ -7870,6 +9073,11 @@ class SpotifyClient:
             _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
             raise
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SetAuthTokenAuthorizationCodePKCE(self, 
                                           clientId:str, 
@@ -7942,12 +9150,21 @@ class SpotifyClient:
         and `redirectUriPort` arguments.
         """
         apiMethodName:str = 'SetAuthTokenAuthorizationCodePKCE'
+        apiMethodParms:SIMethodParmListContext = None
         authorizationType:str = 'Authorization Code PKCE'
         
         try:
 
-            _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-        
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("clientId", clientId)
+            apiMethodParms.AppendKeyValue("scope", scope)
+            apiMethodParms.AppendKeyValue("tokenProfileId", tokenProfileId)
+            apiMethodParms.AppendKeyValue("forceAuthorize", forceAuthorize)
+            apiMethodParms.AppendKeyValue("redirectUriHost", redirectUriHost)
+            apiMethodParms.AppendKeyValue("redirectUriPort", redirectUriPort)
+            _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
+                
             # validation.
             if redirectUriHost is None or len(redirectUriHost.strip()) == 0:
                 redirectUriHost = 'localhost'
@@ -8032,6 +9249,11 @@ class SpotifyClient:
             _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
             raise
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SetAuthTokenClientCredentials(self, 
                                       clientId:str, 
@@ -8059,12 +9281,18 @@ class SpotifyClient:
         is called initially, and when the token needs to be refreshed.
         """
         apiMethodName:str = 'SetAuthTokenClientCredentials'
+        apiMethodParms:SIMethodParmListContext = None
         authorizationType:str = 'Client Credentials'
         
         try:
 
-            _logsi.LogVerbose(TRACE_MSG_AUTHTOKEN_CREATE % authorizationType)
-        
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("clientId", clientId)
+            apiMethodParms.AppendKeyValue("clientSecret", clientSecret)
+            apiMethodParms.AppendKeyValue("tokenProfileId", tokenProfileId)
+            _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
+                                
             # create oauth provider for spotify authentication code with pkce.
             self._AuthClient:AuthClient = AuthClient(
                 authorizationType=authorizationType,
@@ -8109,6 +9337,11 @@ class SpotifyClient:
             _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
             raise
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def SetAuthTokenFromToken(self, 
                               clientId:str,
@@ -8137,11 +9370,18 @@ class SpotifyClient:
         token updates are passed on to the external provider.
         """
         apiMethodName:str = 'SetAuthTokenFromToken'
+        apiMethodParms:SIMethodParmListContext = None
         authorizationType:str = 'OAuth2Token'
         
         try:
 
-            _logsi.LogDictionary(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, token, prettyPrint=True)
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("clientId", clientId)
+            apiMethodParms.AppendKeyValue("token", token)
+            apiMethodParms.AppendKeyValue("tokenProfileId", tokenProfileId)
+            _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
+            _logsi.LogDictionary(SILevel.Verbose, "token (pretty print)", token, prettyPrint=True)
         
             # validation.
             if token is None:
@@ -8203,6 +9443,11 @@ class SpotifyClient:
             _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logToSystemLogger=False)
             raise
 
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
 
     def UnfollowArtists(self, 
                         ids:str,
@@ -8235,9 +9480,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'UnfollowArtists'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of one or more artists", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -8266,6 +9517,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def UnfollowPlaylist(self, 
@@ -8296,9 +9552,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'UnfollowPlaylist'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of a playlist", apiMethodParms)
+                
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
             msg.RequestHeaders = self.AuthToken.GetHeaders()
@@ -8314,6 +9576,11 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def UnfollowUsers(self, 
@@ -8347,9 +9614,15 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'UnfollowUsers'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
             
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("ids", ids)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove current user as a follower of one or more users", apiMethodParms)
+                
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -8378,3 +9651,8 @@ class SpotifyClient:
             
             # format unhandled exception.
             raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)

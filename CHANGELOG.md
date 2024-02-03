@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.15 ] - 2023/02/02
+
+  * Updated `SpotifyClient` methods with better logging information.
+  * Updated `AuthClient` methods with better logging information.
+
 ###### [ 1.0.14 ] - 2023/02/01
 
   * Updated `SpotifyClient` methods to add basic validation for required parameter values.

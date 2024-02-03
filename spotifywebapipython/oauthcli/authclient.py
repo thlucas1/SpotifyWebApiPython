@@ -10,14 +10,14 @@ import secrets
 import socket
 import webbrowser
 
-from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient, TokenExpiredError
+from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient, TokenExpiredError, AccessDeniedError
 from requests_oauthlib import OAuth2Session
-from typing import Optional, Union, Callable, Sequence, Iterable
+from typing import Optional, Union, Callable, Iterable
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server as WSGIMakeServer
 from wsgiref.util import request_uri as WSGIRequestUri
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -129,10 +129,11 @@ class AuthClient:
         self._Session:OAuth2Session = oauth2Session
         self._TokenProviderId:str = tokenProviderId
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenStoragePath:str = os.path.join(tokenStorageDir, 'tokens.json')
         self._TokenUpdater:Callable = tokenUpdater
         self._TokenUrl:str = tokenUrl
         self._TokenProfileId:str = tokenProfileId
-               
+        
         # create OAuth2 Session instance if necessary.
         if self._Session is None:
             
@@ -339,7 +340,7 @@ class AuthClient:
         If portRange argument is null, then the default range will be used.
         If only one port number is passed, then only that port will be checked.
         """
-        _logsi.LogVerbose('Finding an available local port for the redirect response; port range to check: "%s"' % (str(portRange)))
+        _logsi.LogVerbose('Finding an available local port for the temporary server; port range to check: "%s"' % (str(portRange)))
         
         # default starting and ending ports.
         portStart:int = 8080
@@ -384,31 +385,49 @@ class AuthClient:
             A token dictionary, if one was found in the token storage file for the
             specified ProviderId and ClientId key; otherwise, null.
         """
-        
-        # if we don't have a clientId then don't bother.
-        if not self._Session.client_id:
-            return
-        
-        tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
-        tokenStoragePath:str = os.path.join(self._TokenStorageDir, 'tokens.json')
+        apiMethodName:str = '_LoadToken'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
+
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Loading Token from token storage", apiMethodParms)
+                
+            # if we don't have a clientId then don't bother.
+            if not self._Session.client_id:
+                _logsi.LogVerbose('Client ID is not set - nothing to do')
+                return
+        
+            # formulate token storage key.
+            tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
+            _logsi.LogVerbose('Token storage key: "%s"' % (tokenKey))           
+            _logsi.LogVerbose('Token storage file path: "%s"' % (self._TokenStoragePath))
+            
             # does the token storage file exist?
-            if os.path.exists(tokenStoragePath):
+            if os.path.exists(self._TokenStoragePath):
 
                 # open the token storage file, and load it's contents.
-                _logsi.LogVerbose('Opening OAuth2 token storage file: "%s"' % (tokenStoragePath))
-                with open(tokenStoragePath, 'r') as f:
+                _logsi.LogVerbose('Opening token storage file')
+                with open(self._TokenStoragePath, 'r') as f:
+                    
                     tokens = json.load(f)
 
                     # if token key exists then load the token.
                     if tokenKey in tokens:
-                        _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 token loaded from token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey])
+                        _logsi.LogDictionary(SILevel.Verbose, 'Token was loaded from token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
                         return tokens[tokenKey]
                         
         except Exception as ex:
             
-            _logsi.LogException('Could not load OAuth2 Token from token storage file: "%s"' % (tokenStoragePath), ex)
+            # trace.
+            _logsi.LogException('Could not load OAuth2 Token from token storage file: "%s"' % (self._TokenStoragePath), ex)
+            raise
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def _SaveToken(self, token:dict=None) -> None:
@@ -424,41 +443,73 @@ class AuthClient:
             IOError:
                 If an error occurs saving the tokens file.
         """
-        tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
-        tokenStoragePath:str = os.path.join(self._TokenStorageDir, 'tokens.json')
-        tokens:dict = {}
+        apiMethodName:str = '_SaveToken'
+        apiMethodParms:SIMethodParmListContext = None
         
         try:
-            # open the token storage file, and load it's contents.
-            if os.path.exists(tokenStoragePath):
-                _logsi.LogVerbose('Opening OAuth2 token storage file: "%s"' % (tokenStoragePath))
-                with open(tokenStoragePath, 'r') as f:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("token", token)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Saving token to token storage", apiMethodParms)
+            _logsi.LogDictionary(SILevel.Verbose, "Token to save (pretty print)", token, prettyPrint=True)
+                
+            # formulate token storage key.
+            tokenKey:str = f'{self._TokenProviderId}/{self._Session.client_id}/{self._TokenProfileId}'
+            _logsi.LogVerbose('Token storage key: "%s"' % (tokenKey))
+            _logsi.LogVerbose('Token storage file path: "%s"' % (self._TokenStoragePath))
+            
+            tokens:dict = {}
+        
+            # does the token storage file exist?
+            if os.path.exists(self._TokenStoragePath):
+                
+                # open the token storage file, and load it's contents.
+                _logsi.LogVerbose('Loading token storage file contents')
+                with open(self._TokenStoragePath, 'r') as f:
                     tokens = json.load(f)
-        except Exception as ex:
-            _logsi.LogException('Could not load stored OAuth2 Tokens from token storage file: "%s"' % (tokenStoragePath), ex)
+                    
+            if token is None:
+                
+                # if token not specified, then remove the existing token for the providerId \ clientId.
+                _logsi.LogVerbose('Removing token from token storage file')
+                if tokenKey in tokens:
+                    del tokens[tokenKey]
+                    
+            else:
+                
+                # store the token for the providerId \ clientId.
+                _logsi.LogVerbose('Storing token in token storage file')
+                tokens[tokenKey] = token
 
-        if token is None:
-            # if token not specified, then remove the existing token for the providerId \ clientId.
-            _logsi.LogVerbose('Removing OAuth2 token from token storage file for provider: "%s"' % (tokenKey))
-            if tokenKey in tokens:
-                del tokens[tokenKey]
-        else:
-            # store the token for the providerId \ clientId.
-            _logsi.LogDictionary(SILevel.Verbose, 'Storing OAuth2 token in token storage file for provider: "%s"' % (tokenKey), token)
-            tokens[tokenKey] = token
-
-        try:
             # save the token storage file changes.
-            _logsi.LogVerbose('Saving updates to OAuth2 token storage file: "%s"' % (tokenStoragePath))
-            with open(tokenStoragePath, 'w') as f:
+            _logsi.LogVerbose('Saving token storage file updates')
+            with open(self._TokenStoragePath, 'w') as f:
                 json.dump(tokens, f, indent=4, sort_keys=True)
-        except Exception as ex:
-            _logsi.LogException('Could not save OAuth2 Token to token storage file: "%s"' % (tokenStoragePath), ex)
+                
+            try:
+                
+                # was a token updater supplied?
+                if self._TokenUpdater is not None:
+                    
+                    _logsi.LogDictionary(SILevel.Verbose, 'Calling Token Updater to store the "%s" token externally' % (tokenKey), token)
+                    self._TokenUpdater(token)
+                    
+            except Exception as ex2:
+                
+                _logsi.LogException('External token storage exception: %s' % str(ex2), ex2)
+                raise
 
-        # was a token updater supplied?
-        if self._TokenUpdater is not None:
-            _logsi.LogDictionary(SILevel.Verbose, 'Calling Token Updater to store the "%s" token externally' % (tokenKey), token)
-            self._TokenUpdater(token)
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Could not store Token in the token storage file', ex)
+            raise
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def authorization_url(self, **kwargs):
@@ -479,31 +530,31 @@ class AuthClient:
         # it can contain letters, digits, underscores, periods, hyphens, or tildes.
         codeVerifierLength:int = 128
         codeVerifier:str = secrets.token_urlsafe(codeVerifierLength)[0:codeVerifierLength]
-        _logsi.LogVerbose('OAuth2 code verifier (urlsafe, %d bytes): %s' % (codeVerifierLength, codeVerifier))
+        _logsi.LogText(SILevel.Verbose, 'OAuth2 code verifier (urlsafe, %d bytes): %s' % (codeVerifierLength, codeVerifier), codeVerifier)
         self._CodeVerifier = codeVerifier
 
         # once the code verifier has been generated, we must transform (hash) it using the SHA256 algorithm. 
         codeHash = hashlib.sha256(codeVerifier.encode('utf-8'))
-        _logsi.LogVerbose('OAuth2 code verifier SHA256 hashed bytes: %s' % (codeHash.hexdigest()))
+        _logsi.LogText(SILevel.Verbose, 'OAuth2 code verifier SHA256 hashed bytes: %s' % (codeHash.hexdigest()), codeHash.hexdigest())
         
         # we will then convert the hash value to a base64 encoded string.
         # this is the value that will be sent within the user authorization request.
         codeChallengeBytes = base64.urlsafe_b64encode(codeHash.digest())
         codeChallenge = codeChallengeBytes.decode('utf-8').rstrip('=')  # drop '=' padding characters
-        _logsi.LogVerbose('OAuth2 code challenge url-safe BASE64 encoded string: %s' % (codeChallenge))
+        _logsi.LogText(SILevel.Verbose, 'OAuth2 code challenge url-safe BASE64 encoded string: %s' % (codeChallenge), codeChallenge)
         kwargs.setdefault("code_challenge_method", "S256")
         kwargs.setdefault("code_challenge", codeChallenge)
 
         # state is an opaque value that is used to prevent cross-site request forgery.
         stateLength:int = 16
         state:str = secrets.token_urlsafe(stateLength)[0:stateLength]
-        _logsi.LogVerbose('OAuth2 state value (urlsafe, %d bytes): %s' % (stateLength, state))
+        _logsi.LogText(SILevel.Verbose, 'OAuth2 state value (urlsafe, %d bytes): %s' % (stateLength, state), state)
 
         # create the authorization URL.  
         url, state = self._Session.authorization_url(self._AuthorizationUrl, state, **kwargs)
         
         # trace.
-        _logsi.LogVerbose('OAuth2 authorization url="%s"' % (url))
+        _logsi.LogText(SILevel.Verbose, 'OAuth2 authorization url: "%s"' % (url), url)
         return url, state
 
 
@@ -518,32 +569,60 @@ class AuthClient:
         Returns:
             A token dictionary.
         """
-        # trace.
-        _logsi.LogVerbose('Preparing to fetch the OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
-
-        # if client secret specified then include it.
-        includeClientId:bool = False
-        if self._ClientId is not None:
-            includeClientId = True
-
-        # if code verifier specified then include it so that the code challenge is verified.
-        if self._CodeVerifier is not None:
-            kwargs.setdefault("code_verifier", self._CodeVerifier)
-
-        _logsi.LogVerbose('Fetching authorization token: TokenUrl="%s", includeClientId=%s, ClientSecret="%s"' % (self._TokenUrl, includeClientId, self._ClientSecret))
-            
-        # fetch the authorization token.
-        # this will also automatically set the 'self._Session.token' instance.
-        token = self._Session.fetch_token(self._TokenUrl, 
-                                          include_client_id=includeClientId, 
-                                          client_secret=self._ClientSecret, 
-                                          **kwargs)
+        apiMethodName:str = 'FetchToken'
+        apiMethodParms:SIMethodParmListContext = None
         
-        _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 Authorization token was successfully fetched for the "%s" authorization type' % self._AuthorizationType, token)
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("self._TokenUrl", self._TokenUrl)
+            apiMethodParms.AppendKeyValue("self._ClientId", self._ClientId)
+            apiMethodParms.AppendKeyValue("self._ClientSecret", self._ClientSecret)
+            apiMethodParms.AppendKeyValue("self._CodeVerifier", self._CodeVerifier)
+            apiMethodParms.AppendKeyValue("**kwargs", kwargs)
+            _logsi.LogMethodParmList(SILevel.Verbose, 'Fetching access token for authorization type "%s"' % self._AuthorizationType, apiMethodParms)
+                
+            # if client secret specified then include it.
+            includeClientId:bool = False
+            if self._ClientId is not None:
+                includeClientId = True
 
-        # save the token to disk, and return it to the caller.
-        self._SaveToken(token)
-        return token
+            # if code verifier specified then include it so that the code challenge is verified.
+            if self._CodeVerifier is not None:
+                kwargs.setdefault("code_verifier", self._CodeVerifier)
+           
+            # fetch the authorization token.
+            # this will also automatically set the 'self._Session.token' instance.
+            token = self._Session.fetch_token(self._TokenUrl, 
+                                              include_client_id=includeClientId, 
+                                              client_secret=self._ClientSecret, 
+                                              **kwargs)
+        
+            # trace.
+            _logsi.LogDictionary(SILevel.Verbose, 'Access token was successfully fetched', token, prettyPrint=True)
+
+            # save the new token to disk.
+            self._SaveToken(token)
+
+            # return new token to the caller.
+            return token
+        
+        except AccessDeniedError as ex:
+
+            _logsi.LogException('AccessDenied Error: normally, this indicates the user cancelled the login request', ex)
+            raise
+        
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Could not fetch Token', ex)
+            raise
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def HasScopeChanged(self, token:dict, scope:str=None) -> bool:
@@ -590,7 +669,7 @@ class AuthClient:
         # does the token scope match the requested session scope?
         if strScopeToken != strScopeSession:
             
-            _logsi.LogVerbose('OAuth2 scope change detected, forcing authorization access; token scope="%s", session scope="%s"' % (strScopeToken, strScopeSession))
+            _logsi.LogVerbose('Token scope change detected, forcing authorization access; Token scope="%s", Session scope="%s"' % (strScopeToken, strScopeSession))
             return True
         
         # indicate scope has not changed.
@@ -612,33 +691,90 @@ class AuthClient:
         
         Note that you must have 'urn:ietf:wg:oauth:2.0:oob' as a redirect URI value 
         in the provider app settings for this to work.
+        
+        Args:
+            authorization_prompt_message (str | None):  
+                The message to display that will inform the user to navigate to the 
+                authorization URL. If null, then no message is displayed.
+            open_browser (bool):  
+                True to open the authorization URL in the user's browser; otherwise, False
+                to not open a browser.
+            code_message (str):  
+                The message to display in the console prompting the user to enter the authorization code.
+            token_audience (str):  
+                Passed along with the request for an access token.  
+                It determines the endpoints with which the token can be used.  
+                Default is null.
+            force (bool):  
+                True to authorize, even if we already have a token;  otherwise, False
+                to only authorize if the token is not authorized, has expired, or the
+                scope has changed.
+            token_test (Callable):  
+                Function that receives this object for a param, makes a call, and returns 
+                the response.
+            kwargs: 
+                Additional keyword arguments passed through to `authorization_url`.
+
+        Returns:
+            The OAuth 2.0 credentials for the user.
         """
-        # is the access token authorized?  if so, then we are done.
-        if self._CheckAuthorization(force, token_test):
+        apiMethodName:str = 'AuthorizeWithServer'
+        apiMethodParms:SIMethodParmListContext = None
+
+        wsgiServer:WSGIServer = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("authorization_prompt_message", authorization_prompt_message)
+            apiMethodParms.AppendKeyValue("open_browser", open_browser)
+            apiMethodParms.AppendKeyValue("code_message", code_message)
+            apiMethodParms.AppendKeyValue("token_audience", token_audience)
+            apiMethodParms.AppendKeyValue("force", force)
+            apiMethodParms.AppendKeyValue("token_test", token_test)
+            apiMethodParms.AppendKeyValue("**kwargs", kwargs)
+            _logsi.LogMethodParmList(SILevel.Verbose, 'Executing authorization flow using local console for authorization type "%s"' % self._AuthorizationType, apiMethodParms)
+                       
+            # is the access token authorized?  if so, then we are done.
+            if self._CheckAuthorization(force, token_test):
+                _logsi.LogVerbose('Token is authorized; nothing else to do')
+                return self
+
+            self._Session.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+            auth_url, _ = self.authorization_url(**kwargs)
+
+            if open_browser:
+                _logsi.LogVerbose('Opening a browser window (or tab) to the authorization request url')
+                webbrowser.open(auth_url, new=2, autoraise=True)
+
+            if authorization_prompt_message:
+                message:str = authorization_prompt_message.format(url=auth_url)
+                _logsi.LogWarning(message, logToSystemLogger=True)
+
+            # prompt the user (in the console) to enter the authorization code response.
+            _logsi.LogVerbose('Waiting for a console response from the user for the authorization request response code')
+            while True:
+                auth_code = input(code_message).strip()
+                if auth_code:
+                    break
+
+            # fetch the newly issued authorization token.
+            self.FetchToken(code=auth_code, audience=token_audience)
+        
+            # return to caller.
             return self
 
-        self._Session.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
-        auth_url, _ = self.authorization_url(**kwargs)
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Authorize with console exception', ex)
+            raise
 
-        if open_browser:
-            _logsi.LogVerbose('Opening a browser window (or tab) to the authorization request url')
-            webbrowser.open(auth_url, new=2, autoraise=True)
-
-        if authorization_prompt_message:
-            message:str = authorization_prompt_message.format(url=auth_url)
-            _logsi.LogWarning(message, logToSystemLogger=True)
-
-        # prompt the user (in the console) to enter the authorization code response.
-        while True:
-            auth_code = input(code_message).strip()
-            if auth_code:
-                break
-
-        # fetch the newly issued authorization token.
-        self.FetchToken(code=auth_code, audience=token_audience)
-        
-        # return to caller.
-        return self
+        finally:
+            
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def AuthorizeWithServer(
@@ -718,13 +854,34 @@ class AuthClient:
         Returns:
             The OAuth 2.0 credentials for the user.
         """
-        # is the access token authorized?  if so, then we are done.
-        if self._CheckAuthorization(force, token_test):
-            return self
+        apiMethodName:str = 'AuthorizeWithServer'
+        apiMethodParms:SIMethodParmListContext = None
 
         wsgiServer:WSGIServer = None
         
         try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("host", host)
+            apiMethodParms.AppendKeyValue("bind_addr", bind_addr)
+            apiMethodParms.AppendKeyValue("port", port)
+            apiMethodParms.AppendKeyValue("authorization_prompt_message", authorization_prompt_message)
+            apiMethodParms.AppendKeyValue("success_message", success_message)
+            apiMethodParms.AppendKeyValue("open_browser", open_browser)
+            apiMethodParms.AppendKeyValue("redirect_uri_trailing_slash", redirect_uri_trailing_slash)
+            apiMethodParms.AppendKeyValue("timeout_seconds", timeout_seconds)
+            apiMethodParms.AppendKeyValue("token_audience", token_audience)
+            apiMethodParms.AppendKeyValue("force", force)
+            apiMethodParms.AppendKeyValue("token_test", token_test)
+            apiMethodParms.AppendKeyValue("**kwargs", kwargs)
+            _logsi.LogMethodParmList(SILevel.Verbose, 'Executing authorization flow using local web server for authorization type "%s"' % self._AuthorizationType, apiMethodParms)
+                
+            # is the access token authorized?  if so, then we are done.
+            if self._CheckAuthorization(force, token_test):
+                _logsi.LogVerbose('Token is authorized; nothing else to do')
+                return self
+
             # if a port range was passed, then find an available port in that range.
             if isinstance(port, list):
                 port = self._FindOpenPortOnLocalhost(port)
@@ -734,7 +891,7 @@ class AuthClient:
                 host = self._DefaultLocalHost
 
             # initialize and create a local Web Server Gateway Interface (WSGI) server.
-            _logsi.LogVerbose('Creating WSGI server to handle the OAuth2 authorization request response')
+            _logsi.LogVerbose('Creating temporary WSGI local web server to handle the OAuth2 authorization request response')
             wsgiApp:_WSGIAppRedirectHandler = _WSGIAppRedirectHandler(success_message)
             WSGIServer.allow_reuse_address = False  # Fail fast if the address is occupied
             wsgiServer:WSGIServer = WSGIMakeServer(bind_addr or host, 
@@ -764,14 +921,18 @@ class AuthClient:
 
             # set the timeout value, and handle the user authorization request response.
             # the 'handle_request' call will block until a response is received, or a timeout occurs.
-            _logsi.LogVerbose('WSGI server will now wait for a response from the user for the authorization request url')
+            _logsi.LogVerbose('WSGI server will now wait for a response from the user for the authorization request url (timeout=%s seconds)' % timeout_seconds)
             wsgiServer.timeout = timeout_seconds
             wsgiServer.handle_request()
 
             # get the user authorization request response value.
-            # force https in case it needs it, as OAuth 2.0 can only occur over https!
-            authResponse:str = wsgiApp.LastRequestUri.replace("http", "https")
-            _logsi.LogVerbose('WSGI server intercepted the user authorization response: "%s"' % (authResponse))
+            authResponse:str = wsgiApp.LastRequestUri
+            if authResponse is None:
+                raise AccessDeniedError('An authorization response was not returned, which usually indicates the server timed out waiting for a response from the user to authorize the request')
+
+            # force https in case it needs it, as OAuth 2.0 can only occur over https.
+            authResponse = authResponse.replace("http", "https")
+            _logsi.LogText(SILevel.Verbose, 'WSGI server intercepted the user authorization response: "%s"' % (authResponse), authResponse)
 
             # fetch the newly issued authorization token.
             self.FetchToken(authorization_response=authResponse, 
@@ -781,13 +942,22 @@ class AuthClient:
             # return to caller.
             return self
 
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Authorize with server exception', ex)
+            raise
+
         finally:
             
             # ensure wsgi server is shutdown.
             if wsgiServer is not None:
-                _logsi.LogVerbose('Shutting down the WSGI server and freeing resources.')
+                _logsi.LogVerbose('WSGI server is shutting down and freeing resources.')
                 wsgiServer.server_close()
                 wsgiServer = None
+
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def RefreshToken(self, **kwargs) -> dict:
@@ -806,14 +976,21 @@ class AuthClient:
             # trace.
             _logsi.LogVerbose('Refreshing OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
             
-            # get refresh token from session token.  if not present, then it's an error.
-            refreshToken:str = self._Session.token.get('refresh_token')
+            # get refresh token from session token.
+            refreshToken:str = None
+            if self._Session is not None and self._Session.token is not None:
+                _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 Session token', self._Session.token)
+                refreshToken = self._Session.token.get('refresh_token')
+
+            # if refresh token is not present, then it's an error.
             if refreshToken is None:
                 raise TokenExpiredError('Token cannot be refreshed as there is no "refresh_token" key in the session token.')
-
+            
             # add the clientId if the session has been established.
             if self._Session.client_id is not None:
                 kwargs.setdefault("client_id", self._Session.client_id)
+
+            _logsi.LogDictionary(SILevel.Verbose, 'Refreshing the OAuth2 session token via url "%s" - kwargs' % self._TokenUrl, kwargs)
                 
             # refresh the authorization token, using it's refresh token value.
             token = self._Session.refresh_token(self._TokenUrl, refreshToken, **kwargs)
@@ -854,7 +1031,9 @@ class _WSGIRequestHandler(WSGIRequestHandler):
     def log_message(self, format, *args) -> None:
         # pylint: disable=redefined-builtin
         # (format is the argument name defined in the superclass.)
-        _logsi.LogMessage(format, *args, logToSystemLogger=True)
+
+        # trace.
+        _logsi.LogVerbose(format, *args, logToSystemLogger=False)
 
 
 class _WSGIAppRedirectHandler(object):
