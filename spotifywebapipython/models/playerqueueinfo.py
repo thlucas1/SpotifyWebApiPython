@@ -119,6 +119,23 @@ class PlayerQueueInfo:
         return result
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        currentlyPlaying:dict = {}
+        if self._CurrentlyPlaying is not None:
+            currentlyPlaying = self._CurrentlyPlaying.ToDictionary()
+            
+        result:dict = \
+        {
+            'currently_playing': currentlyPlaying,
+            'currently_playing_type': self._CurrentlyPlayingType,
+            'queue': [ item.ToDictionary() for item in self._Queue ],
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

@@ -71,6 +71,19 @@ class ImageObject:
         return self._Width
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'url': self._Url,
+            'height': self._Height,
+            'width': self._Width,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

@@ -118,6 +118,26 @@ class ArtistSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        result:dict = \
+        {
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'id': self._Id,
+            'name': self._Name,
+            'type': self._Type,
+            'uri': self._Uri,
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

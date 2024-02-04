@@ -103,6 +103,20 @@ class Category:
         return self._Name
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'href': self._Href,
+            'icons': [ item.ToDictionary() for item in self._Icons ],
+            'id': self._Id,
+            'name': self._Name,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

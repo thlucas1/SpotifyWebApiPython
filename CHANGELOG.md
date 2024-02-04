@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.16 ] - 2023/02/02
+
+  * Updated numerous classes with a `ToDictionary` method to allow dictionary representation of data.
+
 ###### [ 1.0.15 ] - 2023/02/02
 
   * Updated `SpotifyClient` methods with better logging information.

@@ -65,6 +65,22 @@ class TrackSaved:
         return self._Track
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        track:dict = {}
+        if self._Track is not None:
+            track = self._Track.ToDictionary()
+
+        result:dict = \
+        {
+            'added_at': self._AddedAt,
+            'track': track
+        }
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

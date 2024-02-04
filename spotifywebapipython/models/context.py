@@ -85,6 +85,24 @@ class Context:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        result:dict = \
+        {
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_AuthToken_OAuth2Token.py</StartupFile>
+    <StartupFile>test\test_AuthToken_ClientCredentials.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -228,6 +228,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />
+    <Compile Include="test\test_ToDictionary.py" />
     <Compile Include="test\test_FreeAccount.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_BOSE.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Refresh.py" />

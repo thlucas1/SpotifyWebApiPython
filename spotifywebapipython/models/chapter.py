@@ -55,6 +55,25 @@ class Chapter(ChapterSimplified):
         return self._Audiobook
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        result:dict = \
+        {
+            'audiobook': self._Audiobook.ToDictionary(),
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return a sorted dictionary.
+        return dict(sorted(resultBase.items()))
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

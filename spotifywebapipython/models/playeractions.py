@@ -136,6 +136,26 @@ class PlayerActions:
         return self._TransferringPlayback
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'interrupting_playback': self._InterruptingPlayback,
+            'pausing': self._Pausing,
+            'resuming': self._Resuming,
+            'seeking': self._Seeking,
+            'skipping_next': self._SkippingNext,
+            'skipping_prev': self._SkippingPrev,
+            'toggling_repeat_context': self._TogglingRepeatContext,
+            'toggling_repeat_track': self._TogglingRepeatTrack,
+            'toggling_shuffle': self._TogglingShuffle,
+            'transferring_playback': self._TransferringPlayback,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

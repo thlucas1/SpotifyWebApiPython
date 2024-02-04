@@ -299,6 +299,48 @@ class ChapterSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        restrictions:dict = {}
+        if self._Restrictions is not None:
+            restrictions = self._Restrictions.ToDictionary()
+
+        resumePoint:dict = {}
+        if self._ResumePoint is not None:
+            resumePoint = self._ResumePoint.ToDictionary()
+
+        result:dict = \
+        {
+            'audio_preview_url': self._AudioPreviewUrl,
+            'available_markets': [ item for item in self._AvailableMarkets ],
+            'chapter_number': self._ChapterNumber,
+            'description': self._Description,
+            'duration_ms': self._DurationMS,
+            'explicit': self._Explicit,
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'html_description': self._HtmlDescription,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'is_playable': self._IsPlayable,
+            'languages': [ item for item in self._Languages ],
+            'name': self._Name,
+            'release_date': self._ReleaseDate,
+            'release_date_precision': self._ReleaseDatePrecision,
+            'restrictions': restrictions,
+            'resume_point': resumePoint,
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

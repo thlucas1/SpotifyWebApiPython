@@ -58,6 +58,18 @@ class ExplicitContent:
         return self._FilterLocked
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'filter_enabled': self._FilterEnabled,
+            'filter_locked': self._FilterLocked,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

@@ -65,6 +65,22 @@ class AlbumSaved:
         return self._Album
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        album:dict = {}
+        if self._Album is not None:
+            album = self._Album.ToDictionary()
+
+        result:dict = \
+        {
+            'added_at': self._AddedAt,
+            'album': album
+        }
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

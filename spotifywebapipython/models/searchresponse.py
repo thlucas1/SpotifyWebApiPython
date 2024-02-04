@@ -258,6 +258,60 @@ class SearchResponse:
         return self._Tracks
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        albums:dict = {}
+        if self._Albums is not None:
+            albums = self._Albums.ToDictionary()
+
+        artists:dict = {}
+        if self._Artists is not None:
+            artists = self._Artists.ToDictionary()
+
+        audiobooks:dict = {}
+        if self._Audiobooks is not None:
+            audiobooks = self._Audiobooks.ToDictionary()
+
+        episodes:dict = {}
+        if self._Episodes is not None:
+            episodes = self._Episodes.ToDictionary()
+
+        playlists:dict = {}
+        if self._Playlists is not None:
+            playlists = self._Playlists.ToDictionary()
+
+        shows:dict = {}
+        if self._Shows is not None:
+            shows = self._Shows.ToDictionary()
+
+        tracks:dict = {}
+        if self._Tracks is not None:
+            tracks = self._Tracks.ToDictionary()
+
+        result:dict = \
+        {
+            'search_criteria': self._SearchCriteria,
+            'search_criteria_type': self._SearchCriteriaType,
+            'albums_count': self.AlbumsCount,
+            'albums': albums,
+            'artists_count': self.ArtistsCount,
+            'artists': artists,
+            'audiobooks_count': self.AudiobooksCount,
+            'audiobooks': audiobooks,
+            'episodes_count': self.EpisodesCount,
+            'episodes': episodes,
+            'playlists_count': self.PlaylistsCount,
+            'playlists': playlists,
+            'shows_count': self.ShowsCount,
+            'shows': shows,
+            'tracks_count': self.TracksCount,
+            'tracks': tracks,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

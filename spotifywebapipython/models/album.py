@@ -123,6 +123,38 @@ class Album(AlbumSimplified):
         return self._Tracks
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        externalIds:dict = {}
+        if self._ExternalIds is not None:
+            externalIds = self._ExternalIds.ToDictionary()
+
+        result:dict = \
+        {
+            'copyrights': [ item.ToDictionary() for item in self._Copyrights ],
+            'external_ids': externalIds,
+            'genres': [ item for item in self._Genres ],
+            'label': self._Label,
+            'popularity': self._Popularity,
+        }
+        
+        # only add the tracks key if data is present.
+        if self._Tracks is not None:
+            tracks:dict = self._Tracks.ToDictionary()
+            result['tracks'] = tracks
+       
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return a sorted dictionary.
+        return dict(sorted(resultBase.items()))
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

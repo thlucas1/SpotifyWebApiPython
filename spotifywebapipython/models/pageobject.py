@@ -196,6 +196,30 @@ class PageObject:
         return self._Total
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'href': self._Href,
+            'limit': self._Limit,
+            'next': self._Next,
+            'offset': self._Offset,
+            'previous': self._Previous,
+            'total': self._Total,
+            'items': [ item.ToDictionary() for item in self._Items ],
+        }
+
+        # only add cursors if they are populated.
+        if self._CursorAfter is not None:
+            result['cursor_after'] = self._CursorAfter
+        if self._CursorBefore is not None:
+            result['cursor_before'] = self._CursorBefore
+
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

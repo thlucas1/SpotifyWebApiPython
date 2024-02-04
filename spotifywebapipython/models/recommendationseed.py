@@ -105,6 +105,22 @@ class RecommendationSeed:
         return self._Type
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'after_filtering_size': self._AfterFilteringSize,
+            'after_relinking_size': self._AfterRelinkingSize,
+            'href': self._Href,
+            'id': self._Id,
+            'initial_pool_size': self._InitialPoolSize,
+            'type': self._Type,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

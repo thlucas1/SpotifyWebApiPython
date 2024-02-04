@@ -147,6 +147,32 @@ class UserProfileSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        followers:dict = {}
+        if self._Followers is not None:
+            followers = self._Followers.ToDictionary()
+
+        result:dict = \
+        {
+            'display_name': self._DisplayName,
+            'external_urls': externalUrls,
+            'followers': followers,
+            'href': self._Href,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

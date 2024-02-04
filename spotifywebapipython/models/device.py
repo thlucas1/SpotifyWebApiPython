@@ -24,9 +24,9 @@ class Device:
         self._IsPrivateSession:bool = None
         self._IsRestricted:bool = None
         self._Name:str = None
+        self._SupportsVolume:bool = None
         self._Type:str = None
         self._VolumePercent:int = None
-        self._SupportsVolume:bool = None
         
         if (root is None):
 
@@ -39,9 +39,9 @@ class Device:
             self._IsPrivateSession = root.get('is_private_session', None)
             self._IsRestricted = root.get('is_restricted', None)
             self._Name = root.get('name', None)
+            self._SupportsVolume = root.get('supports_volume', None)
             self._Type = root.get('type', None)
             self._VolumePercent = root.get('volume_percent', None)
-            self._SupportsVolume = root.get('supports_volume', None)
 
 
     def __repr__(self) -> str:
@@ -103,6 +103,14 @@ class Device:
 
 
     @property
+    def SupportsVolume(self) -> bool:
+        """ 
+        If this device can be used to set the volume.
+        """
+        return self._SupportsVolume
+
+
+    @property
     def Type(self) -> str:
         """ 
         Device type, such as `computer`, `smartphone` or `speaker`.
@@ -123,13 +131,23 @@ class Device:
         return self._VolumePercent
 
 
-    @property
-    def SupportsVolume(self) -> bool:
-        """ 
-        If this device can be used to set the volume.
+    def ToDictionary(self) -> dict:
         """
-        return self._SupportsVolume
-
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'id': self._Id,
+            'is_active': self._IsActive,
+            'is_private_session': self._IsPrivateSession,
+            'is_restricted': self._IsRestricted,
+            'name': self._Name,
+            'supports_volume': self._SupportsVolume,
+            'type': self._Type,
+            'volume_percent': self._VolumePercent,
+        }
+        return result
+        
 
     def ToString(self) -> str:
         """
@@ -141,7 +159,7 @@ class Device:
         if self._IsPrivateSession is not None: msg = '%s\n IsPrivateSession="%s"' % (msg, str(self._IsPrivateSession))
         if self._IsRestricted is not None: msg = '%s\n IsRestricted="%s"' % (msg, str(self._IsRestricted))
         if self._Name is not None: msg = '%s\n Name="%s"' % (msg, str(self._Name))
+        if self._SupportsVolume is not None: msg = '%s\n SupportsVolume="%s"' % (msg, str(self._SupportsVolume))
         if self._Type is not None: msg = '%s\n Type="%s"' % (msg, str(self._Type))
         if self._VolumePercent is not None: msg = '%s\n VolumePercent="%s"' % (msg, str(self._VolumePercent))
-        if self._SupportsVolume is not None: msg = '%s\n SupportsVolume="%s"' % (msg, str(self._SupportsVolume))
         return msg 

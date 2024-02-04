@@ -57,6 +57,18 @@ class ResumePoint:
         return self._ResumePositionMS
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'fully_played': self._FullyPlayed,
+            'resume_position_ms': self._ResumePositionMS,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

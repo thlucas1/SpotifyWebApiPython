@@ -64,6 +64,18 @@ class TrackRecommendations:
         return self._Tracks
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'seeds': [ item.ToDictionary() for item in self._Seeds ],
+            'tracks': [ item.ToDictionary() for item in self._Tracks ],
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

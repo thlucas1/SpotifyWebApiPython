@@ -231,6 +231,38 @@ class AlbumSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        restrictions:dict = {}
+        if self._Restrictions is not None:
+            restrictions = self._Restrictions.ToDictionary()
+
+        result:dict = \
+        {
+            'album_type': self._AlbumType,
+            'artists': [ item.ToDictionary() for item in self._Artists ],
+            'available_markets': [ item for item in self._AvailableMarkets ],
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'name': self._Name,
+            'release_date': self._ReleaseDate,
+            'release_date_precision': self._ReleaseDatePrecision,
+            'restrictions': restrictions,
+            'total_tracks': self._TotalTracks,
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

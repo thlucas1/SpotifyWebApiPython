@@ -88,6 +88,28 @@ class PlaylistTrack:
         return self._Track
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        addedBy:dict = {}
+        if self._AddedBy is not None:
+            addedBy = self._AddedBy.ToDictionary()
+
+        track:dict = {}
+        if self._Track is not None:
+            track = self._Track.ToDictionary()
+
+        result:dict = \
+        {
+            'added_at': self._AddedAt,
+            'added_by': addedBy,
+            'is_local': self._IsLocal,
+            'track': track
+        }
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

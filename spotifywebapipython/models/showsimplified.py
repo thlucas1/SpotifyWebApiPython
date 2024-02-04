@@ -241,6 +241,37 @@ class ShowSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        result:dict = \
+        {
+            'available_markets': [ item for item in self._AvailableMarkets ],
+            'copyrights': [ item.ToDictionary() for item in self._Copyrights ],
+            'description': self._Description,
+            'explicit': self._Explicit,
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'html_description': self._HtmlDescription,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'is_externally_hosted': self._IsExternallyHosted,
+            'languages': [ item for item in self._Languages ],
+            'media_type': self._MediaType,
+            'name': self._Name,
+            'publisher': self._Publisher,
+            'total_episodes': self._TotalEpisodes,
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

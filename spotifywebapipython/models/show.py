@@ -55,6 +55,29 @@ class Show(ShowSimplified):
         return self._Episodes
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        episodes:dict = {}
+        if self._Episodes is not None:
+            episodes = self._Episodes.ToDictionary()
+
+        result:dict = \
+        {
+            'episodes': episodes
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return an unsorted dictionary.
+        return resultBase
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

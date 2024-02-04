@@ -283,6 +283,39 @@ class AudiobookSimplified:
         return self._Uri
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        result:dict = \
+        {
+            'authors': [ item.ToDictionary() for item in self._Authors ],
+            'available_markets': [ item for item in self._AvailableMarkets ],
+            'copyrights': [ item.ToDictionary() for item in self._Copyrights ],
+            'description': self._Description,
+            'edition': self._Edition,
+            'explicit': self._Explicit,
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'html_description': self._HtmlDescription,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'languages': [ item for item in self._Languages ],
+            'media_type': self._MediaType,
+            'name': self._Name,
+            'narrators': [ item.ToDictionary() for item in self._Narrators ],
+            'publisher': self._Publisher,
+            'total_chapters': self._TotalChapters,
+            'type': self._Type,
+            'uri': self._Uri,           
+        }
+        return result
+        
+
     def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.

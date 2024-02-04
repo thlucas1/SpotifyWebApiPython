@@ -216,7 +216,42 @@ class PlaylistSimplified:
         Example: `spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE`
         """
         return self._Uri
+    
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
+        owner:dict = {}
+        if self._Owner is not None:
+            owner = self._Owner.ToDictionary()
+
+        tracks:dict = {}
+        if self._Tracks is not None:
+            tracks = self._Tracks.ToDictionary()
+
+        result:dict = \
+        {
+            'collaborative': self._Collaborative,
+            'description': self._Description,
+            'external_urls': externalUrls,
+            'href': self._Href,
+            'id': self._Id,
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'name': self._Name,
+            'owner': owner,
+            'public': self._Public,
+            'snapshotId': self._SnapshotId,
+            'tracks': tracks,
+            'type': self._Type,
+            'uri': self._Uri,
+        }
+        return result
+        
 
     def ToString(self, includeTitle:bool=True) -> str:
         """

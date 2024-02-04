@@ -65,6 +65,22 @@ class ShowSaved:
         return self._Show
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        show:dict = {}
+        if self._Show is not None:
+            show = self._Show.ToDictionary()
+
+        result:dict = \
+        {
+            'added_at': self._AddedAt,
+            'show': show
+        }
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

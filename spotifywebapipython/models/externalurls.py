@@ -36,6 +36,10 @@ class ExternalUrls:
             self._Spotify = root.get('spotify', None)
             self._Upc = root.get('upc', None)
             
+            # TODO - test to see if anything other than 'spotify' is returned in this object
+            if self._Ean is not None or self._Isrc is not None or self._Upc is not None:
+                x:int = 0
+            
 
     def __repr__(self) -> str:
         return self.ToString()
@@ -76,6 +80,17 @@ class ExternalUrls:
         """
         return self._Upc
     
+
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'spotify': self._Spotify,
+        }
+        return result
+        
 
     def ToString(self) -> str:
         """

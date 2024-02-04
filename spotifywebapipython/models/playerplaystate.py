@@ -198,6 +198,43 @@ class PlayerPlayState:
         return self._Timestamp
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        actions:dict = {}
+        if self._Actions is not None:
+            actions = self._Actions.ToDictionary()
+            
+        context:dict = {}
+        if self._Context is not None:
+            context = self._Context.ToDictionary()
+            
+        device:dict = {}
+        if self._Device is not None:
+            device = self._Device.ToDictionary()
+            
+        item:dict = {}
+        if self._Item is not None:
+            item = self._Item.ToDictionary()
+            
+        result:dict = \
+        {
+            'actions': actions,
+            'context': context,
+            'currently_playing_type': self._CurrentlyPlayingType,
+            'device': device,
+            'is_playing': self._IsPlaying,
+            'progress_ms': self._ProgressMS,
+            'repeat_state': self._RepeatState,
+            'shuffle_state': self._ShuffleState,
+            'smart_shuffle': self._SmartShuffle,
+            'timestamp': self._Timestamp,
+            'item': item,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

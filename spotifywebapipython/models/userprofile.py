@@ -122,6 +122,32 @@ class UserProfile(UserProfileSimplified):
         return self._Product
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        explicitContent:dict = {}
+        if self._ExplicitContent is not None:
+            explicitContent = self._ExplicitContent.ToDictionary()
+
+        result:dict = \
+        {
+            'country': self._Country,
+            'email': self._EMail,
+            'explicitContent': explicitContent,
+            'product': self._Product,
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return a sorted dictionary.
+        return dict(sorted(resultBase.items()))
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

@@ -96,6 +96,32 @@ class Artist(ArtistSimplified):
         return self._Popularity
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        followers:dict = {}
+        if self._Followers is not None:
+            followers = self._Followers.ToDictionary()
+
+        result:dict = \
+        {
+            'followers': followers,
+            'genres': [ item for item in self._Genres ],
+            'images': [ item.ToDictionary() for item in self._Images ],
+            'popularity': self._Popularity
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return a sorted dictionary.
+        return dict(sorted(resultBase.items()))
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

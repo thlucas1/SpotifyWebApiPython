@@ -22,7 +22,6 @@ class ExternalIds:
         """
         self._Ean:str = None
         self._Isrc:str = None
-        self._Spotify:str = None
         self._Upc:str = None
         
         if (root is None):
@@ -33,7 +32,6 @@ class ExternalIds:
 
             self._Ean = root.get('ean', None)
             self._Isrc = root.get('isrc', None)
-            self._Spotify = root.get('spotify', None)
             self._Upc = root.get('upc', None)
             
 
@@ -68,6 +66,19 @@ class ExternalIds:
         """
         return self._Upc
     
+
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'ean': self._Ean,
+            'isrc': self._Isrc,
+            'upc': self._Upc,
+        }
+        return result
+        
 
     def ToString(self) -> str:
         """

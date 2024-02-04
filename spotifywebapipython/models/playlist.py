@@ -70,6 +70,34 @@ class Playlist(PlaylistSimplified):
         return self._Tracks
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        followers:dict = {}
+        if self._Followers is not None:
+            followers = self._Followers.ToDictionary()
+
+        tracks:dict = {}
+        if self._Tracks is not None:
+            tracks = self._Tracks.ToDictionary()
+
+        result:dict = \
+        {
+            'tracks': tracks,
+            'followers': followers
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return an unsorted dictionary.
+        return resultBase
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

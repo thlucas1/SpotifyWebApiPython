@@ -280,6 +280,34 @@ class AudioFeatures:
         return self._Valence
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'acousticness': self._Acousticness,
+            'analysis_url': self._AnalysisUrl,
+            'danceability': self._Danceability,
+            'duration_ms': self._DurationMS,
+            'energy': self._Energy,
+            'id': self._Id,
+            'instrumentalness': self._Instrumentalness,
+            'key': self._Key,
+            'liveness': self._Liveness,
+            'loudness': self._Loudness,
+            'mode': self._Mode,
+            'speechiness': self._Speechiness,
+            'tempo': self._Tempo,
+            'time_signature': self._TimeSignature,
+            'track_href': self._TrackHref,
+            'type': self._Type,
+            'uri': self._Uri,
+            'valence': self._Valence,
+        }
+        return result
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.

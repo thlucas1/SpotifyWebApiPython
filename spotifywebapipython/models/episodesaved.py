@@ -65,6 +65,22 @@ class EpisodeSaved:
         return self._Episode
     
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        episode:dict = {}
+        if self._Episode is not None:
+            episode = self._Episode.ToDictionary()
+
+        result:dict = \
+        {
+            'added_at': self._AddedAt,
+            'episode': episode
+        }
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

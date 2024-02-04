@@ -90,6 +90,35 @@ class Track(TrackSimplified):
         return self._Popularity
 
 
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        # get base class result.
+        resultBase:dict = super().ToDictionary()
+
+        album:dict = {}
+        if self._Album is not None:
+            album = self._Album.ToDictionary()
+
+        externalIds:dict = {}
+        if self._ExternalIds is not None:
+            externalIds = self._ExternalIds.ToDictionary()
+
+        result:dict = \
+        {
+            'album': album,
+            'external_ids': externalIds,
+            'popularity': self._Popularity
+        }
+        
+        # combine base class results with these results.
+        resultBase.update(result)
+        
+        # return a sorted dictionary.
+        return dict(sorted(resultBase.items()))
+        
+
     def ToString(self) -> str:
         """
         Returns a displayable string representation of the class.
