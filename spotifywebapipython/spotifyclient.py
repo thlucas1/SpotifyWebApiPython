@@ -71,8 +71,8 @@ class SpotifyClient:
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
             tokenUpdater (Callable):
-                A method to call when a token has been refreshed and needs to be stored externally.  
-                The defined method should accept one argument, the token dictionary.  
+                A method to call when a token needs to be refreshed by an external provider.  
+                The defined method is called with no parameters, and should return a token dictionary.  
                 Default is null.  
         """
         self._AuthToken:SpotifyAuthToken = None
@@ -106,6 +106,19 @@ class SpotifyClient:
     
 
     @property
+    def ClientId(self) -> str:
+        """
+        The unique identifier of the application.
+        
+        Returns:
+            The ClientId of the AuthClient instance if set; otherwise, null.
+        """
+        if self._AuthClient is not None:
+            return self._AuthClient.ClientId
+        return None
+
+
+    @property
     def Manager(self) -> PoolManager:
         """ 
         The request PoolManager object to use for http requests to the Spotify Web API.
@@ -115,6 +128,19 @@ class SpotifyClient:
         """
         return self._Manager
     
+
+    @property
+    def TokenProfileId(self) -> str:
+        """
+        Profile identifier used when loading / storing an authorization token from / to disk.
+        
+        Returns:
+            The TokenProfileId of the AuthClient instance if set; otherwise, null.
+        """
+        if self._AuthClient is not None:
+            return self._AuthClient.TokenProfileId
+        return None
+
 
     @property
     def TokenStorageDir(self) -> str:

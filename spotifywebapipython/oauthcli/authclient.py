@@ -98,8 +98,8 @@ class AuthClient:
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
             tokenUpdater (Callable):
-                A method to call when a token has been refreshed and needs to be stored externally.  
-                The defined method should accept one argument, the token dictionary.  
+                A method to call when a token needs to be refreshed by an external provider.  
+                The defined method is called with no parameters, and should return a token dictionary.  
                 Default is null.  
         """
         # if scope is a list then convert it to space-delimited string.
@@ -144,10 +144,6 @@ class AuthClient:
             # note that this will not load the 'token' property!
             self._Session:OAuth2Session = OAuth2Session(clientId, scope=scope, client=oauth2Client)
             
-            # inform OAuth2 to execute the SaveToken method when a token is automatically refreshed.
-            if self._TokenUpdater is not None:
-                self._Session.token_updater = self._TokenUpdater
-            
         # load the token from storage, if session does not currently have a token assigned.
         token:dict = self._Session.token
         if self._Session.token is None or len(self._Session.token) == 0:
@@ -181,6 +177,14 @@ class AuthClient:
         Url used to request user authorization permission for an authorization token.
         """
         return self._AuthorizationUrl
+
+
+    @property
+    def ClientId(self) -> str:
+        """
+        The unique identifier of the application.
+        """
+        return self._ClientId
 
 
     @property
@@ -487,19 +491,6 @@ class AuthClient:
             with open(self._TokenStoragePath, 'w') as f:
                 json.dump(tokens, f, indent=4, sort_keys=True)
                 
-            try:
-                
-                # was a token updater supplied?
-                if self._TokenUpdater is not None:
-                    
-                    _logsi.LogDictionary(SILevel.Verbose, 'Calling Token Updater to store the "%s" token externally' % (tokenKey), token)
-                    self._TokenUpdater(token)
-                    
-            except Exception as ex2:
-                
-                _logsi.LogException('External token storage exception: %s' % str(ex2), ex2)
-                raise
-
         except Exception as ex:
             
             # trace.
@@ -962,7 +953,12 @@ class AuthClient:
 
     def RefreshToken(self, **kwargs) -> dict:
         """ 
-        Refreshes the current session token using its refresh token value.
+        Refreshes the current session token.
+       
+        If a TokenUpdater callable was specified, then the token is refreshed externally by the 
+        callable function.
+        
+        Otherwise, the session `refresh_token` method is invoked using the refresh token value.
         
         Args:
             **kwargs: 
@@ -971,32 +967,48 @@ class AuthClient:
         Returns:
             A token dictionary.
         """
+        token:dict = None
+        
         try:
 
             # trace.
             _logsi.LogVerbose('Refreshing OAuth2 authorization token for the "%s" authorization type' % self._AuthorizationType)
             
-            # get refresh token from session token.
-            refreshToken:str = None
-            if self._Session is not None and self._Session.token is not None:
-                _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 Session token', self._Session.token)
-                refreshToken = self._Session.token.get('refresh_token')
+            # was a token updater supplied?
+            if self._TokenUpdater is not None:
+                    
+                _logsi.LogVerbose('Calling Token Updater to refresh the token externally')
+                token = self._TokenUpdater()
 
-            # if refresh token is not present, then it's an error.
-            if refreshToken is None:
-                raise TokenExpiredError('Token cannot be refreshed as there is no "refresh_token" key in the session token.')
-            
-            # add the clientId if the session has been established.
-            if self._Session.client_id is not None:
-                kwargs.setdefault("client_id", self._Session.client_id)
-
-            _logsi.LogDictionary(SILevel.Verbose, 'Refreshing the OAuth2 session token via url "%s" - kwargs' % self._TokenUrl, kwargs)
+                _logsi.LogDictionary(SILevel.Verbose, 'Token Updater has refreshed the token externally', token)
                 
-            # refresh the authorization token, using it's refresh token value.
-            token = self._Session.refresh_token(self._TokenUrl, refreshToken, **kwargs)
+                # if nothing returned then it's an error.
+                if token is None:
+                    raise TokenExpiredError('Token Updater did not return a token.')
+                    
+            else:
             
-            # store the refresh token to the token storage file.
-            self._SaveToken(token)
+                # get refresh token from session token.
+                refreshToken:str = None
+                if self._Session is not None and self._Session.token is not None:
+                    _logsi.LogDictionary(SILevel.Verbose, 'OAuth2 Session token', self._Session.token)
+                    refreshToken = self._Session.token.get('refresh_token')
+
+                # if refresh token is not present, then it's an error.
+                if refreshToken is None:
+                    raise TokenExpiredError('Token cannot be refreshed as there is no "refresh_token" key in the session token.')
+            
+                # add the clientId if the session has been established.
+                if self._Session.client_id is not None:
+                    kwargs.setdefault("client_id", self._Session.client_id)
+
+                _logsi.LogDictionary(SILevel.Verbose, 'Refreshing the OAuth2 session token via url "%s" - kwargs' % self._TokenUrl, kwargs)
+                
+                # refresh the authorization token, using it's refresh token value.
+                token = self._Session.refresh_token(self._TokenUrl, refreshToken, **kwargs)
+            
+                # store the refresh token to the token storage file.
+                self._SaveToken(token)
             
             # trace.
             _logsi.LogVerbose('OAuth2 authorization token was successfully refreshed for the "%s" authorization type' % self._AuthorizationType)
@@ -1015,7 +1027,10 @@ class AuthClient:
                 if ex.description == 'Refresh token revoked':
                     if self.AuthorizationType in ['OAuth2Token']:
                         _logsi.LogWarning('Refresh token was revoked for authorization type "%s".  Ensure that you are saving the refreshed token in the host provider session to avoid this problem; see the "tokenUpdater" argument for more details' % self.AuthorizationType)
-                    self._SaveToken(None)
+
+            # if internal storage provider, then remove the token from the storage file.
+            if self._TokenUpdater is None:
+                self._SaveToken(None)
                 
             # pass exception on thru.
             raise

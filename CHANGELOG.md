@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.17 ] - 2023/02/04
+
+  * Updated `SpotifyClient` to correctly support the `tokenUpdater` callable to update a token for an external provider.
+  * Updated `AuthClient` to correctly support the `tokenUpdater` callable to update a token for an external provider.
+
 ###### [ 1.0.16 ] - 2023/02/02
 
   * Updated numerous classes with a `ToDictionary` method to allow dictionary representation of data.

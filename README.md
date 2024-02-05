@@ -35,8 +35,8 @@ The following features are supported by this API.
 ## Requirements and Dependencies
 The following requirements must be met in order to utilize this API:
 
-* You must have a Spotify account (free or premium).
-* If designing an application for general use, you might consider creating a Spotify Application Client ID.  More information about creating an application can be found on the Spotify [Getting started with Web API](https://developer.spotify.com/documentation/web-api/tutorials/getting-started) page.
+* You must have a Spotify account (free or premium).  Note that some API functions require a PREMIUM account in order to work.  Check the [Spotify Developer Documentation](https://developer.spotify.com/documentation/web-api/reference/transfer-a-users-playback) pages for more details.
+* You will need to create a Spotify App in order to access the Spotify Web API.  An App provides the Client ID and Client Secret needed to request an access token by implementing any of the OAuth2 authorization flows.  More information about creating an application can be found on the Spotify [Getting started with Web API](https://developer.spotify.com/documentation/web-api/tutorials/getting-started) page.
 
 The following Python-related requirements must be met in order to utilize this API:
 
