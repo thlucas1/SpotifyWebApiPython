@@ -406,11 +406,16 @@ class SpotifyClient:
                     oauth2token:dict = self._AuthClient.FetchToken()
                     self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
                 else:
-                    _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
+                    _logsi.LogVerbose("OAuth2 authorization token has expired, or is about to; token will be refreshed")
                     oauth2token:dict = self._AuthClient.RefreshToken()
                     self._AuthToken = SpotifyAuthToken(self._AuthToken.AuthorizationType, self._AuthToken.ProfileId, root=oauth2token)
 
                 _logsi.LogObject(SILevel.Verbose, 'Authorization token was successfully renewed', self._AuthToken, excludeNonPublic=True)
+                
+                # if message contains an authorization header, then it needs to be updated with the new access token.
+                if self._AuthToken.HeaderKey in msg.RequestHeaders:
+                    _logsi.LogVerbose('Updating request authorization header value with the renewed token value')
+                    msg.RequestHeaders[self._AuthToken.HeaderKey] = self._AuthToken.HeaderValue
                 
             # trace.
             if (msg.HasRequestHeaders):
@@ -542,7 +547,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
             
@@ -628,7 +633,7 @@ class SpotifyClient:
             
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestHeaders['Content-Type'] = 'image/jpeg'
             msg.RequestData = base64.b64encode(fData.getvalue()).decode('utf-8') 
             msg.IsRequestDataEncoded = True
@@ -723,7 +728,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('POST', msg)
 
@@ -838,7 +843,7 @@ class SpotifyClient:
             
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
 
@@ -911,7 +916,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -999,7 +1004,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1083,7 +1088,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1167,7 +1172,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1253,7 +1258,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers/contains'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1337,7 +1342,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1421,7 +1426,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1509,7 +1514,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following/contains')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
@@ -1591,7 +1596,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
 
@@ -1713,7 +1718,7 @@ class SpotifyClient:
             
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('POST', msg)
 
@@ -1791,7 +1796,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=artist')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -1862,7 +1867,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -1937,7 +1942,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=user')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -2014,7 +2019,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums/{id}'.format(id=albumId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2111,7 +2116,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2205,7 +2210,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/new-releases')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2291,7 +2296,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2395,7 +2400,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums/{id}/tracks'.format(id=albumId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2460,7 +2465,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}'.format(id=artistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -2567,7 +2572,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/albums'.format(id=artistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2633,7 +2638,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/related-artists'.format(id=artistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -2706,7 +2711,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2788,7 +2793,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2870,7 +2875,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/top-tracks'.format(id=artistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -2959,7 +2964,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks/{id}'.format(id=audiobookId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3061,7 +3066,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks/{id}/chapters'.format(id=audiobookId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3147,7 +3152,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3236,7 +3241,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3331,7 +3336,7 @@ class SpotifyClient:
             
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}'.format(category_id=categoryId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3438,7 +3443,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3635,7 +3640,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}/playlists'.format(category_id=categoryId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3725,7 +3730,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/chapters/{id}'.format(id=chapterId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3814,7 +3819,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/chapters')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3903,7 +3908,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/episodes/{id}'.format(id=episodeId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -3989,7 +3994,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4078,7 +4083,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/episodes')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4202,7 +4207,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/featured-playlists')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4261,7 +4266,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations/available-genre-seeds')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -4318,7 +4323,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/markets')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -4379,7 +4384,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/devices')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -4457,7 +4462,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/currently-playing')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4535,7 +4540,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4593,7 +4598,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -4696,7 +4701,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/recently-played')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4804,7 +4809,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}'.format(id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -4869,7 +4874,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -5003,7 +5008,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/tracks'.format(id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5089,7 +5094,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/playlists')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5181,7 +5186,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5266,7 +5271,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows/{id}'.format(id=showId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5368,7 +5373,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows/{id}/episodes'.format(id=showId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5454,7 +5459,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5543,7 +5548,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5610,7 +5615,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks/{id}'.format(id=trackId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -5674,7 +5679,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features/{id}'.format(id=trackId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -5771,7 +5776,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5855,7 +5860,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -5929,7 +5934,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -6330,7 +6335,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -6389,7 +6394,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -6453,7 +6458,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}'.format(user_id=userId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -6549,7 +6554,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/artists')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -6646,7 +6651,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/tracks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -6719,7 +6724,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -6844,7 +6849,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -6942,7 +6947,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -7011,7 +7016,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -7091,7 +7096,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -7160,7 +7165,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
             
@@ -7229,7 +7234,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
             
@@ -7310,7 +7315,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -7390,7 +7395,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -7469,7 +7474,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
@@ -7548,7 +7553,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -7712,7 +7717,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -7791,7 +7796,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -7870,7 +7875,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -7971,7 +7976,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
 
@@ -8053,7 +8058,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -8132,7 +8137,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -8240,7 +8245,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
 
@@ -8329,7 +8334,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
 
@@ -8411,7 +8416,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -8490,7 +8495,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -8569,7 +8574,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -8648,7 +8653,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -8727,7 +8732,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
@@ -8900,7 +8905,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -9072,7 +9077,7 @@ class SpotifyClient:
 
                 # refresh the token.  
                 # this will also store the refreshed token to disk to be used later if required.
-                _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
+                _logsi.LogVerbose("OAuth2 authorization token has expired, or is about to; token will be refreshed")
                 oauth2token:dict = self._AuthClient.RefreshToken()
                 self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
@@ -9083,7 +9088,7 @@ class SpotifyClient:
 
             # retrieve spotify user basic details.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -9248,7 +9253,7 @@ class SpotifyClient:
 
                 # refresh the token.  
                 # this will also store the refreshed token to disk to be used later if required.
-                _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
+                _logsi.LogVerbose("OAuth2 authorization token has expired, or is about to; token will be refreshed")
                 oauth2token:dict = self._AuthClient.RefreshToken()
                 self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
@@ -9259,7 +9264,7 @@ class SpotifyClient:
 
             # retrieve spotify user basic details.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -9442,7 +9447,7 @@ class SpotifyClient:
 
                 # refresh the token.  
                 # this will also store the refreshed token to disk to be used later if required.
-                _logsi.LogVerbose("OAuth2 authorization token has expired; token will be refreshed")
+                _logsi.LogVerbose("OAuth2 authorization token has expired, or is about to; token will be refreshed")
                 oauth2token:dict = self._AuthClient.RefreshToken()
                 self._AuthToken = SpotifyAuthToken(self._AuthClient.AuthorizationType, self._AuthClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, self._AuthToken, excludeNonPublic=True)
@@ -9453,7 +9458,7 @@ class SpotifyClient:
 
             # retrieve spotify user basic details.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -9529,7 +9534,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=artist')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             
@@ -9589,7 +9594,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -9663,7 +9668,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=user')
-            msg.RequestHeaders = self.AuthToken.GetHeaders()
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
             

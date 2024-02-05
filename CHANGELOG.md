@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.18 ] - 2023/02/05
+
+  * Updated `SpotifyClient` methods to set the request header authorization key directly, rather than assigning a new dictionary to the value.
+  * Updated `SpotifyClient.MakeRequest` method to apply token refresh changes to the request authorization header if present.  Prior to this fix, the request was still referencing the expired token value.
+  * Added `SpotifyAuthToken.HeaderKey` property for request header access.
+  * Added `SpotifyAuthToken.HeaderValue` property for request header access.
+  * Removed `SpotifyAuthToken.GetHeaders` method, as it was no longer required.
+
 ###### [ 1.0.17 ] - 2023/02/04
 
   * Updated `SpotifyClient` to correctly support the `tokenUpdater` callable to update a token for an external provider.
