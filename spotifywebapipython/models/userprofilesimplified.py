@@ -130,6 +130,17 @@ class UserProfileSimplified:
 
 
     @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first image url in the `Images` list, if images are defined;
+        otherwise, null.
+        """
+        if len(self._Images) > 0:
+            return self._Images[0].Url
+        return None
+            
+        
+    @property
     def Type(self) -> str:
         """ 
         The object type: `user`.

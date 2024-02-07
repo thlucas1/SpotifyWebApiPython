@@ -73,6 +73,17 @@ class Track(TrackSimplified):
     
 
     @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first image url in the album `Images` list, if images are defined;
+        otherwise, null.
+        """
+        if self._Album is not None:
+            return self._Album.ImageUrl
+        return None
+            
+        
+    @property
     def Popularity(self) -> int:
         """ 
         The popularity of the track.  The value will be between 0 and 100, with 100 being the most popular.

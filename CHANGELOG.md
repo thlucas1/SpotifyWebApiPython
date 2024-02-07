@@ -6,6 +6,16 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.19 ] - 2023/02/07
+
+  * Updated `TrackPageSaved` model to parse a `Track` object instead of a `TrackSimplified` object.  The `Track` object contains the extra `Album`, `ExternalIds` and `Popularity` properties.
+  * Updated `TrackRecommendations` model to parse a `Track` object instead of a `TrackSimplified` object.  The `Track` object contains the extra `Album`, `ExternalIds` and `Popularity` properties.
+  * Added `AlbumPageSaved.GetAlbums` method that gets a list of all albums contained in the underlying `Items` list.  This is a convenience method so one does not have to loop through the `Items` array of `AlbumSaved` objects to get the list of albums.
+  * Added `TrackPageSaved.GetTracks` method that gets a list of all tracks contained in the underlying `Items` list.  This is a convenience method so one does not have to loop through the `Items` array of `TrackSaved` objects to get the list of tracks.
+  * Added `EpisodePageSaved.GetEpisodes` method that gets a list of all episodes contained in the underlying `Items` list.  This is a convenience method so one does not have to loop through the `Items` array of `EpisodeSaved` objects to get the list of episodes.
+  * Added `ShowPageSaved.GetShows` method that gets a list of all shows contained in the underlying `Items` list.  This is a convenience method so one does not have to loop through the `Items` array of `ShowSaved` objects to get the list of shows.
+  * Added an `ImageUrl` property to all models that have an `Images` collection.  The new property returns the first image url in the `Images` list, if images are defined; otherwise, null.  This is a convenience method so one does not have to loop through the `Images` array of `ImageObject` objects to get an image url.
+
 ###### [ 1.0.18 ] - 2023/02/05
 
   * Updated `SpotifyClient` methods to set the request header authorization key directly, rather than assigning a new dictionary to the value.

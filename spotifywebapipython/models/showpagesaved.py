@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from .show import Show
 from .showsaved import ShowSaved
 from .pageobject import PageObject
 
@@ -54,6 +55,20 @@ class ShowPageSaved(PageObject):
         Array of `ShowSaved` objects.
         """
         return self._Items
+    
+
+    def GetShows(self) -> list[Show]:
+        """ 
+        Gets a list of all shows contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of ShowSaved objects to get the list of shows.
+        """
+        result:list[Show] = []
+        item:ShowSaved
+        for item in self._Items:
+            result.append(item.Show)
+        return result
     
 
     def ToString(self, includeItems:bool=False) -> str:

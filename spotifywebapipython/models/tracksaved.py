@@ -2,7 +2,7 @@
 
 # our package imports.
 from ..sautils import export
-from .tracksimplified import TrackSimplified
+from .track import Track
 
 @export
 class TrackSaved:
@@ -19,8 +19,8 @@ class TrackSaved:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
-        self._Track:TrackSimplified = None
         self._AddedAt:str = None
+        self._Track:Track = None
         
         if (root is None):
 
@@ -33,7 +33,7 @@ class TrackSaved:
             # process all collections and objects.
             item:dict = root.get('track',None)
             if item is not None:
-                self._Track = TrackSimplified(root=item)
+                self._Track = Track(root=item)
 
         
     def __repr__(self) -> str:
@@ -58,7 +58,7 @@ class TrackSaved:
 
 
     @property
-    def Track(self) -> TrackSimplified:
+    def Track(self) -> Track:
         """ 
         Information about the track.
         """

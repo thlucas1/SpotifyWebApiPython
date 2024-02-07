@@ -73,6 +73,18 @@ class PlaylistTrack:
 
 
     @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first image url in the underlying track album `Images` list, if images are defined;
+        otherwise, null.
+        """
+        if self._Track is not None:
+            if self._Track.Album is not None:
+                return self._Track.Album.ImageUrl
+        return None
+            
+        
+    @property
     def IsLocal(self) -> bool:
         """ 
         Whether this track or episode is a local file (True) or not False).

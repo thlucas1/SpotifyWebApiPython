@@ -56,7 +56,7 @@ class ArtistSimplified:
     def __eq__(self, other):
         try:
             return self.Name == other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, ArtistSimplified )) and (isinstance(other, ArtistSimplified )):
                 return self.Name == other.Name
             return False
@@ -64,7 +64,7 @@ class ArtistSimplified:
     def __lt__(self, other):
         try:
             return self.Name < other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, ArtistSimplified )) and (isinstance(other, ArtistSimplified )):
                 return self.Name < other.Name
             return False

@@ -146,7 +146,7 @@ class SpotifyAuthToken:
         """
         Returns the value portion of the authorization header, in the form of '{tokentype} {token}'.
 
-        Example: `Bearer BQCylDIef4JiH ...'
+        Example: `Bearer {token value ...}'
         """
         return '{tokentype} {token}'.format(tokentype=self.TokenType, token=self.AccessToken)
 

@@ -96,7 +96,7 @@ class ChapterSimplified:
     def __eq__(self, other):
         try:
             return self.Name == other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, ChapterSimplified )) and (isinstance(other, ChapterSimplified )):
                 return self.Name == other.Name
             return False
@@ -104,7 +104,7 @@ class ChapterSimplified:
     def __lt__(self, other):
         try:
             return self.Name < other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, ChapterSimplified )) and (isinstance(other, ChapterSimplified )):
                 return self.Name < other.Name
             return False
@@ -216,6 +216,17 @@ class ChapterSimplified:
         return self._Images
 
 
+    @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first image url in the `Images` list, if images are defined;
+        otherwise, null.
+        """
+        if len(self._Images) > 0:
+            return self._Images[0].Url
+        return None
+            
+        
     @property
     def IsPlayable(self) -> bool:
         """ 

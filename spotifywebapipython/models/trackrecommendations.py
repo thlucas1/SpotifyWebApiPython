@@ -3,7 +3,7 @@
 # our package imports.
 from ..sautils import export
 from .recommendationseed import RecommendationSeed
-from .tracksimplified import TrackSimplified
+from .track import Track
 
 @export
 class TrackRecommendations:
@@ -21,7 +21,7 @@ class TrackRecommendations:
                 attributes; otherwise, None to not load attributes.
         """
         self._Seeds:list[RecommendationSeed] = []
-        self._Tracks:list[TrackSimplified] = []
+        self._Tracks:list[Track] = []
         
         if (root is None):
 
@@ -36,7 +36,7 @@ class TrackRecommendations:
         
             items:list = root.get('tracks',[])
             for item in items:
-                self._Tracks.append(TrackSimplified(root=item))
+                self._Tracks.append(Track(root=item))
 
         
     def __repr__(self) -> str:
@@ -56,9 +56,9 @@ class TrackRecommendations:
 
 
     @property
-    def Tracks(self) -> list[TrackSimplified]:
+    def Tracks(self) -> list[Track]:
         """ 
-        A list of TrackSimplified objects, ordered according to the parameters supplied.
+        A list of Track objects, ordered according to the parameters supplied.
         on the `GetTrackRecommendations` method.
         """
         return self._Tracks

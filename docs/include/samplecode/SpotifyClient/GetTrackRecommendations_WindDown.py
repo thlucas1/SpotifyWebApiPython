@@ -28,7 +28,7 @@ try:
         print('')
 
     print('Recommended Tracks:')
-    track:TrackSimplified
+    track:Track
     for track in recommendations.Tracks:
                 
         print('- "{name}" ({uri})'.format(name=track.Name, uri=track.Uri))

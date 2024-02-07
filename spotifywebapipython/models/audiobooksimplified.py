@@ -7,8 +7,6 @@ from .copyright import Copyright
 from .externalurls import ExternalUrls
 from .imageobject import ImageObject
 from .narrator import Narrator
-from .restrictions import Restrictions
-from .resumepoint import ResumePoint
 
 @export
 class AudiobookSimplified:
@@ -100,7 +98,7 @@ class AudiobookSimplified:
     def __eq__(self, other):
         try:
             return self.Name == other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, AudiobookSimplified )) and (isinstance(other, AudiobookSimplified )):
                 return self.Name == other.Name
             return False
@@ -108,7 +106,7 @@ class AudiobookSimplified:
     def __lt__(self, other):
         try:
             return self.Name < other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, AudiobookSimplified )) and (isinstance(other, AudiobookSimplified )):
                 return self.Name < other.Name
             return False
@@ -213,6 +211,17 @@ class AudiobookSimplified:
         return self._Images
 
 
+    @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first image url in the `Images` list, if images are defined;
+        otherwise, null.
+        """
+        if len(self._Images) > 0:
+            return self._Images[0].Url
+        return None
+            
+        
     @property
     def Languages(self) -> list[str]:
         """ 

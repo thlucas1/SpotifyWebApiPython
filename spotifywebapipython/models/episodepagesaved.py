@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from .episode import Episode
 from .episodesaved import EpisodeSaved
 from .pageobject import PageObject
 
@@ -54,6 +55,20 @@ class EpisodePageSaved(PageObject):
         Array of `EpisodeSaved` objects.
         """
         return self._Items
+    
+
+    def GetEpisodes(self) -> list[Episode]:
+        """ 
+        Gets a list of all episodes contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of EpisodeSaved objects to get the list of episodes.
+        """
+        result:list[Episode] = []
+        item:EpisodeSaved
+        for item in self._Items:
+            result.append(item.Episode)
+        return result
     
 
     def ToString(self, includeItems:bool=False) -> str:

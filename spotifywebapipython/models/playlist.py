@@ -5,6 +5,7 @@ from ..sautils import export
 from .followers import Followers
 from .playlistpage import PlaylistPage
 from .playlistsimplified import PlaylistSimplified
+from .track import Track
 
 @export
 class Playlist(PlaylistSimplified):
@@ -69,6 +70,19 @@ class Playlist(PlaylistSimplified):
         """
         return self._Tracks
 
+
+    def GetTracks(self) -> list[Track]:
+        """ 
+        Gets a list of all tracks contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of TrackSaved objects to get the list of tracks.
+        """
+        result:list[Track] = []
+        if self._Tracks is not None:
+            result = self._Tracks.GetTracks()
+        return result
+    
 
     def ToDictionary(self) -> dict:
         """

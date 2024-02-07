@@ -89,7 +89,7 @@ class TrackSimplified:
     def __eq__(self, other):
         try:
             return self.Name == other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, TrackSimplified )) and (isinstance(other, TrackSimplified )):
                 return self.Name == other.Name
             return False
@@ -97,7 +97,7 @@ class TrackSimplified:
     def __lt__(self, other):
         try:
             return self.Name < other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, TrackSimplified )) and (isinstance(other, TrackSimplified )):
                 return self.Name < other.Name
             return False
@@ -167,6 +167,16 @@ class TrackSimplified:
         return self._Id
 
 
+    @property
+    def ImageUrl(self) -> str:
+        """
+        Always returns null, as tracks currently do not support images.
+
+        Added for compatibility with other objects.
+        """
+        return None
+            
+        
     @property
     def IsLocal(self) -> bool:
         """ 

@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from .album import Album
 from .albumsaved import AlbumSaved
 from .pageobject import PageObject
 
@@ -54,6 +55,20 @@ class AlbumPageSaved(PageObject):
         Array of `AlbumSaved` objects.
         """
         return self._Items
+    
+
+    def GetAlbums(self) -> list[Album]:
+        """ 
+        Gets a list of all albums contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of AlbumSaved objects to get the list of albums.
+        """
+        result:list[Album] = []
+        item:AlbumSaved
+        for item in self._Items:
+            result.append(item.Album)
+        return result
     
 
     def ToString(self, includeItems:bool=False) -> str:

@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from .track import Track
 from .tracksaved import TrackSaved
 from .pageobject import PageObject
 
@@ -54,6 +55,20 @@ class TrackPageSaved(PageObject):
         Array of `TrackSaved` objects.
         """
         return self._Items
+    
+
+    def GetTracks(self) -> list[Track]:
+        """ 
+        Gets a list of all tracks contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of TrackSaved objects to get the list of tracks.
+        """
+        result:list[Track] = []
+        item:TrackSaved
+        for item in self._Items:
+            result.append(item.Track)
+        return result
     
 
     def ToString(self, includeItems:bool=False) -> str:

@@ -53,7 +53,7 @@ class Category:
     def __eq__(self, other):
         try:
             return self.Name == other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, Category )) and (isinstance(other, Category )):
                 return self.Name == other.Name
             return False
@@ -61,7 +61,7 @@ class Category:
     def __lt__(self, other):
         try:
             return self.Name < other.Name
-        except Exception as ex:
+        except Exception:
             if (isinstance(self, Category )) and (isinstance(other, Category )):
                 return self.Name < other.Name
             return False
@@ -95,6 +95,17 @@ class Category:
         return self._Icons
 
 
+    @property
+    def ImageUrl(self) -> str:
+        """
+        Gets the first icon url in the `Icons` list, if images are defined;
+        otherwise, null.
+        """
+        if len(self._Icons) > 0:
+            return self._Icons[0].Url
+        return None
+            
+        
     @property
     def Name(self) -> str:
         """ 
