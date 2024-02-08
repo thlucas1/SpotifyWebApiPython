@@ -7,6 +7,7 @@ from .artistpage import ArtistPage
 from .audiobookpagesimplified import AudiobookPageSimplified
 from .episodepagesimplified import EpisodePageSimplified
 from .playlistpagesimplified import PlaylistPageSimplified
+from .playlistsimplified import PlaylistSimplified
 from .showpagesimplified import ShowPageSimplified
 from .trackpage import TrackPage
 
@@ -258,6 +259,26 @@ class SearchResponse:
         return self._Tracks
     
 
+    def GetSpotifyOwnedPlaylists(self) -> list[PlaylistSimplified]:
+        """ 
+        Gets a list of all playlists contained in the underlying `Playlists` list
+        that are owned by `spotify:user:spotify`.
+        """
+        result:list[PlaylistSimplified] = []
+        item:PlaylistSimplified
+        for item in self._Playlists.Items:
+            if item.Owner is not None:
+                if item.Owner.Uri == "spotify:user:spotify":
+                    result.append(item)
+                    
+        # sort items on Name property, ascending order.
+        if len(result) > 0:
+            result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+        # return to caller.
+        return result
+    
+        
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.

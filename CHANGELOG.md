@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.21 ] - 2023/02/08
+
+  * Added `SearchResponse.GetSpotifyOwnedPlaylists` method that gets a list of all playlist items in the underlying search response that have an owner of `spotify:user:spotify`.  These are playlists that are generated for you by the spotify ai engine.
+  * Added `additionalTypes` argument to `SpotifyClient.GetPlayerPlaybackState` method.
+  * Added `additionalTypes` argument to `SpotifyClient.GetPlayerNowPlaying` method.
+  * Updated `SpotifyClient.GetPlayerDevices` method to return the list of devices in sorted order by Name.
+
 ###### [ 1.0.20 ] - 2023/02/07
 
   * Added `PlayHistoryPage.GetTracks` method that gets a list of all tracks contained in the underlying `PlayHistory` list.  This is a convenience method so one does not have to loop through the `PlayHistory` array of `Track` objects to get the list of tracks.

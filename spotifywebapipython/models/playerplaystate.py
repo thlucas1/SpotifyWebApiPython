@@ -127,11 +127,43 @@ class PlayerPlayState:
 
 
     @property
+    def IsAdvertisement(self) -> bool:
+        """ 
+        True if the currently playing media is an advertisement; otherwise, false.
+        """
+        if self._CurrentlyPlayingType == "ad":
+            return True
+        return False
+
+
+    @property
     def IsPlaying(self) -> bool:
         """ 
         True if something is currently playing; otherwise, false.
         """
         return self._IsPlaying
+
+
+    @property
+    def IsRepeatEnabled(self) -> bool:
+        """ 
+        True if repeat play (one or all) is enabled; otherwise, False. 
+        
+        The `RepeatState` property contains the actual repeat setting.
+        """
+        if self._RepeatState is None or self._RepeatState == 'off': 
+            return False
+        return True
+
+
+    @property
+    def IsShuffleEnabled(self) -> bool:
+        """ 
+        True if shuffle play is enabled; otherwise, False. 
+        """
+        if self.ShuffleState is None or self.ShuffleState == 'off':
+            return False
+        return True
 
 
     @property
