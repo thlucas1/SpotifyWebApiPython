@@ -76,7 +76,7 @@ class Playlist(PlaylistSimplified):
         Gets a list of all tracks contained in the underlying `Items` list.
         
         This is a convenience method so one does not have to loop through the `Items`
-        array of TrackSaved objects to get the list of tracks.
+        array of PlaylistPage objects to get the list of tracks.
         """
         result:list[Track] = []
         if self._Tracks is not None:

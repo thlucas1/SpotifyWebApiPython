@@ -4,6 +4,7 @@
 from ..sautils import export
 from .pageobject import PageObject
 from .playhistory import PlayHistory
+from .track import Track 
 
 @export
 class PlayHistoryPage(PageObject):
@@ -54,6 +55,20 @@ class PlayHistoryPage(PageObject):
         Array of `PlayHistory` objects.
         """
         return self._Items
+    
+
+    def GetTracks(self) -> list[Track]:
+        """ 
+        Gets a list of all tracks contained in the underlying `Items` list.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of PlayHistory objects to get the list of tracks.
+        """
+        result:list[Track] = []
+        item:PlayHistory
+        for item in self._Items:
+            result.append(item.Track)
+        return result
     
 
     def ToString(self, includeItems:bool=False) -> str:
