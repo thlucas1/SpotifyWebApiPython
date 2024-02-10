@@ -445,8 +445,13 @@ class SpotifyClient:
                 
             elif msg.HasRequestJson:
 
+                # do not use the "request(..json=" ...) method to build JSON request bodies, as it is unreliable!
+                # instead, we set the 'content-type' header manually and use "json.dumps" to convert the data to json for the request body!
+                # use `test_RemoveTrackFavorites` to test this logic.
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with json body)" % (url), msg.RequestJson, prettyPrint=True)
-                response = self._Manager.request(method, url, json=msg.RequestJson, headers=msg.RequestHeaders)
+                msg.RequestHeaders['content-type'] = 'application/json'
+                reqBody:str = json.dumps(msg.RequestJson)
+                response = self._Manager.request(method, url, reqBody, headers=msg.RequestHeaders)
                 
             else:
 

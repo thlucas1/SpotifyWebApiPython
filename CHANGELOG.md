@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.23 ] - 2023/02/01
+
+  * Updated `SpotifyClient.MakeRequest` method to use json library to create JSON request body, instead of the urllib3 `request(...,json=...)` method.  The urllib3 `request` class seems to have issues processing json data.
+
 ###### [ 1.0.22 ] - 2023/02/09
 
   * Added `SpotifyClient.GetIdFromUri` method to return the Id portion of a Uri value.
