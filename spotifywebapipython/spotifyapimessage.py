@@ -1,4 +1,5 @@
 # external package imports.
+from typing import Mapping
 
 # our package imports.
 from .sautils import export
@@ -38,7 +39,7 @@ class SpotifyApiMessage:
 
         self._MethodName:str = methodName            
         self._RequestData:dict = requestData
-        self._RequestHeaders:dict = requestHeaders
+        self._RequestHeaders:Mapping[str, str] = requestHeaders
         self._RequestJson:dict = None
         self._ResponseData = {}
         self._IsRequestDataEncoded:bool = False
@@ -168,22 +169,13 @@ class SpotifyApiMessage:
         
 
     @property
-    def RequestHeaders(self) -> dict: 
+    def RequestHeaders(self) -> Mapping[str, str]: 
         """ 
         Request header data that is to be sent with the http request body, if the specified
         uri service requires it.
         """
         return self._RequestHeaders
 
-    @RequestHeaders.setter
-    def RequestHeaders(self, value:dict):
-        """ 
-        Sets the RequestHeaders property value.
-        """
-        if value is not None:
-            if isinstance(value, dict):
-                self._RequestHeaders = value
-        
 
     @property
     def RequestJson(self) -> dict: 

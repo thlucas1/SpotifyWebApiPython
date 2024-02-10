@@ -6,7 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
-###### [ 1.0.23 ] - 2023/02/01
+###### [ 1.0.25 ] - 2023/02/10
+
+  * Updated urllib3 requirements to "urllib3>=1.21.1,<1.27", to ensure urllib3 version 2.0 is not used.  Home Assistant requires urllib3 version less than 2.  This was causing intermittent issues with calling requests resulting in **kwargs errors when used in Home Assistant!
+
+###### [ 1.0.24 ] - 2023/02/10
+
+  * Updated `SpotifyClient.MakeRequest` method to pass ALL parameters in the various request methods.  Prior to this fix, there were urllib3 request issues with **KWARGS while using the api in a Home Assistant integration.
+
+###### [ 1.0.23 ] - 2023/02/09
 
   * Updated `SpotifyClient.MakeRequest` method to use json library to create JSON request body, instead of the urllib3 `request(...,json=...)` method.  The urllib3 `request` class seems to have issues processing json data.
 

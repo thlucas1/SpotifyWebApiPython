@@ -3,7 +3,7 @@ import base64
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
-from requests import Response
+#from requests import Response
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
@@ -203,10 +203,10 @@ class SpotifyClient:
             if hasattr(response, 'url'):
                 responseUrl = response.url
             elif hasattr(response, '_request_url'):
-                _logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" attribute - using "_request_url" instead', response)
+                #_logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" attribute - using "_request_url" instead', response)
                 responseUrl = response._request_url
             else:
-                _logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" nor "_request_url" attribute - using "geturl()" instead', response)
+                #_logsi.LogObject(SILevel.Debug, 'HTTPResponse does not contain a "url" nor "_request_url" attribute - using "geturl()" instead', response)
                 try:
                     responseUrl = response.geturl()
                 except Exception:
@@ -368,7 +368,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'MakeRequest'
         apiMethodParms:SIMethodParmListContext = None
-        response:Response = None
+        response:HTTPResponse = None
         
         try:
             
@@ -421,6 +421,10 @@ class SpotifyClient:
             if (msg.HasRequestHeaders):
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
+            # *** IMPORTANT ***
+            # in the logic below, ensure that ALL urllib3.request method calls conform to version 1.26.18.
+            # urllib3 version 2.0 is not supported!  see internal developer notes for more details.
+
             # call the appropriate poolmanager request method.
             if msg.HasUrlParameters:
                 
@@ -429,8 +433,8 @@ class SpotifyClient:
                 url = url + '?' + urlQS
                 
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with urlparms)" % (url), msg.UrlParameters, prettyPrint=True)
-                response = self._Manager.request_encode_url(method, url, fields=None, headers=msg.RequestHeaders)
-            
+                response = self._Manager.request_encode_url(method, url, headers=msg.RequestHeaders)
+                
             elif msg.HasRequestData:
 
                 if msg.IsRequestDataEncoded:
@@ -441,17 +445,19 @@ class SpotifyClient:
                 else:
 
                     _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with body)" % (url), msg.RequestData, prettyPrint=True)
-                    response = self._Manager.request_encode_body(method, url, encode_multipart=False, fields=msg.RequestData, headers=msg.RequestHeaders)
-                
+                    response = self._Manager.request_encode_body(method, url, fields=msg.RequestData, headers=msg.RequestHeaders, encode_multipart=False)
+                                    
             elif msg.HasRequestJson:
 
-                # do not use the "request(..json=" ...) method to build JSON request bodies, as it is unreliable!
-                # instead, we set the 'content-type' header manually and use "json.dumps" to convert the data to json for the request body!
-                # use `test_RemoveTrackFavorites` to test this logic.
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with json body)" % (url), msg.RequestJson, prettyPrint=True)
-                msg.RequestHeaders['content-type'] = 'application/json'
-                reqBody:str = json.dumps(msg.RequestJson)
-                response = self._Manager.request(method, url, reqBody, headers=msg.RequestHeaders)
+
+                # add content-type=json header and convert the dictionary to json format.
+                if not ("content-type" in map(str.lower, msg.RequestHeaders.keys())):
+                    #headers = HTTPHeaderDict(headers)
+                    msg.RequestHeaders["Content-Type"] = "application/json"
+                reqBody:str = json.dumps(msg.RequestJson, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+                _logsi.LogBinary(SILevel.Debug, "SpotifyClient http request JSON body", reqBody)
+                response = self._Manager.request(method, url, body=reqBody, headers=msg.RequestHeaders)
                 
             else:
 

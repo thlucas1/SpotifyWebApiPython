@@ -56,13 +56,14 @@ setup(
     python_requires='>3.5.1',
     
     # set minimum dependencies requirements.
+    # note that urllib3 version must be less than 2!
     install_requires=[
         'oauthlib==3.2.2',
         'platformdirs==4.1.0',
         'requests==2.31.0',
         'requests_oauthlib==1.3.1',
         'smartinspectPython>=3.0.33',
-        'urllib3',
+        'urllib3>=1.21.1,<1.27',
         'zeroconf'
     ],
 
