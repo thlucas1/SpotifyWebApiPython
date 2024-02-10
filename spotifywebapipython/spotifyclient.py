@@ -4291,6 +4291,58 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    @staticmethod
+    def GetIdFromUri(uri:str, 
+                     ) -> str:
+        """
+        Get the id portion from a Spotify uri value.
+        
+        Args:
+            uri (str):  
+                The Spotify URI value.
+                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`
+                
+        Returns:
+            A string containing the id value.
+            
+        No exceptions are raised with this method.
+        """
+        apiMethodName:str = 'GetIdFromUri'
+        apiMethodParms:SIMethodParmListContext = None
+        result:str = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uri", uri)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Id portion of a Spotify Uri value", apiMethodParms)
+                
+            # validations.
+            if uri is None or len(uri.strip()) == 0:
+                return result
+
+            # get Id from uri value.
+            colonCnt:int = uri.count(':')
+            if colonCnt == 2:
+                idx:int = uri.rfind(':')
+                if idx > -1:
+                    result = uri[idx+1:]
+
+            # trace.
+            _logsi.LogValue(SILevel.Verbose, 'Spotify Id', result)
+            return result
+
+        except Exception:
+            
+            return None
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def GetMarkets(self) -> list[str]:
         """
         Get the list of markets (country codes) where Spotify is available.
@@ -4333,6 +4385,84 @@ class SpotifyClient:
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            return result
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def GetPlayerDevice(self, deviceId:str) -> Device:
+        """
+        Get information about a user's available Spotify Connect player device. 
+        
+        This method requires the `user-read-playback-state` scope.
+
+        Args:
+            deviceId (str):
+                The device id or name to retrieve.
+                
+        Returns:
+            A `Device` object if found; otherwise, null.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetPlayerDevice.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'GetPlayerDevice'
+        apiMethodParms:SIMethodParmListContext = None
+        result:Device = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get user's available Spotify Connect player device", apiMethodParms)
+            
+            # validations.
+            if deviceId is None:
+                return None
+            deviceId = deviceId.lower()  # prepare for compare
+
+            # we must first get ALL devices, as there is no spotify web api endpoint
+            # to retrieve a specific device.
+            devices:list[Device] = self.GetPlayerDevices()
+            
+            # loop through the results looking for the specified device id.
+            item:Device
+            for item in devices:
+                if deviceId == item.Id.lower():
+                    result = item
+                    break
+                
+            # if no match by id, then try to macth by device name.
+            if result is None:
+                for item in devices:
+                    if deviceId == item.Name.lower():
+                        result = item
+                        break
+                
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'Device'), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -6383,6 +6513,63 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    @staticmethod
+    def GetTypeFromUri(uri:str, 
+                      ) -> str:
+        """
+        Get the type portion from a Spotify uri value.
+        
+        Args:
+            uri (str):  
+                The Spotify URI value.
+                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`
+                
+        Returns:
+            A string containing the type value (e.g. `track`).
+            
+        No exceptions are raised with this method.
+        """
+        apiMethodName:str = 'GetTypeFromUri'
+        apiMethodParms:SIMethodParmListContext = None
+        result:str = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uri", uri)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Type portion of a Spotify Uri value", apiMethodParms)
+                
+            # validations.
+            if uri is None or len(uri.strip()) == 0:
+                return result
+
+            # get type from uri value.
+            colonCnt:int = uri.count(':')
+            if colonCnt == 2:
+                idxStart:int = uri.find(':')
+                if idxStart > -1:
+                    if (idxStart + 1) > len(uri):
+                        return result
+                    idxEnd:int = uri.find(':', idxStart + 1)
+                    if idxEnd > -1:
+                        result = uri[idxStart+1:idxEnd]
+
+            # trace.
+            _logsi.LogValue(SILevel.Verbose, 'Spotify Type', result)
+            return result
+
+        except Exception as ex:
+            
+            _logsi.LogWarning("GetTypeFromUri failed: %s" % str(ex))
+            return None
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def GetUsersCurrentProfile(self) -> UserProfileCurrentUser:
         """
         Get detailed profile information about the current user (including the current user's username).
@@ -6895,7 +7082,7 @@ class SpotifyClient:
 
 
     def PlayerMediaPlayTracks(self, 
-                              uris:str,
+                              uris:list[str],
                               positionMS:int=0,
                               deviceId:str=None
                               ) -> None:
@@ -6906,7 +7093,9 @@ class SpotifyClient:
 
         Args:
             uris (str):
-                A comma-separated list of Spotify track URIs to play; can be track or episode URIs.  
+                A list of Spotify track URIs to play; can be track or episode URIs.  
+                Example: [`spotify:track:4iV5W9uYEdYUVa79Axb7Rh` ,`spotify:episode:512ojhOuo1ktJprKbVcKyQ`].  
+                It can also be specified as a comma-delimited string.  
                 Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh,spotify:episode:512ojhOuo1ktJprKbVcKyQ`.  
                 A maximum of 50 items can be added in one request.
             positionMS (int):
@@ -6952,9 +7141,13 @@ class SpotifyClient:
                 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrUris:list[str] = uris.split(',')
-            for idx in range(0, len(arrUris)):
-                arrUris[idx] = arrUris[idx].strip()
+            arrUris:list[str] = None
+            if isinstance(uris, list):
+                arrUris = uris
+            else:
+                arrUris = uris.split(',')
+                for idx in range(0, len(arrUris)):
+                    arrUris[idx] = arrUris[idx].strip()
                 
             # build spotify web api request parameters.
             reqData:dict = \

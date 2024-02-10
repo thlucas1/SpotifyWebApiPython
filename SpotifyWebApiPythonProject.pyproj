@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_AuthToken_OAuth2Token.py</StartupFile>
+    <StartupFile>test\test_ZeroconfDiscovery.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -30,6 +30,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="docspdoc\buildEnv.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerDevice.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Playlist.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Album.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Artist.py" />
@@ -137,6 +138,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumFavorites.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbums.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum.py" />
+    <Compile Include="docs\include\samplecode\SpotifyDiscovery\DiscoverDevices.py" />
     <Compile Include="setup.py" />
     <Compile Include="spotifywebapipython\const.py" />
     <Compile Include="spotifywebapipython\models\playeractions.py" />
@@ -207,6 +209,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="spotifywebapipython\oauthcli\__init__.py" />
     <Compile Include="spotifywebapipython\saappmessages.py" />
     <Compile Include="spotifywebapipython\sautils.py" />
+    <Compile Include="spotifywebapipython\spotifydiscovery.py" />
     <Compile Include="spotifywebapipython\spotifywebapiauthenticationerror.py" />
     <Compile Include="spotifywebapipython\spotifyapierror.py" />
     <Compile Include="spotifywebapipython\spotifywebapierror.py" />
@@ -226,6 +229,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_SpotifyClient_Base.py" />
     <Compile Include="test\testVS_SpotifyClient_Artists.py" />
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
+    <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />
     <Compile Include="test\test_ToDictionary.py" />
@@ -238,6 +242,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\test_AuthToken_AuthorizationCode.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE.py" />
     <Compile Include="test\test_AuthToken_ClientCredentials.py" />
+    <Compile Include="test\test_ZeroconfDiscovery.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="docspdoc\" />
@@ -249,6 +254,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Folder Include="docs\" />
     <Folder Include="docs\include\" />
     <Folder Include="docs\include\samplecode\" />
+    <Folder Include="docs\include\samplecode\SpotifyDiscovery\" />
     <Folder Include="docs\include\samplecode\SpotifyClient\" />
     <Folder Include="research\" />
     <Folder Include="spotifywebapipython\" />

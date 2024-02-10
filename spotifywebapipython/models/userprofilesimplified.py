@@ -62,10 +62,9 @@ class UserProfileSimplified:
         
         # post validations.
         # this is done, as some authorization levels will not return some of these details;
-        # in this case, we will default the values to 'unknown'.
-        if self._DisplayName is None:
-            self._DisplayName = UNKNOWN
-        if self._Type is None:
+        if self._DisplayName is None or len(self._DisplayName.strip()) == 0:
+            self._DisplayName = self._Id
+        if self._Type is None or len(self._Type.strip()) == 0:
             self._Type = 'user'
 
 

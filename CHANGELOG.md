@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.22 ] - 2023/02/09
+
+  * Added `SpotifyClient.GetIdFromUri` method to return the Id portion of a Uri value.
+  * Added `SpotifyClient.GetTypeFromUri` method to return the Type portion of a Uri value.
+  * Updated `SpotifyClient.GetPlayerDevice` method to return a selected device by id or name.
+  * Added `SpotifyDiscovery` class that discovers Spotify Connect devices via Zeroconf.
+  * Updated `UserProfileSimplified` method to default the `DisplayName` property to the `Id` property value if a display name was not set.
+
 ###### [ 1.0.21 ] - 2023/02/08
 
   * Added `SearchResponse.GetSpotifyOwnedPlaylists` method that gets a list of all playlist items in the underlying search response that have an owner of `spotify:user:spotify`.  These are playlists that are generated for you by the spotify ai engine.

@@ -62,7 +62,8 @@ setup(
         'requests==2.31.0',
         'requests_oauthlib==1.3.1',
         'smartinspectPython>=3.0.33',
-        'urllib3'
+        'urllib3',
+        'zeroconf'
     ],
 
     # set keywords to associate this package with on Pypi.org.
