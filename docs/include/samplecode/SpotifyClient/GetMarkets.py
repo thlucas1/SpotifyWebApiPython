@@ -25,6 +25,15 @@ try:
 
         print('- "{name}"'.format(name=market))
 
+    # get cached configuration, refreshing from device if needed.
+    markets:list[str] = spotify.GetMarkets(refresh=False)
+    print("\nCached configuration (count): %d" % len(markets))
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetMarkets" in spotify.ConfigurationCache:
+        markets:list[str] = spotify.ConfigurationCache["GetMarkets"]
+        print("\nCached configuration direct access (count): %d" % len(markets))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

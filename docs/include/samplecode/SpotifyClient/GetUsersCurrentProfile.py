@@ -28,6 +28,15 @@ try:
 
     print(str(userProfile))
 
+    # get cached configuration, refreshing from device if needed.
+    userProfile:UserProfile = spotify.GetUsersCurrentProfile(refresh=False)
+    print("\nCached configuration:\n%s" % str(userProfile))
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetUsersCurrentProfile" in spotify.ConfigurationCache:
+        userProfile:UserProfile = spotify.ConfigurationCache["GetUsersCurrentProfile"]
+        print("\nCached configuration direct access:\n%s" % str(userProfile))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

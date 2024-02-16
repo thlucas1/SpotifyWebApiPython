@@ -25,9 +25,13 @@ from .const import (
     SPOTIFY_WEBAPI_URL_BASE,
     TRACE_METHOD_RESULT,
     TRACE_METHOD_RESULT_TYPE,
+    TRACE_METHOD_RESULT_TYPE_CACHED,
     TRACE_MSG_AUTHTOKEN_CREATE,
     TRACE_MSG_USERPROFILE,
 )
+
+CACHE_SOURCE_CACHED:str = "cached"
+CACHE_SOURCE_CURRENT:str = "current"
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
@@ -77,6 +81,7 @@ class SpotifyClient:
         """
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
+        self._ConfigurationCache:dict = {}
         self._Manager:PoolManager = manager
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenUpdater:Callable = tokenUpdater
@@ -97,6 +102,69 @@ class SpotifyClient:
                                         )
         
         
+    def __enter__(self) -> 'SpotifyClient':
+        # if called via a context manager (e.g. "with" statement).
+        return self
+
+
+    def __exit__(self, etype, value, traceback) -> None:
+        # if called via a context manager (e.g. "with" statement).
+        pass
+    
+
+    def __getitem__(self, key:str):
+        if key in self._ConfigurationCache:
+            return self._ConfigurationCache[key]
+
+
+    def __setitem__(self, key, value):
+        if not isinstance(key, str):
+            key = str(key)
+        self._ConfigurationCache[key] = value
+
+
+    def __iter__(self):
+        return iter(self._ConfigurationCache)
+
+
+    def __repr__(self) -> str:
+        return self.ToString()
+
+
+    def __str__(self) -> str:
+        return self.ToString()
+
+
+    @property
+    def ConfigurationCache(self) -> dict:
+        """ 
+        A dictionary of cached configuration objects that have been obtained from
+        the spotify web api.  Use the objects in this cache whenever it is too
+        expensive or time consuming to make a real-time request from the spotify web api.
+
+        The configuration cache is updated for selected "Get...()" methods that return
+        device information.  All of the selected "Get...()" methods have a `refresh:bool`
+        argument that controls where information is obtained from; if refresh=True,
+        then the spotify web api is queried for real-time configuration information. If
+        refresh=False, then the configuration information is pulled from the configuration
+        cache dictionary; if the cache does not contain the object, then the spotify web api
+        is queried for real-time configuration information.
+        
+        It is obviously MUCH faster to retrieve configuration objects from the cache than
+        from real-time spotify web api queries.  This works very well for configuration
+        objects that do not change very often (e.g. Devices, Categories, Markets, etc).
+        You will still want to make real-time queries for configuration objects
+        that change frequently (e.g. PlayerPlayState, PlayHistory, etc).
+        
+        This property is read-only, and is set when the class is instantiated.  The
+        dictionary entries can be changed, but not the dictionary itself.
+
+        Returns:
+            The `_ConfigurationCache` property value.
+        """
+        return self._ConfigurationCache
+    
+
     @property
     def AuthToken(self) -> SpotifyAuthToken:
         """ 
@@ -1546,6 +1614,32 @@ class SpotifyClient:
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def ClearConfigurationCache(self) -> None:
+        """
+        Removes (clears) all items from the configuration cache.
+        """
+        apiMethodName:str = 'ClearConfigurationCache'
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Clearing the configuration cache")
+                
+            # clear the cache.
+            self._ConfigurationCache.clear()
+                
         except Exception as ex:
             
             # format unhandled exception.
@@ -3282,6 +3376,7 @@ class SpotifyClient:
                           categoryId:str, 
                           country:str=None, 
                           locale:str=None,
+                          refresh:bool=True,
                           ) -> Playlist:
         """
         Get a single category used to tag items in Spotify.
@@ -3307,7 +3402,11 @@ class SpotifyClient:
                 the country parameter, may give odd results if not carefully matched. For example country=`SE` and
                 locale=`de_DE` will return a list of categories relevant to Sweden but as German language strings.  
                 Example: `sv_SE`  
-                
+            refresh (bool):
+                True (default) to return real-time information from the spotify web api; otherwise, False to
+                to return a cached value IF a call has been made to the `GetBrowseCategorys` method (which
+                creates a caches list of `Category` objects).
+        
         Returns:
             A `Category` object that contains the category details.
                 
@@ -3318,6 +3417,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -3328,6 +3431,7 @@ class SpotifyClient:
         apiMethodName:str = 'GetBrowseCategory'
         apiMethodParms:SIMethodParmListContext = None
         result:Category = None
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
@@ -3338,24 +3442,39 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a single category used to tag items in Spotify", apiMethodParms)
                 
-            # build spotify web api request parameters.
-            urlParms:dict = {}
-            if country is not None:
-                urlParms['country'] = '%s' % str(country)
-            if locale is not None:
-                urlParms['locale'] = '%s' % str(locale)
-            
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}'.format(category_id=categoryId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # can we use a cached value?
+            cacheKey:str = "GetBrowseCategorys"
+            if (not refresh) and (cacheKey in self._ConfigurationCache):
+                
+                # search the category cache by id.
+                category:Category
+                for category in self._ConfigurationCache[cacheKey]:
+                    if category.Id == categoryId:
+                        result = category
+                        cacheDesc = CACHE_SOURCE_CACHED
+                        break
+                    
+            # did we find a cached value?
+            if result is None:
 
-            # process results.
-            result = Category(root=msg.ResponseData)
+                # build spotify web api request parameters.
+                urlParms:dict = {}
+                if country is not None:
+                    urlParms['country'] = '%s' % str(country)
+                if locale is not None:
+                    urlParms['locale'] = '%s' % str(locale)
+            
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}'.format(category_id=categoryId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                result = Category(root=msg.ResponseData)
         
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -3483,6 +3602,7 @@ class SpotifyClient:
     def GetBrowseCategorys(self, 
                            country:str=None,
                            locale:str=None,
+                           refresh:bool=True,
                            ) -> list[Category]:
         """
         Get a sorted list of ALL categories used to tag items in Spotify.
@@ -3503,6 +3623,9 @@ class SpotifyClient:
                 the country parameter, may give odd results if not carefully matched. For example country=`SE` and
                 locale=`de_DE` will return a list of categories relevant to Sweden but as German language strings.  
                 Example: `sv_SE`  
+            refresh (bool):
+                True to return real-time information from the spotify web api and
+                update the cache; otherwise, False to just return the cached value.       
                 
         Returns:
             A `list[Category]` object that contains the list category details.
@@ -3514,6 +3637,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -3524,6 +3651,7 @@ class SpotifyClient:
         apiMethodName:str = 'GetBrowseCategorys'
         apiMethodParms:SIMethodParmListContext = None
         result:list[Category] = []
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
@@ -3533,31 +3661,42 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a sorted list of ALL browse categories", apiMethodParms)
                 
-            # get a page of categories used to tag items in Spotify
-            pageObj:CategoryPage = self.GetBrowseCategorysPage(country=country, locale=locale, limit=50)
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
+                
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # get a page of categories used to tag items in Spotify
+                pageObj:CategoryPage = self.GetBrowseCategorysPage(country=country, locale=locale, limit=50)
 
-            # handle pagination, as spotify limits us to a set # of items returned per response.
-            while True:
+                # handle pagination, as spotify limits us to a set # of items returned per response.
+                while True:
 
-                # add category details to return list.
-                category:Category
-                for category in pageObj.Items:
-                    result.append(category)
+                    # add category details to return list.
+                    category:Category
+                    for category in pageObj.Items:
+                        result.append(category)
 
-                # anymore page results?
-                if pageObj.Next is None:
-                    # no - all pages were processed.
-                    break
-                else:
-                    # yes - retrieve the next page of results.
-                    pageObj = self.GetBrowseCategorysPage(country=country, locale=locale, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
+                    # anymore page results?
+                    if pageObj.Next is None:
+                        # no - all pages were processed.
+                        break
+                    else:
+                        # yes - retrieve the next page of results.
+                        pageObj = self.GetBrowseCategorysPage(country=country, locale=locale, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
 
-            # sort items on Name property, ascending order.
-            if len(result) > 0:
-                result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+                # sort items on Name property, ascending order.
+                if len(result) > 0:
+                    result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+                    
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
 
             # trace.
-            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -4245,9 +4384,16 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetGenres(self) -> list[str]:
+    def GetGenres(self,
+                  refresh:bool=True
+                  ) -> list[str]:
         """
         Get a sorted list of available genres seed parameter values.
+        
+        Args:
+            refresh (bool):
+                True to return real-time information from the spotify web api and
+                update the cache; otherwise, False to just return the cached value.
         
         Returns:
             A sorted list of genre strings.
@@ -4259,6 +4405,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -4268,6 +4418,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'GetGenres'
         result:list[str] = None
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
@@ -4275,18 +4426,29 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available genres")
                 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations/available-genre-seeds')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
+                
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations/available-genre-seeds')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
 
-            # process results.
-            result:list[str] = msg.ResponseData.get('genres',None)
-            if result is not None:
-                result.sort()
+                # process results.
+                result:list[str] = msg.ResponseData.get('genres',None)
+                if result is not None:
+                    result.sort()
         
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
+
             # trace.
-            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -4354,9 +4516,16 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetMarkets(self) -> list[str]:
+    def GetMarkets(self, 
+                   refresh:bool=True
+                   ) -> list[str]:
         """
         Get the list of markets (country codes) where Spotify is available.
+
+        Args:
+            refresh (bool):
+                True to return real-time information from the spotify web api and
+                update the cache; otherwise, False to just return the cached value.
         
         Returns:
             A sorted list of market identifier strings.
@@ -4368,6 +4537,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -4377,25 +4550,37 @@ class SpotifyClient:
         """
         apiMethodName:str = 'GetMarkets'
         result:list[str] = None
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
             # trace.
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available markets (country codes)")
+            
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/markets')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/markets')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
 
-            # process results.
-            result:list[str] = msg.ResponseData.get('markets',None)
-            if result is not None:
-                result.sort()
+                # process results.
+                result:list[str] = msg.ResponseData.get('markets',None)
+                if result is not None:
+                    result.sort()
         
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
+
             # trace.
-            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -4411,7 +4596,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlayerDevice(self, deviceId:str) -> Device:
+    def GetPlayerDevice(self, 
+                        deviceId:str, 
+                        refresh:bool=True
+                        ) -> Device:
         """
         Get information about a user's available Spotify Connect player device. 
         
@@ -4420,6 +4608,10 @@ class SpotifyClient:
         Args:
             deviceId (str):
                 The device id or name to retrieve.
+            refresh (bool):
+                True (default) to resolve the device real-time from the spotify web api 
+                device list; otherwise, False to use the cached device list to resolve the
+                device.
                 
         Returns:
             A `Device` object if found; otherwise, null.
@@ -4431,6 +4623,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -4454,9 +4650,9 @@ class SpotifyClient:
                 return None
             deviceId = deviceId.lower()  # prepare for compare
 
-            # we must first get ALL devices, as there is no spotify web api endpoint
+            # get ALL devices, as there is no spotify web api endpoint
             # to retrieve a specific device.
-            devices:list[Device] = self.GetPlayerDevices()
+            devices:list[Device] = self.GetPlayerDevices(refresh=refresh)
             
             # loop through the results looking for the specified device id.
             item:Device
@@ -4489,7 +4685,9 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlayerDevices(self) -> list[Device]:
+    def GetPlayerDevices(self, 
+                         refresh:bool=True
+                         ) -> list[Device]:
         """
         Get information about a user's available Spotify Connect player devices. 
         
@@ -4497,6 +4695,11 @@ class SpotifyClient:
         
         This method requires the `user-read-playback-state` scope.
 
+        Args:
+            refresh (bool):
+                True (default) to return real-time information from the spotify web api and
+                update the cache; otherwise, False to just return the cached value.
+        
         Returns:
             A list of `Device` objects that contain the device details, sorted by name.
                 
@@ -4507,6 +4710,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -4516,6 +4723,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'GetPlayerDevices'
         result:list[Device] = []
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
@@ -4523,22 +4731,33 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get user's available Spotify Connect player devices")
                 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/devices')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
+                
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/devices')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
 
-            # process results.
-            items = msg.ResponseData.get('devices',[])
-            for item in items:
-                result.append(Device(root=item))
+                # process results.
+                items = msg.ResponseData.get('devices',[])
+                for item in items:
+                    result.append(Device(root=item))
 
-            # sort items on Name property, ascending order.
-            if len(result) > 0:
-                result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+                # sort items on Name property, ascending order.
+                if len(result) > 0:
+                    result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
        
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
+
             # trace.
-            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Device]'), result)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, 'list[Device]', cacheDesc), result)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -6581,11 +6800,18 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetUsersCurrentProfile(self) -> UserProfileCurrentUser:
+    def GetUsersCurrentProfile(self,
+                               refresh:bool=True
+                               ) -> UserProfileCurrentUser:
         """
         Get detailed profile information about the current user (including the current user's username).
         
         This method requires the `user-read-private` and `user-read-email` scope.
+        
+        Args:
+            refresh (bool):
+                True (default) to return real-time information from the spotify web api and
+                update the cache; otherwise, False to just return the cached value.
         
         Returns:
             A `UserProfile` object that contains the user details.
@@ -6597,6 +6823,10 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -6607,6 +6837,7 @@ class SpotifyClient:
         apiMethodName:str = 'GetUsersCurrentProfile'
         apiMethodParms:SIMethodParmListContext = None
         result:Track = UserProfile
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
@@ -6614,16 +6845,27 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get profile information about the current user", apiMethodParms)
                 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
+                
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
 
-            # process results.
-            result = UserProfile(root=msg.ResponseData)
+                # process results.
+                result = UserProfile(root=msg.ResponseData)
+
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -6640,7 +6882,7 @@ class SpotifyClient:
 
 
     def GetUsersPublicProfile(self,
-                              userId:str
+                              userId:str,
                               ) -> UserProfileSimplified:
         """
         Get public profile information about a Spotify user.
@@ -9706,6 +9948,18 @@ class SpotifyClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def ToString(self) -> str:
+        """
+        Returns a displayable string representation of the class.
+        """
+        msg:str = 'SpotifyClient:'
+        msg = "%s\n ConfigurationCache key count=%d" % (msg, len(self._ConfigurationCache))
+        msg = "%s\n TokenStorageDir='%s'" % (msg, self._TokenStorageDir)
+        if self._UserProfile is not None:
+            msg = "%s\n User DisplayName='%s' (%s)" % (msg, self._UserProfile.DisplayName, self._UserProfile.Id)
+        return msg
 
 
     def UnfollowArtists(self, 

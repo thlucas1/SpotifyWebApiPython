@@ -25,6 +25,15 @@ try:
 
         print('- "{name}"'.format(name=genre))
 
+    # get cached configuration, refreshing from device if needed.
+    genres:list[str] = spotify.GetGenres(refresh=False)
+    print("\nCached configuration (count): %d" % len(genres))
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetGenres" in spotify.ConfigurationCache:
+        genres:list[str] = spotify.ConfigurationCache["GetGenres"]
+        print("\nCached configuration direct access (count): %d" % len(genres))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

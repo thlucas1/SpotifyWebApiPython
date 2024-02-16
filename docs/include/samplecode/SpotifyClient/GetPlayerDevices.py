@@ -30,6 +30,15 @@ try:
         print(str(device))
         print('')
 
+    # get cached configuration, refreshing from device if needed.
+    devices:list[Device] = spotify.GetPlayerDevices(refresh=False)
+    print("\nCached configuration (count): %d" % len(devices))
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetPlayerDevices" in spotify.ConfigurationCache:
+        devices:list[Device] = spotify.ConfigurationCache["GetPlayerDevices"]
+        print("\nCached configuration direct access (count): %d" % len(devices))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

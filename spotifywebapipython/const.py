@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.25"
+VERSION:str = "1.0.26"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -49,6 +49,11 @@ TRACE_METHOD_RESULT = "%s result"
 TRACE_METHOD_RESULT_TYPE = "%s result - %s object "
 """ 
 %s result - %s object
+"""
+
+TRACE_METHOD_RESULT_TYPE_CACHED = "%s result - %s object (%s)"
+""" 
+%s result - %s object (%s)
 """
 
 TRACE_MSG_AUTHTOKEN_CREATE = "Creating a \"%s\" authorization access token"

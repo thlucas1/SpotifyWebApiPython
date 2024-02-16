@@ -24,6 +24,15 @@ try:
     for category in categories:
 
         print('- "{name}" ({uri})'.format(name=category.Name, uri=category.Id))
+        
+    # get cached configuration, refreshing from device if needed.
+    categories:list[Category] = spotify.GetBrowseCategorys(refresh=False)
+    print("\nCached configuration (count): %d" % len(categories))
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetBrowseCategorys" in spotify.ConfigurationCache:
+        categories:list[Category] = spotify.ConfigurationCache["GetBrowseCategorys"]
+        print("\nCached configuration direct access (count): %d" % len(categories))
 
 except Exception as ex:
 

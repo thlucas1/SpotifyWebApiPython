@@ -30,6 +30,7 @@ The following features are supported by this API.
 - Shows: Get Show(s), Get Show Episodes, User Favorites (Get,Add,Remove,Check).
 - Tracks: Get Track(s), User Favorites (Get,Add,Remove,Check), Get Track(s) Audio Features, Recommendations, Analysis.
 - Users: Get Current/Another User's Profile, Get Top Items, Favorites (Follow,Unfollow,Check) Artists/Playlist/Users.
+- Supports caching of rarely changed configuration data: Categories, Devices, Genres, Markets, UserProfile, etc.
 - ... and more
 
 ## Requirements and Dependencies

@@ -25,6 +25,11 @@ try:
     for icon in category.Icons:
         print(str(icon))
 
+    # get cached configuration, refreshing from device if needed.
+    spotify.GetBrowseCategorys()  # load cache
+    category:Category = spotify.GetBrowseCategory(categoryId, refresh=False)
+    print("\nCached configuration:\n%s" % str(category))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
