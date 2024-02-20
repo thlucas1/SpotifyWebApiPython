@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.27 ] - 2024/02/20
+
+  * Updated `SpotifyClient.GetPlayerRecentTracks` method to retrieve the last 24 hours of play history if neither `after` or `before` arguments were specified.
+
 ###### [ 1.0.26 ] - 2024/02/15
 
   * Added `SpotifyClient.ToString` method to display a string representation of the class.

@@ -32,7 +32,7 @@ try:
         print('')
         print('Artists in this page of results:')
                 
-        # display episode details.
+        # display artist details.
         artist:Artist
         for artist in pageObj.Items:
         

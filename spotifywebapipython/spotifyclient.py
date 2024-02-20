@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
-from .sautils import export
+from .sautils import export, GetUnixTimestampMSFromUtcNow
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
@@ -2538,7 +2538,7 @@ class SpotifyClient:
         Args:
             artistId (str):  
                 The Spotify ID of the artist.  
-                Example: `0TnOYISbd1XYRBk9myaseg`
+                Example: `6APm8EjxOHSYM5B4i3vT3q`
                 
         Returns:
             An `Artist` object that contains the artist details.
@@ -2599,14 +2599,14 @@ class SpotifyClient:
                         limit:int=20, 
                         offset:int=0,
                         market:str=None
-                        ) -> list[Album]:
+                        ) -> AlbumPageSimplified:
         """
         Get Spotify catalog information about an artist's albums.
         
         Args:
             artistId (str):  
                 The Spotify ID of the artist.  
-                Example: `0TnOYISbd1XYRBk9myaseg`
+                Example: `6APm8EjxOHSYM5B4i3vT3q`
             include_groups (str):  
                 A comma-separated list of keywords that will be used to filter the response.  
                 If not supplied, all album types will be returned.  
@@ -2628,7 +2628,7 @@ class SpotifyClient:
                 Example: `ES`
                 
         Returns:
-            A list of `Album` objects that contain the album details.
+            An `AlbumPageSimplified` object of matching results.
                 
         Raises:
             SpotifyWebApiError: 
@@ -2711,7 +2711,7 @@ class SpotifyClient:
         Args:
             artistId (str):  
                 The Spotify ID of the artist.  
-                Example: `0TnOYISbd1XYRBk9myaseg`
+                Example: `6APm8EjxOHSYM5B4i3vT3q`
                 
         Returns:
             A list of `Artist` objects that contain the artist details.
@@ -2853,7 +2853,7 @@ class SpotifyClient:
             after (str):
                 The last artist ID retrieved from the previous request, or null for
                 the first request.  
-                Example: `0I2XqVXqHScXjHhk6AYYRe`  
+                Example: `6APm8EjxOHSYM5B4i3vT3q`  
             limit (int):
                 The maximum number of items to return.  
                 Default: 20, Range: 1 to 50.  
@@ -2934,7 +2934,7 @@ class SpotifyClient:
         Args:
             artistId (str):  
                 The Spotify ID of the artist.  
-                Example: `0TnOYISbd1XYRBk9myaseg`
+                Example: `6APm8EjxOHSYM5B4i3vT3q`
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -4480,17 +4480,10 @@ class SpotifyClient:
             
         No exceptions are raised with this method.
         """
-        apiMethodName:str = 'GetIdFromUri'
-        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
             
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("uri", uri)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get Id portion of a Spotify Uri value", apiMethodParms)
-                
             # validations.
             if uri is None or len(uri.strip()) == 0:
                 return result
@@ -4502,18 +4495,11 @@ class SpotifyClient:
                 if idx > -1:
                     result = uri[idx+1:]
 
-            # trace.
-            _logsi.LogValue(SILevel.Verbose, 'Spotify Id', result)
             return result
 
         except Exception:
             
             return None
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetMarkets(self, 
@@ -5035,6 +5021,9 @@ class SpotifyClient:
                 
         The `after` and `before` arguments are based upon local time (not UTC time).  Recently
         played item history uses a local timestamp, and NOT a UTC timestamp.
+        
+        If both `after` and `before` arguments are null (or zero), then an `after` value
+        is generated that will retrieve recently played tracks for the past 24 hours.
                 
         Returns:
             A `PlayHistoryPage` object that contains the recently played items.
@@ -5072,15 +5061,31 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("after", after)
             apiMethodParms.AppendKeyValue("before", before)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get tracks from the current user's recently played tracks", apiMethodParms)
+            
+            # validations.
+            if after is None:
+                after = 0
+            if (not isinstance(after,int)):
+                after = int(after)
+
+            if before is None:
+                before = 0
+            if (not isinstance(before,int)):
+                before = int(before)
+
+            # if no after or before, then get all tracks played within the past 24 hours.
+            if (after == 0) and (before == 0):
+                after = GetUnixTimestampMSFromUtcNow(hours=-24)
+                _logsi.LogVerbose("Defaulting to retrieve play history for the past 24 hours (after = %d)" % after)
                 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'limit': limit,
             }
-            if after is not None:
+            if after > 0:
                 urlParms['after'] = after
-            if before is not None:
+            if before > 0:
                 urlParms['before'] = before
 
             # execute spotify web api request.
@@ -6759,17 +6764,10 @@ class SpotifyClient:
             
         No exceptions are raised with this method.
         """
-        apiMethodName:str = 'GetTypeFromUri'
-        apiMethodParms:SIMethodParmListContext = None
         result:str = None
         
         try:
             
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("uri", uri)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get Type portion of a Spotify Uri value", apiMethodParms)
-                
             # validations.
             if uri is None or len(uri.strip()) == 0:
                 return result
@@ -6785,19 +6783,12 @@ class SpotifyClient:
                     if idxEnd > -1:
                         result = uri[idxStart+1:idxEnd]
 
-            # trace.
-            _logsi.LogValue(SILevel.Verbose, 'Spotify Type', result)
             return result
 
         except Exception as ex:
             
             _logsi.LogWarning("GetTypeFromUri failed: %s" % str(ex))
             return None
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetUsersCurrentProfile(self,
