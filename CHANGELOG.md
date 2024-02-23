@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.29 ] - 2024/02/23
+
+  * Added `ContainsId` method to the following classes: `AlbumPageSimplified`, `AudiobookPageSimplified`, `ChapterPageSimplified`, `EpisodePageSimplified`, `PlaylistPageSimplified`, `ShowPageSimplified`, and `TrackPageSimplified`.
+  * Updated `SpotifyClient.GetPlayerRecentTracks` method with auto-pagination support to retrieve ALL available items (or up to a limit total).
+
 ###### [ 1.0.28 ] - 2024/02/21
 
   * Added `SpotifyClient.SearchAlbums` method to search Spotify for matching Album criteria.

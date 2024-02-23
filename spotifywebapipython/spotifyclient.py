@@ -234,16 +234,16 @@ class SpotifyClient:
         return self._UserProfile
     
 
-    def _CheckForNextPage(self, 
-                          pageObj:PageObject,
-                          resultItemsCount,
-                          limit:int,
-                          limitTotal:int,
-                          urlParms:dict,
-                          ) -> bool:
+    def _CheckForNextPageWithOffset(self, 
+                                    pageObj:PageObject,
+                                    resultItemsCount,
+                                    limit:int,
+                                    limitTotal:int,
+                                    urlParms:dict,
+                                    ) -> bool:
         """
-        Modifies paging object and urlParms to point to the next page of data, if one 
-        can be accessed.
+        Modifies paging object and urlParms to point to the next page of data using
+        an offset value, if one can be accessed.
         
         Returns:
             False if there are no more pages to process;
@@ -275,6 +275,45 @@ class SpotifyClient:
         # trace.
         _logsi.LogVerbose(TRACE_MSG_AUTOPAGING_NEXT % pageObj.PagingInfo)
     
+        # indicate next page can be processed.
+        return True
+    
+
+    def _CheckForNextPageWithCursor(self, 
+                                    pageObj:PageObject,
+                                    resultItemsCount,
+                                    limit:int,
+                                    limitTotal:int,
+                                    urlParms:dict,
+                                    ) -> bool:
+        """
+        Modifies paging object and urlParms to point to the next page of data using
+        a cursor value, if one can be accessed.
+        
+        Returns:
+            False if there are no more pages to process;
+            otherwise, True to safely process the next page of results.
+        """
+        # anymore page results?  
+        if (pageObj.Next is None) or (resultItemsCount >= limitTotal):
+            # no - all pages were processed, or limit total reached.
+            return False
+
+        # modify paging-related request parameters for next page of items.
+        urlParms['limit'] = pageObj.Limit
+        if urlParms.get('after') is not None:
+            urlParms['after'] = pageObj.CursorAfter
+        else:
+            urlParms['before'] = pageObj.CursorBefore
+        
+        # just in case spotify doesn't return what is expected, and to prevent
+        # an endless loop
+        if pageObj.ItemsCount == 0:
+            return False
+                        
+        # trace.
+        _logsi.LogVerbose(TRACE_MSG_AUTOPAGING_NEXT % pageObj.PagingInfo)
+
         # indicate next page can be processed.
         return True
     
@@ -2360,7 +2399,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
                     
             # update result object with final paging details.
@@ -2514,7 +2553,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
                     
             # update result object with final paging details.
@@ -2766,7 +2805,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -2997,7 +3036,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -3233,7 +3272,7 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 5  # TEST TODO
+                #limit = 1  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ArtistPage()
@@ -3280,22 +3319,17 @@ class SpotifyClient:
                         result.Limit = result.ItemsCount
                         if result.ItemsCount >= limitTotal:
                             break
-                    
-                    # anymore page results?  
-                    if (pageObj.Next is None) or (result.ItemsCount >= limitTotal):
-                        # no - all pages were processed, or limit total reached.
-                        break
-                    else:
-                        # yes - retrieve the next page of results.
-                        pageObj.CursorAfter = item.Id
-
-                    # modify paging-related request parameters for next page of items.
-                    urlParms['limit'] = pageObj.Limit
-                    urlParms['after'] = pageObj.CursorAfter
                         
-                    # trace.
-                    _logsi.LogVerbose(TRACE_MSG_AUTOPAGING_NEXT % pageObj.PagingInfo)
-
+                    # force an AFTER cursor key to be present in the url parameters so that the
+                    # paging logic can modify it correctly, as the AFTER key may not have been present
+                    # on the initial request.
+                    if 'after' not in urlParms.keys():
+                        urlParms['after'] = 'after_value'
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPageWithCursor(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+                    
             # update result object with final paging details.
             result.Total = pageObj.Total
             result.CursorAfter = pageObj.CursorAfter
@@ -3632,7 +3666,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -3774,7 +3808,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -4153,7 +4187,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -4409,13 +4443,15 @@ class SpotifyClient:
                     # append page of items to final results.
                     item:PlaylistSimplified
                     for item in pageObj.Items:
-                        result.Items.append(item)
-                        result.Limit = result.ItemsCount
-                        if result.ItemsCount >= limitTotal:
-                            break
+                        # for some reason, Spotify returns duplicates so we have to check before we add.
+                        if not result.ContainsId(item.Id):
+                            result.Items.append(item)
+                            result.Limit = result.ItemsCount
+                            if result.ItemsCount >= limitTotal:
+                                break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -4833,7 +4869,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -5110,7 +5146,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -5754,6 +5790,7 @@ class SpotifyClient:
                               limit:int=50,
                               after:int=None,
                               before:int=None,
+                              limitTotal:int=None
                               ) -> PlayHistoryPage:
         """
         Get tracks from the current user's recently played tracks.  
@@ -5777,12 +5814,21 @@ class SpotifyClient:
                 If `before` is specified, `after` must not be specified.  
                 Use with limit to get the next set of items.  
                 Default: `0` (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
+        Spotify currently limits the maximum number of items returned to 50 no matter what you 
+        supply for the `limitTotal` argument.
+        
         The `after` and `before` arguments are based upon local time (not UTC time).  Recently
         played item history uses a local timestamp, and NOT a UTC timestamp.
         
-        If both `after` and `before` arguments are null (or zero), then an `after` value
-        is generated that will retrieve recently played tracks for the past 24 hours.
+        If both `after` and `before` arguments are null (or zero), then a `before` value
+        is generated that will retrieve the last 50 recently played tracks.
                 
         Returns:
             A `PlayHistoryPage` object that contains the recently played items.
@@ -5800,7 +5846,6 @@ class SpotifyClient:
         .. include:: ../docs/include/samplecode/SpotifyClient/GetPlayerRecentTracks_AfterDateTime.py
         ```
         </details>
-
         <details>
           <summary>Sample Code - For Past 1 Hour</summary>
         ```python
@@ -5819,23 +5864,41 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("after", after)
             apiMethodParms.AppendKeyValue("before", before)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get tracks from the current user's recently played tracks", apiMethodParms)
             
             # validations.
-            if after is None:
-                after = 0
-            if (not isinstance(after,int)):
-                after = int(after)
-
             if before is None:
                 before = 0
             if (not isinstance(before,int)):
                 before = int(before)
 
-            # if no after or before, then get all tracks played within the past 24 hours.
+            if after is None:
+                after = 0
+            if (not isinstance(after,int)):
+                after = int(after)
+
+            if limit is None: 
+                limit = 20
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+
+            # if no before or after values, then get the last 50 tracks played.
             if (after == 0) and (before == 0):
-                after = GetUnixTimestampMSFromUtcNow(hours=-24)
-                _logsi.LogVerbose("Defaulting to retrieve play history for the past 24 hours (after = %d)" % after)
+                before = GetUnixTimestampMSFromUtcNow(seconds=-1)
+                limitTotal = 100  # spotify only returns 50 max.
+                _logsi.LogVerbose("Defaulting to retrieve play history of the last 50 recently played items (before = %d)" % before)
+                                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 40  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlayHistoryPage()
+
+            # assume we are using an AFTER cursor.
+            isAfterCursor:bool = True
                 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5846,16 +5909,50 @@ class SpotifyClient:
                 urlParms['after'] = after
             if before > 0:
                 urlParms['before'] = before
+                isAfterCursor = False
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/recently-played')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = PlayHistoryPage(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/recently-played')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = PlayHistoryPage(root=msg.ResponseData)
         
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlayHistory = None
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPageWithCursor(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+                    
+            # update result object with final paging details.
+            # use ItemsCount for total value, as the paging object Total is zero for before / after cursor operations.
+            result.Total = result.ItemsCount
+            result.CursorAfter = pageObj.CursorAfter
+            result.CursorBefore = pageObj.CursorBefore
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -6217,7 +6314,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -6359,7 +6456,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -6509,7 +6606,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -6760,7 +6857,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -6902,7 +6999,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -7283,7 +7380,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -8191,7 +8288,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -8346,7 +8443,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -10794,7 +10891,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -10984,7 +11081,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -11176,7 +11273,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -11366,7 +11463,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -11562,7 +11659,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -11752,7 +11849,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.
@@ -11942,7 +12039,7 @@ class SpotifyClient:
                             break
                     
                     # anymore pages to process?  if not, then exit the loop.
-                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                    if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
 
             # update result object with final paging details.

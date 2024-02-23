@@ -56,6 +56,24 @@ class AlbumPageSimplified(PageObject):
         return self._Items
     
 
+    def ContainsId(self, itemId:str=False) -> bool:
+        """
+        Checks the `Items` collection to see if an item already exists with the
+        specified Id value.
+        
+        Returns True if the itemId exists in the collection; otherwise, False.
+        """
+        result:bool = False
+        
+        item:AlbumSimplified
+        for item in self._Items:
+            if item.Id == itemId:
+                result = True
+                break
+            
+        return result
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

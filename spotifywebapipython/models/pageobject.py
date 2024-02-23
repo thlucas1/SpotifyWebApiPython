@@ -20,8 +20,8 @@ class PageObject:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
-        self._CursorAfter:str = None
-        self._CursorBefore:str = None
+        self._CursorAfter:object = None
+        self._CursorBefore:object = None
         self._Href:str = None
         self._IsCursor = False
         self._Items:list[object] = []
@@ -61,45 +61,46 @@ class PageObject:
 
 
     @property
-    def CursorAfter(self) -> str:
+    def CursorAfter(self) -> object:
         """ 
         The cursor to use as key to find the next page of items.  
         This value will only be populated when cursor-based paging is used, which is infrrequent.
+        The value can be of multiple types: string, integer, etc.
         
         Example: `3jdODvx7rIdq0UGU7BOVR3`
+        Example: 1708495520273
+
         """
         return self._CursorAfter
 
     @CursorAfter.setter
-    def CursorAfter(self, value:str):
+    def CursorAfter(self, value:object):
         """ 
         Sets the CursorAfter property value.
         """
         self._IsCursor = True
-        if value is not None:
-            if isinstance(value, str):
-                self._CursorAfter = value
+        self._CursorAfter = value
 
 
     @property
-    def CursorBefore(self) -> str:
+    def CursorBefore(self) -> object:
         """ 
         The cursor to use as key to find the previous page of items.  
         This value will only be populated when cursor-based paging is used, which is infrrequent.
+        The value can be of multiple types: string, integer, etc.
         
         Example: `3jdODvx7rIdq0UGU7BOVR3`
+        Example: 1708495520273
         """
         return self._CursorBefore
 
     @CursorBefore.setter
-    def CursorBefore(self, value:str):
+    def CursorBefore(self, value:object):
         """ 
         Sets the CursorBefore property value.
         """
         self._IsCursor = True
-        if value is not None:
-            if isinstance(value, str):
-                self._CursorBefore = value
+        self._CursorBefore = value
 
 
     @property
@@ -207,16 +208,15 @@ class PageObject:
         
         # is page using cursor results?
         if self._IsCursor:
-        #if self._CursorBefore is not None or self._CursorAfter is not None:
             
             msgAfter:str = ''
             msgBefore:str = ''
             msgComma = ''
             
             if self._CursorAfter is not None:
-                msgAfter = 'after cursor "%s"' % self._CursorAfter
+                msgAfter = 'after cursor "%s"' % str(self._CursorAfter)
             if self._CursorBefore is not None:
-                msgBefore = 'before cursor "%s"' % self._CursorBefore
+                msgBefore = 'before cursor "%s"' % str(self._CursorBefore)
                 if len(msgAfter) > 0:
                     msgComma = ', '
             if self._CursorAfter is None and self._CursorBefore is None:
