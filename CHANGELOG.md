@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.30 ] - 2024/02/23
+
+  * Updated `SpotifyClient.SearchPlaylists` method with argument `spotifyOwnedOnly` to filter found items by owner.  This simulates the spotify "content generated for you" functionality provided by the Spotify AI engine.
+
 ###### [ 1.0.29 ] - 2024/02/23
 
   * Added `ContainsId` method to the following classes: `AlbumPageSimplified`, `AudiobookPageSimplified`, `ChapterPageSimplified`, `EpisodePageSimplified`, `PlaylistPageSimplified`, `ShowPageSimplified`, and `TrackPageSimplified`.

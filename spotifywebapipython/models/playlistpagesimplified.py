@@ -74,6 +74,25 @@ class PlaylistPageSimplified(PageObject):
         return result
         
 
+    def GetSpotifyOwnedItems(self) -> list[PlaylistSimplified]:
+        """ 
+        Gets a list of all items contained in the `Items` list that are owned 
+        by `spotify:user:spotify`.
+        """
+        result:list[PlaylistSimplified] = []
+        item:PlaylistSimplified
+        for item in self._Items:
+            if item.Owner is not None:
+                if item.Owner.Uri == "spotify:user:spotify":
+                    result.append(item)
+
+        # sort items on Name property, ascending order.
+        if len(result) > 0:
+            result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+        return result
+    
+        
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

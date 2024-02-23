@@ -21,22 +21,16 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # get Spotify catalog information about Playlists that match a keyword string.
+    # get Spotify catalog information about Playlists that match a keyword string
+    # and are owned by Spotify (e.g. content generaated for you).
     criteria:str = 'Daily Mix'
-    print('\nSearching for Playlists - criteria: "%s" ...\n' % criteria)
-    pageObj:SearchResponse = spotify.SearchPlaylists(criteria, limitTotal=200)
+    print('\nSearching for Playlists owned by Spotify - criteria: "%s" ...\n' % criteria)
+    pageObj:SearchResponse = spotify.SearchPlaylists(criteria, limitTotal=150, spotifyOwnedOnly=True)
 
-    # get playlists owned by spotify (e.g. content generated for you).
-    spotifyOwnedPlaylists:list[PlaylistSimplified] = pageObj.GetSpotifyOwnedPlaylists()
-
-    # sort them by name.
-    if len(spotifyOwnedPlaylists) > 0:
-        spotifyOwnedPlaylists.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
-                
-    # display playlist details.
-    print('\nPlaylists generated for you by Spotify (%d items):' % len(spotifyOwnedPlaylists))
+    # display paging details.
+    print('\nPlaylists in this page of results (%d items):' % pageObj.Playlists.ItemsCount)
     playlist:PlaylistSimplified
-    for playlist in spotifyOwnedPlaylists:
+    for playlist in pageObj.Playlists.Items:
         print('- "{name}" ({uri})'.format(name=playlist.Name, uri=playlist.Uri))
 
 except Exception as ex:

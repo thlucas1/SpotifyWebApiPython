@@ -11498,7 +11498,8 @@ class SpotifyClient:
                         offset:int=0,
                         market:str=None,
                         includeExternal:str=None,
-                        limitTotal:int=None
+                        limitTotal:int=None,
+                        spotifyOwnedOnly:bool=False
                         ) -> SearchResponse:
         """
         Get Spotify catalog information about Playlists that match a keyword string. 
@@ -11543,6 +11544,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            spotifyOwnedOnly (bool):
+                True to return only found items that are owned by spotify (e.g. content generated for you by the spotify AI engine); 
+                otherwise, False to return all found items.   
+                Default is False.
                 
         Returns:
             A `SearchResponse` object that contains the search results.
@@ -11592,6 +11597,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("spotifyOwnedOnly", spotifyOwnedOnly)
             _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
                 
             # validations.
@@ -11664,6 +11670,12 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+
+            # was request for spotify owned items only?
+            if spotifyOwnedOnly:
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+                _logsi.LogVerbose("Filtering results for Spotify owned content")
+                result._Items = result.GetSpotifyOwnedItems()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
