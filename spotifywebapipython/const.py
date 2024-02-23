@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.27"
+VERSION:str = "1.0.28"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -41,6 +41,14 @@ SPOTIFY_API_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_WEBAPI_URL_BASE = "https://api.spotify.com/v1"
 """ Url base name used to access tthe Spotify Web API. """
 
+SPOTIFY_DEFAULT_MARKET:str = "US"
+""" 
+Default country code to use if a country code was not supplied on a request and the 
+UserProfile.Country value is not set (e.g. public access token in effect. 
+
+Default value is "US".
+"""
+
 TRACE_METHOD_RESULT = "%s result"
 """ 
 %s result
@@ -56,6 +64,11 @@ TRACE_METHOD_RESULT_TYPE_CACHED = "%s result - %s object (%s)"
 %s result - %s object (%s)
 """
 
+TRACE_METHOD_RESULT_TYPE_PAGE = "%s page result - %s object "
+""" 
+%s page result - %s object
+"""
+
 TRACE_MSG_AUTHTOKEN_CREATE = "Creating a \"%s\" authorization access token"
 """ 
 Creating a \"%s\" authorization access token
@@ -65,3 +78,14 @@ TRACE_MSG_USERPROFILE = 'User Profile Object: DisplayName="%s", EMail="%s"'
 """ 
 User Profile Object: DisplayName="%s", EMail="%s"
 """
+
+TRACE_MSG_AUTOPAGING_NEXT = "Requesting next page of items %s"
+""" 
+Requesting next page of items %s
+"""
+
+TRACE_WARN_SPOTIFY_SEARCH_NO_MARKET:str = "Warning - Market value (aka country code) was not specified for '%s' search request, and user profile did not have a country code set.  This may cause Spotify Web API to return some weird results, or even cause an exception!"
+"""
+Warning - Market value (aka country code) was not specified for '%s' search request, and user profile did not have a country code set.  This may cause Spotify Web API to return some weird results, or even cause an exception!
+"""
+    

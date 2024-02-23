@@ -14,25 +14,36 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # get a sorted list of all categories used to tag items in Spotify.
-    print('\nGetting all browse categories ...')
-    categories:list[Category] = spotify.GetBrowseCategorys()
+    # get a list of categories used to tag items in Spotify.
+    print('\nGetting browse categories ...\n')
+    pageObj:CategoryPage = spotify.GetBrowseCategorys(limit=50)
 
-    # display category details.
-    print('\nAll Browse Categories (sorted by name):')
-    category:Category
-    for category in categories:
+    # handle pagination, as spotify limits us to a set # of items returned per response.
+    while True:
 
-        print('- "{name}" ({uri})'.format(name=category.Name, uri=category.Id))
+        # display paging details.
+        print(str(pageObj))
+        print('')
+        print('Categories in this page of results:')
+
+        # display category details.
+        category:Category
+        for category in pageObj.Items:
+
+            print('- "{name}" ({uri})'.format(name=category.Name, uri=category.Id))
         
-    # get cached configuration, refreshing from device if needed.
-    categories:list[Category] = spotify.GetBrowseCategorys(refresh=False)
-    print("\nCached configuration (count): %d" % len(categories))
+            # uncomment to dump Category object:
+            #print(str(category))
+            #print('')
 
-    # get cached configuration directly from the configuration manager dictionary.
-    if "GetBrowseCategorys" in spotify.ConfigurationCache:
-        categories:list[Category] = spotify.ConfigurationCache["GetBrowseCategorys"]
-        print("\nCached configuration direct access (count): %d" % len(categories))
+        # anymore page results?
+        if pageObj.Next is None:
+            # no - all pages were processed.
+            break
+        else:
+            # yes - retrieve the next page of results.
+            print('\nGetting next page of %d items ...\n' % (pageObj.Limit))
+            pageObj = spotify.GetBrowseCategorys(offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
 
 except Exception as ex:
 

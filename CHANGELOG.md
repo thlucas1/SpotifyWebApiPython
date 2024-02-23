@@ -6,6 +6,22 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.28 ] - 2024/02/21
+
+  * Added `SpotifyClient.SearchAlbums` method to search Spotify for matching Album criteria.
+  * Added `SpotifyClient.SearchArtists` method to search Spotify for matching Artist criteria.
+  * Added `SpotifyClient.SearchAudiobooks` method to search Spotify for matching Audiobook criteria.
+  * Added `SpotifyClient.SearchEpisodes` method to search Spotify for matching Episode criteria.
+  * Added `SpotifyClient.SearchPlaylists` method to search Spotify for matching Playlist criteria.
+  * Added `SpotifyClient.SearchShows` method to search Spotify for matching Show criteria.
+  * Added `SpotifyClient.SearchTracks` method to search Spotify for matching Track criteria.
+  * Updated `SpotifyClient` methods to add auto-pagination to retrieve ALL available items (or up to a limit total).  Methods modified were: `GetAlbumFavorites`, `GetAlbumNewReleases`, `GetArtistAlbums`, `GetArtistsFollowed`, `GetCategoryPlaylists`, `GetFeaturedPlaylists`, `GetPlaylistFavorites`, `GetPlaylistsForUser`, `GetPlaylistItems`, `GetAlbumTracks`, `GetAudiobookChapters`, `GetAudiobookFavorites`, `GetBrowseCategorys`, `GetEpisodeFavorites`, `GetShowEpisodes`, `GetShowFavorites`, `GetTrackFavorites`, `GetUsersTopArtists`, `GetUsersTopTracks`.
+  * Renamed `SpotifyClient.GetBrowseCategorys` method to `GetBrowseCategorysList`.
+  * Renamed `SpotifyClient.GetBrowseCategorysByPage` method to `GetBrowseCategorys`.
+  * Added `Category.Uri` property to simulate a Spotify-like Uri value for a category.  This is a helper property - no value with this name is returned from the Spotify Web API.
+  * Updated `PageObject` model with property setters for the `CursorBefore`, `CursorAfter`, `Limit`, `Offset` and `Total` properties.  This allows a user to modify the values when performing custom paging operations.
+  * Updated all `SpotifyClient` methods that utilize a `market` argument to ensure that a market value was either supplied or implied (using an authorization access token with a user profile).  The Spotify Web API was returning null results for some methods that did not supply a market value while using a public access token (e.g. no country code default).
+
 ###### [ 1.0.27 ] - 2024/02/20
 
   * Updated `SpotifyClient.GetPlayerRecentTracks` method to retrieve the last 24 hours of play history if neither `after` or `before` arguments were specified.

@@ -23,6 +23,7 @@ class PageObject:
         self._CursorAfter:str = None
         self._CursorBefore:str = None
         self._Href:str = None
+        self._IsCursor = False
         self._Items:list[object] = []
         self._Limit:int = 0
         self._Next:str = None
@@ -46,6 +47,7 @@ class PageObject:
             # process all collections and objects.
             item:dict = root.get('cursors',None)
             if item is not None:
+                self._IsCursor = True
                 self._CursorAfter = item.get('after', None)
                 self._CursorBefore = item.get('before', None)
 
@@ -68,6 +70,16 @@ class PageObject:
         """
         return self._CursorAfter
 
+    @CursorAfter.setter
+    def CursorAfter(self, value:str):
+        """ 
+        Sets the CursorAfter property value.
+        """
+        self._IsCursor = True
+        if value is not None:
+            if isinstance(value, str):
+                self._CursorAfter = value
+
 
     @property
     def CursorBefore(self) -> str:
@@ -79,6 +91,16 @@ class PageObject:
         """
         return self._CursorBefore
 
+    @CursorBefore.setter
+    def CursorBefore(self, value:str):
+        """ 
+        Sets the CursorBefore property value.
+        """
+        self._IsCursor = True
+        if value is not None:
+            if isinstance(value, str):
+                self._CursorBefore = value
+
 
     @property
     def Href(self) -> str:
@@ -89,6 +111,14 @@ class PageObject:
         """
         return self._Href
 
+
+    @property
+    def IsCursor(self) -> list[object]:
+        """ 
+        True if cursors were returned at some point during the life of this paging object.
+        """
+        return self._IsCursor
+    
 
     @property
     def Items(self) -> list[object]:
@@ -114,8 +144,20 @@ class PageObject:
     def Limit(self) -> int:
         """ 
         The maximum number of items in the response (as set in the query or by default).
+        
+        This property can be modified in case the paging request needs to be adjusted
+        based upon overall request limits.
         """
         return self._Limit
+
+    @Limit.setter
+    def Limit(self, value:int):
+        """ 
+        Sets the Limit property value.
+        """
+        if value is not None:
+            if isinstance(value, int):
+                self._Limit = value
 
 
     @property
@@ -132,8 +174,20 @@ class PageObject:
     def Offset(self) -> int:
         """ 
         The offset of the items returned (as set in the query or by default).
+        
+        This property can be modified in case the paging request needs to be adjusted
+        based upon overall request limits.
         """
         return self._Offset
+
+    @Offset.setter
+    def Offset(self, value:int):
+        """ 
+        Sets the Offset property value.
+        """
+        if value is not None:
+            if isinstance(value, int):
+                self._Offset = value
 
 
     @property
@@ -143,13 +197,17 @@ class PageObject:
         
         The return value will vary, based upon if a cursor is used to navigate the results.
         Most methods don't use cursors, but there are a few that do (e.g. `GetArtistsFollowed`).
+        
+        For a "(items {start} to {end} of {total} total)" message, the `start` value is the
+        offset value of the last page of items retrieved.
         """
         endValue:int = (self._Limit + self._Offset)
         if endValue > self._Total:
             endValue = self._Total
         
-        # is page using cursor results?  
-        if self._CursorBefore is not None or self._CursorAfter is not None:
+        # is page using cursor results?
+        if self._IsCursor:
+        #if self._CursorBefore is not None or self._CursorAfter is not None:
             
             msgAfter:str = ''
             msgBefore:str = ''
@@ -161,6 +219,8 @@ class PageObject:
                 msgBefore = 'before cursor "%s"' % self._CursorBefore
                 if len(msgAfter) > 0:
                     msgComma = ', '
+            if self._CursorAfter is None and self._CursorBefore is None:
+                msgComma = 'last page'
                 
             msg:str = '(%s%s%s)' % (msgBefore, msgComma, msgAfter)
                         
@@ -191,9 +251,21 @@ class PageObject:
     @property
     def Total(self) -> int:
         """ 
-        The total number of items available to return.
+        The total number of items available from the Spotify Web API to return.
+        
+        Note that sometimes the Spotify Web API returns a larger total than the actual number 
+        of items available.  Not sure why this is, but it may not match the `ItemsCount` value.
         """
         return self._Total
+
+    @Total.setter
+    def Total(self, value:int):
+        """ 
+        Sets the Total property value.
+        """
+        if value is not None:
+            if isinstance(value, int):
+                self._Total = value
 
 
     def ToDictionary(self) -> dict:
@@ -237,7 +309,8 @@ class PageObject:
         msg = '%s\n Previous="%s"' % (msg, str(self._Previous))
         msg = '%s\n Total="%s"' % (msg, str(self._Total))
         msg = '%s\n Items Count="%s"' % (msg, str(self.ItemsCount))
-        msg = '%s\n Cursor: After="%s", Before=="%s"' % (msg, str(self._CursorAfter), str(self._CursorBefore))
+        if self._CursorAfter is not None: msg = '%s\n Cursor After="%s"' % (msg, str(self._CursorAfter))
+        if self._CursorBefore is not None: msg = '%s\n Cursor Before="%s"' % (msg, str(self._CursorBefore))
         
         if (includeItems):
             if self.Items is not None: msg = '%s\n\n %s' % (msg, str(self.Items))

@@ -3,7 +3,6 @@ import base64
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
-#from requests import Response
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
@@ -22,12 +21,16 @@ from .spotifywebapierror import SpotifyWebApiError
 from .const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DEFAULT_MARKET,
     SPOTIFY_WEBAPI_URL_BASE,
     TRACE_METHOD_RESULT,
     TRACE_METHOD_RESULT_TYPE,
     TRACE_METHOD_RESULT_TYPE_CACHED,
+    TRACE_METHOD_RESULT_TYPE_PAGE,
     TRACE_MSG_AUTHTOKEN_CREATE,
+    TRACE_MSG_AUTOPAGING_NEXT,
     TRACE_MSG_USERPROFILE,
+    TRACE_WARN_SPOTIFY_SEARCH_NO_MARKET,
 )
 
 CACHE_SOURCE_CACHED:str = "cached"
@@ -231,6 +234,51 @@ class SpotifyClient:
         return self._UserProfile
     
 
+    def _CheckForNextPage(self, 
+                          pageObj:PageObject,
+                          resultItemsCount,
+                          limit:int,
+                          limitTotal:int,
+                          urlParms:dict,
+                          ) -> bool:
+        """
+        Modifies paging object and urlParms to point to the next page of data, if one 
+        can be accessed.
+        
+        Returns:
+            False if there are no more pages to process;
+            otherwise, True to safely process the next page of results.
+        """
+        # anymore page results?  
+        if (pageObj.Next is None) or (resultItemsCount >= limitTotal) or (pageObj.Offset >= limitTotal):
+            # no - all pages were processed, or limit total reached.
+            return False
+        else:
+            # yes - prepare to retrieve the next page of results.
+            # if next page potential item count exceeds limit total, then limit to the difference.
+            pageObj.Offset = pageObj.Offset + pageObj.Limit
+            if (pageObj.Offset + pageObj.Limit) > limitTotal:
+                pageObj.Limit = limitTotal - pageObj.Offset
+                
+                # the following can occur if the Spotify Web API does not return any items but has
+                # the 'next' value set to point to the next page of data.  I noticed this happens
+                # when the API cannot resolve a market (or country code) value (e.g. the UserProfile
+                # Country property is not set and no market argument was supplied).  Regardless, we
+                # will check for it here in case.
+                if pageObj.Limit <= 0:
+                    pageObj.Limit = limit
+
+        # modify paging-related request parameters for next page of items.
+        urlParms['limit'] = pageObj.Limit
+        urlParms['offset'] = pageObj.Offset
+                        
+        # trace.
+        _logsi.LogVerbose(TRACE_MSG_AUTOPAGING_NEXT % pageObj.PagingInfo)
+    
+        # indicate next page can be processed.
+        return True
+    
+
     def _CheckResponseForErrors(self, msg:SpotifyApiMessage, response:HTTPResponse) -> None:
         """
         Checks the Spotify Web API response for errors.  
@@ -395,6 +443,35 @@ class SpotifyClient:
 
         # no errors found - set message object response data.
         msg.ResponseData = responseData
+
+
+    def _ValidateMarket(self, 
+                        market:str,
+                        ) -> str:
+        """
+        Validates that a market (aka country code) value has either been supplied, or exists
+        in the UserProfile.Country value and returns a value of 'US' if not supplied; otherwise,
+        the market aregument value is returned.
+        
+        If a market argument was not specified and the user profile does not have a country code
+        set, then it causes the Spotify Web API search to return odd results.  For example, the
+        items collection will return no items, but the `total` and `next` values are populated
+        like there are more results.  It's almost like it found the results, but it won't return
+        the actual items due to market / country restrictions or something.
+        """
+        # if user profile contains a country value then spotify web api will use it if no
+        # market argument was supplied.
+        if (self.UserProfile.Country is not None):
+            return market
+               
+        # if a non-null and non-empty string was supplied then assume it's a valid market.
+        # we will let the Spotify Web API tell us if it's not a valid code.
+        if (market is not None and len(market.strip()) > 0):
+            return market
+        
+        # otherwise, defult the value.
+        _logsi.LogVerbose("A market value was not supplied for the request, and the user profile did not contain a country code value (e.g. public access token is in effect).  Defaulting value to '%s'." % SPOTIFY_DEFAULT_MARKET)
+        return SPOTIFY_DEFAULT_MARKET
 
 
     def MakeRequest(self, method:str, msg:SpotifyApiMessage) -> int:
@@ -2117,6 +2194,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single album", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -2152,6 +2232,7 @@ class SpotifyClient:
                           limit:int=20, 
                           offset:int=0,
                           market:str=None,
+                          limitTotal:int=None
                           ) -> AlbumPageSaved:
         """
         Get a list of the albums saved in the current Spotify user's 'Your Library'.
@@ -2160,10 +2241,10 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             market (str):
@@ -2174,6 +2255,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `AlbumPageSaved` object that contains saved album information.
@@ -2186,9 +2273,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -2202,6 +2295,8 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the user's album favorites", apiMethodParms)
                 
             # validations.
@@ -2209,6 +2304,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AlbumPageSaved()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -2219,15 +2327,49 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = AlbumPageSaved(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = AlbumPageSaved(root=msg.ResponseData)
             
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AlbumSaved
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+                    
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Album.Name or "").lower(), reverse=False)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -2249,6 +2391,7 @@ class SpotifyClient:
                             limit:int=20, 
                             offset:int=0,
                             country:str=None,
+                            limitTotal:int=None
                             ) -> AlbumPageSimplified:
         """
         Get a list of new album releases featured in Spotify (shown, for example, on a 
@@ -2256,10 +2399,10 @@ class SpotifyClient:
         
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             country (str):
@@ -2267,6 +2410,12 @@ class SpotifyClient:
                 Provide this parameter if you want the list of returned items to be relevant to a
                 particular country. If omitted, the returned items will be relevant to all countries.  
                 Example: `SE`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `AlbumPageSimplified` object that contains simplified album information.
@@ -2279,9 +2428,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumNewReleases.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumNewReleases_AutoPaging.py
         ```
         </details>
         """
@@ -2296,6 +2451,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of new album releases", apiMethodParms)
                 
             # validations.
@@ -2303,6 +2459,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AlbumPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -2313,16 +2479,50 @@ class SpotifyClient:
             if country is not None:
                 urlParms['country'] = country
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/new-releases')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            item:dict = msg.ResponseData.get('albums', None)
-            if item is not None:
-                result = AlbumPageSimplified(root=item)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/new-releases')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                item:dict = msg.ResponseData.get('albums', None)
+                if item is not None:
+                    pageObj = AlbumPageSimplified(root=item)
+            
+                    # trace.
+                    _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AlbumSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+                    
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -2391,6 +2591,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple albums", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2432,6 +2635,7 @@ class SpotifyClient:
                        limit:int=20, 
                        offset:int=0,
                        market:str=None,
+                       limitTotal:int=None
                        ) -> TrackPageSimplified:
         """
         Get Spotify catalog information about an album's tracks.  
@@ -2443,7 +2647,7 @@ class SpotifyClient:
                 The Spotify ID of the album.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE`
             limit (int):  
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -2456,6 +2660,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `TrackPageSimplified` object that contains simplified track information for the albumId.
@@ -2468,9 +2678,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumTracks.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbumTracks_AutoPaging.py
         ```
         </details>
         """
@@ -2486,6 +2702,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an album's tracks", apiMethodParms)
                 
             # validations.
@@ -2493,6 +2710,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = TrackPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -2503,14 +2733,46 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums/{id}/tracks'.format(id=albumId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = TrackPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums/{id}/tracks'.format(id=albumId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = TrackPageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:TrackSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort items, as they are in playable order.
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -2598,7 +2860,8 @@ class SpotifyClient:
                         include_groups:str='album', 
                         limit:int=20, 
                         offset:int=0,
-                        market:str=None
+                        market:str=None,
+                        limitTotal:int=None
                         ) -> AlbumPageSimplified:
         """
         Get Spotify catalog information about an artist's albums.
@@ -2613,7 +2876,7 @@ class SpotifyClient:
                 Valid values are: `album`, `single`, `appears_on`, `compilation`  
                 Example: `single,appears_on`
             limit (int):  
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -2626,6 +2889,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `AlbumPageSimplified` object of matching results.
@@ -2638,9 +2907,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetArtistAlbums.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetArtistAlbums_AutoPaging.py
         ```
         </details>
         """
@@ -2657,6 +2932,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's albums", apiMethodParms)
                 
             # validations.
@@ -2664,6 +2940,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 5  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AlbumPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -2675,14 +2964,48 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/albums'.format(id=artistId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = AlbumPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/albums'.format(id=artistId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = AlbumPageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AlbumSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -2845,6 +3168,7 @@ class SpotifyClient:
     def GetArtistsFollowed(self, 
                            after:str=None,
                            limit:int=20, 
+                           limitTotal:int=None
                            ) -> ArtistPage:
         """
         Get the current user's followed artists.
@@ -2855,8 +3179,14 @@ class SpotifyClient:
                 the first request.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`  
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -2869,9 +3199,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetArtistsFollowed.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetArtistsFollowed_AutoPaging.py
         ```
         </details>
         """
@@ -2885,8 +3221,23 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("after", after)
             apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's followed artists", apiMethodParms)
                 
+            # validations.
+            if limit is None: 
+                limit = 20
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 5  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ArtistPage()
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -2896,16 +3247,62 @@ class SpotifyClient:
             if after is not None:
                 urlParms['after'] = after
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            item:dict = msg.ResponseData.get('artists',{})
-            if item is not None:
-                result = ArtistPage(root=item)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                item:dict = msg.ResponseData.get('artists',{})
+                if item is not None:
+                    pageObj = ArtistPage(root=item)
+                    
+                    # trace.
+                    _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Artist
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore page results?  
+                    if (pageObj.Next is None) or (result.ItemsCount >= limitTotal):
+                        # no - all pages were processed, or limit total reached.
+                        break
+                    else:
+                        # yes - retrieve the next page of results.
+                        pageObj.CursorAfter = item.Id
+
+                    # modify paging-related request parameters for next page of items.
+                    urlParms['limit'] = pageObj.Limit
+                    urlParms['after'] = pageObj.CursorAfter
+                        
+                    # trace.
+                    _logsi.LogVerbose(TRACE_MSG_AUTOPAGING_NEXT % pageObj.PagingInfo)
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+            result.CursorAfter = pageObj.CursorAfter
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -2973,6 +3370,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's top tracks", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3062,6 +3462,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3097,7 +3500,8 @@ class SpotifyClient:
                              audiobookId:str, 
                              limit:int=20, 
                              offset:int=0,
-                             market:str=None
+                             market:str=None,
+                             limitTotal:int=None
                              ) -> ChapterPageSimplified:
         """
         Get Spotify catalog information about an audiobook's chapters.
@@ -3109,7 +3513,7 @@ class SpotifyClient:
                 The Spotify ID for the audiobook.
                 Example: `74aydHJKgYz3AIq3jjBSv1`
             limit (int):  
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -3122,6 +3526,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `ChapterPageSimplified` object that contains simplified track information for the audiobookId.
@@ -3134,9 +3544,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobookChapters.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobookChapters_AutoPaging.py
         ```
         </details>
         """
@@ -3152,6 +3568,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an audiobook's chapters", apiMethodParms)
                 
             # validations.
@@ -3159,6 +3576,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ChapterPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -3169,14 +3599,46 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks/{id}/chapters'.format(id=audiobookId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = ChapterPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks/{id}/chapters'.format(id=audiobookId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = ChapterPageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:ChapterSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # no sorting, as chapters are in playable order.
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -3198,6 +3660,7 @@ class SpotifyClient:
     def GetAudiobookFavorites(self, 
                               limit:int=20, 
                               offset:int=0,
+                              limitTotal:int=None
                               ) -> AudiobookPageSimplified:
         """
         Get a list of the audiobooks saved in the current Spotify user's 'Your Library'.
@@ -3206,12 +3669,18 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `AudiobookPageSimplified` object that contains saved audiobook information.
@@ -3224,9 +3693,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobookFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobookFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -3240,6 +3715,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users audiobook favorites", apiMethodParms)
                 
             # validations.
@@ -3247,6 +3723,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AudiobookPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -3255,15 +3741,49 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = AudiobookPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = AudiobookPageSimplified(root=msg.ResponseData)
             
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AudiobookSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -3336,6 +3856,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple audiobooks", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3490,21 +4013,22 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetBrowseCategorysPage(self, 
-                               limit:int=50,
-                               offset:int=0,
-                               country:str=None,
-                               locale:str=None,
-                               ) -> CategoryPage:
+    def GetBrowseCategorys(self, 
+                           limit:int=20,
+                           offset:int=0,
+                           country:str=None,
+                           locale:str=None,
+                           limitTotal:int=None
+                           ) -> CategoryPage:
         """
         Get a page of categories used to tag items in Spotify.
         
         Args:
             limit (int):
-                The maximum number of items to return.  
-                Default: 50, Range: 1 to 50.  
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             country (str):
@@ -3522,6 +4046,12 @@ class SpotifyClient:
                 the country parameter, may give odd results if not carefully matched. For example country=`SE` and
                 locale=`de_DE` will return a list of categories relevant to Sweden but as German language strings.  
                 Example: `sv_SE`  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `CategoryPage` object that contains a page of category details.
@@ -3534,13 +4064,19 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/GetBrowseCategorysPage.py
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetBrowseCategorys.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetBrowseCategorys_AutoPaging.py
         ```
         </details>
         """
-        apiMethodName:str = 'GetBrowseCategorysPage'
+        apiMethodName:str = 'GetBrowseCategorys'
         apiMethodParms:SIMethodParmListContext = None
         result:CategoryPage = None
         
@@ -3552,13 +4088,24 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("locale", locale)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a page of categories used to tag items in Spotify", apiMethodParms)
                 
             # validations.
             if limit is None: 
-                limit = 50
+                limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = CategoryPage()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -3571,16 +4118,50 @@ class SpotifyClient:
             if locale is not None:
                 urlParms['locale'] = str(locale)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            item:dict = msg.ResponseData.get('categories',None)
-            if item is not None:
-                result = CategoryPage(root=item)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                item:dict = msg.ResponseData.get('categories',None)
+                if item is not None:
+                    pageObj = CategoryPage(root=item)
+            
+                    # trace.
+                    _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Category
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -3599,11 +4180,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetBrowseCategorys(self, 
-                           country:str=None,
-                           locale:str=None,
-                           refresh:bool=True,
-                           ) -> list[Category]:
+    def GetBrowseCategorysList(self, 
+                               country:str=None,
+                               locale:str=None,
+                               refresh:bool=True,
+                               ) -> list[Category]:
         """
         Get a sorted list of ALL categories used to tag items in Spotify.
         
@@ -3644,11 +4225,11 @@ class SpotifyClient:
         <details>
           <summary>Sample Code</summary>
         ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/GetBrowseCategorys.py
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetBrowseCategorysList.py
         ```
         </details>
         """
-        apiMethodName:str = 'GetBrowseCategorys'
+        apiMethodName:str = 'GetBrowseCategorysList'
         apiMethodParms:SIMethodParmListContext = None
         result:list[Category] = []
         cacheDesc:str = CACHE_SOURCE_CURRENT
@@ -3659,6 +4240,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("locale", locale)
+            apiMethodParms.AppendKeyValue("refresh", refresh)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a sorted list of ALL browse categories", apiMethodParms)
                 
             # can we use the cached value?
@@ -3669,29 +4251,14 @@ class SpotifyClient:
                 
             else:
                 
-                # get a page of categories used to tag items in Spotify
-                pageObj:CategoryPage = self.GetBrowseCategorysPage(country=country, locale=locale, limit=50)
+                # get all categories (return list is already sorted).
+                pageObj:CategoryPage = self.GetBrowseCategorys(country=country, locale=locale, limitTotal=1000)
 
-                # handle pagination, as spotify limits us to a set # of items returned per response.
-                while True:
-
-                    # add category details to return list.
-                    category:Category
-                    for category in pageObj.Items:
-                        result.append(category)
-
-                    # anymore page results?
-                    if pageObj.Next is None:
-                        # no - all pages were processed.
-                        break
-                    else:
-                        # yes - retrieve the next page of results.
-                        pageObj = self.GetBrowseCategorysPage(country=country, locale=locale, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
-
-                # sort items on Name property, ascending order.
-                if len(result) > 0:
-                    result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
-                    
+                # add category details to return list.
+                category:Category
+                for category in pageObj.Items:
+                    result.append(category)
+                                    
                 # update cache.
                 self._ConfigurationCache[apiMethodName] = result
 
@@ -3717,6 +4284,7 @@ class SpotifyClient:
                              limit:int=20, 
                              offset:int=0,
                              country:str=None,
+                             limitTotal:int=None
                              ) -> Tuple[PlaylistPageSimplified, str]:
         """
         Get a list of Spotify playlists tagged with a particular category.
@@ -3726,10 +4294,10 @@ class SpotifyClient:
                 The Spotify category ID for the category.  
                 Example: `dinner`
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             country (str):
@@ -3737,6 +4305,12 @@ class SpotifyClient:
                 Provide this parameter if you want the list of returned items to be relevant to a 
                 particular country. If omitted, the returned items will be relevant to all countries.  
                 Example: `SE`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A tuple of 2 objects:  
@@ -3751,9 +4325,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetCategoryPlaylists.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetCategoryPlaylists_AutoPaging.py
         ```
         </details>
         """
@@ -3770,6 +4350,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("country", country)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify playlists tagged with a particular category", apiMethodParms)
                 
             # validations.
@@ -3777,6 +4358,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -3788,18 +4379,52 @@ class SpotifyClient:
             if country is not None:
                 urlParms['country'] = str(country)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}/playlists'.format(category_id=categoryId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            resultMessage = msg.ResponseData.get('message','unknown')
-            item = msg.ResponseData.get('playlists',None)
-            if item is not None:
-                result = PlaylistPageSimplified(root=item)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}/playlists'.format(category_id=categoryId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                resultMessage = msg.ResponseData.get('message','unknown')
+                item = msg.ResponseData.get('playlists',None)
+                if item is not None:
+                    pageObj = PlaylistPageSimplified(root=item)
             
+                    # trace.
+                    _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result, resultMessage
@@ -3873,6 +4498,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook chapter", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -3959,6 +4587,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple chapters", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4051,6 +4682,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single episode", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -4085,6 +4719,7 @@ class SpotifyClient:
     def GetEpisodeFavorites(self, 
                             limit:int=20, 
                             offset:int=0,
+                            limitTotal:int=None
                             ) -> EpisodePageSaved:
         """
         Get a list of the episodes saved in the current Spotify user's 'Your Library'.
@@ -4093,12 +4728,18 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `EpisodePageSaved` object that contains saved episode information.
@@ -4111,9 +4752,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetEpisodeFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetEpisodeFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -4127,6 +4774,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users episode favorites", apiMethodParms)
                 
             # validations.
@@ -4134,6 +4782,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 1  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = EpisodePageSaved()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -4142,14 +4800,48 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = EpisodePageSaved(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = EpisodePageSaved(root=msg.ResponseData)
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:EpisodeSaved
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Episode.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -4223,6 +4915,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple episodes", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4264,17 +4959,18 @@ class SpotifyClient:
                              offset:int=0,
                              country:str=None,
                              locale:str=None,
-                             timestamp:str=None
+                             timestamp:str=None,
+                             limitTotal:int=None
                              ) -> Tuple[PlaylistPageSimplified, str]:
         """
         Get a list of Spotify featured playlists (shown, for example, on a Spotify player's 'Browse' tab).
         
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             country (str):
@@ -4300,6 +4996,12 @@ class SpotifyClient:
                 If there were no featured playlists (or there is no data) at the specified time, the response will 
                 revert to the current UTC time.
                 Example: `2023-10-23T09:00:00`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A tuple of 2 objects:  
@@ -4314,9 +5016,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetFeaturedPlaylists.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetFeaturedPlaylists_AutoPaging.py
         ```
         </details>
         """
@@ -4334,6 +5042,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("locale", locale)
             apiMethodParms.AppendKeyValue("timestamp", timestamp)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify featured playlists", apiMethodParms)
                 
             # validations.
@@ -4341,6 +5050,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -4355,18 +5074,52 @@ class SpotifyClient:
             if timestamp is not None:
                 urlParms['timestamp'] = timestamp
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/featured-playlists')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            resultMessage = msg.ResponseData.get('message','unknown')
-            item = msg.ResponseData.get('playlists',None)
-            if item is not None:
-                result = PlaylistPageSimplified(root=item)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/featured-playlists')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                resultMessage = msg.ResponseData.get('message','unknown')
+                item = msg.ResponseData.get('playlists',None)
+                if item is not None:
+                    pageObj = PlaylistPageSimplified(root=item)
             
+                    # trace.
+                    _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result, resultMessage
@@ -4813,6 +5566,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the object currently being played on the user's Spotify account", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -4901,6 +5657,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the user's current playback state", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -5004,7 +5763,7 @@ class SpotifyClient:
         
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: `20`, Range: `1` to `50`.  
             after (int):
                 Returns all items after (but not including) this cursor position, which is 
@@ -5187,6 +5946,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a playlist owned by a Spotify user", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -5296,7 +6058,8 @@ class SpotifyClient:
                          offset:int=0,
                          market:str=None,
                          fields:str=None,
-                         additionalTypes:str=None
+                         additionalTypes:str=None,
+                         limitTotal:int=None
                          ) -> PlaylistPage:
         """
         Get full details of the items of a playlist owned by a Spotify user.
@@ -5308,10 +6071,10 @@ class SpotifyClient:
                 The Spotify ID of the playlist.  
                 Example: `5v5ETK9WFXAnGQ3MRubKuE`
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 50, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             market (str):
@@ -5342,6 +6105,12 @@ class SpotifyClient:
                 Note: This parameter was introduced to allow existing clients to maintain their current behaviour 
                 and might be deprecated in the future.  In addition to providing this parameter, make sure that your 
                 client properly handles cases of new types in the future by checking against the type field of each object.                
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `Playlist` object that contains the playlist details.
@@ -5354,9 +6123,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistItems.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistItems_AutoPaging.py
         ```
         </details>
         """
@@ -5374,6 +6149,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("fields", fields)
             apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get full details of the items of a playlist owned by a Spotify user", apiMethodParms)
                 
             # validations.
@@ -5381,6 +6157,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPage()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5395,17 +6184,49 @@ class SpotifyClient:
             if additionalTypes is not None:
                 urlParms['additional_types'] = additionalTypes
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/tracks'.format(id=playlistId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = PlaylistPage(root=msg.ResponseData)
-        
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/tracks'.format(id=playlistId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = PlaylistPage(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistTrack
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort this list, as it is in play order.
+            
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -5424,6 +6245,7 @@ class SpotifyClient:
     def GetPlaylistFavorites(self, 
                              limit:int=20, 
                              offset:int=0,
+                             limitTotal:int=None
                              ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by the current Spotify user.
@@ -5432,12 +6254,18 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `PlaylistPageSimplified` object that contains playlist information.
@@ -5450,9 +6278,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -5466,6 +6300,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users playlist favorites", apiMethodParms)
                 
             # validations.
@@ -5473,6 +6308,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5481,14 +6326,48 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/playlists')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = PlaylistPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/playlists')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = PlaylistPageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5511,6 +6390,7 @@ class SpotifyClient:
                             userId:str,
                             limit:int=20, 
                             offset:int=0,
+                            limitTotal:int=None
                             ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by a Spotify user.
@@ -5522,12 +6402,18 @@ class SpotifyClient:
                 The user's Spotify user ID.  
                 Example: `smedjan`
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `PlaylistPageSimplified` object that contains playlist information.
@@ -5540,9 +6426,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistsForUser.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylistsForUser_AutoPaging.py
         ```
         </details>
         """
@@ -5557,6 +6449,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("userId", userId)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the playlists owned or followed by a Spotify user", apiMethodParms)
                 
             # validations.
@@ -5564,6 +6457,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPageSimplified()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5573,14 +6476,48 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = PlaylistPageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = PlaylistPageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5653,6 +6590,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single show", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -5688,7 +6628,8 @@ class SpotifyClient:
                         showId:str, 
                         limit:int=20, 
                         offset:int=0,
-                        market:str=None
+                        market:str=None,
+                        limitTotal:int=None
                         ) -> EpisodePageSimplified:
         """
         Get Spotify catalog information about a show's episodes.
@@ -5700,7 +6641,7 @@ class SpotifyClient:
                 The Spotify ID for the show.
                 Example: `38bS44xjbVVZ3No3ByF1dJ`
             limit (int):  
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -5713,6 +6654,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `EpisodePageSimplified` object that contains simplified track information for the showId.
@@ -5725,9 +6672,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetShowEpisodes.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetShowEpisodes_AutoPaging.py
         ```
         </details>
         """
@@ -5743,6 +6696,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about a show's episodes", apiMethodParms)
                 
             # validations.
@@ -5750,6 +6704,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = EpisodePageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5760,14 +6727,46 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows/{id}/episodes'.format(id=showId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = EpisodePageSimplified(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows/{id}/episodes'.format(id=showId))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = EpisodePageSimplified(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:EpisodeSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # no sort, as items are in playable order.
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5789,6 +6788,7 @@ class SpotifyClient:
     def GetShowFavorites(self, 
                          limit:int=20, 
                          offset:int=0,
+                         limitTotal:int=None
                          ) -> ShowPageSaved:
         """
         Get a list of the shows saved in the current Spotify user's 'Your Library'.
@@ -5797,12 +6797,18 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `ShowPageSaved` object that contains saved show information.
@@ -5815,9 +6821,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetShowFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetShowFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -5831,6 +6843,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users show favorites", apiMethodParms)
                 
             # validations.
@@ -5838,6 +6851,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ShowPageSaved()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -5846,14 +6869,48 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = ShowPageSaved(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = ShowPageSaved(root=msg.ResponseData)
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AlbumSaved
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Show.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5927,6 +6984,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple shows", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6095,6 +7155,7 @@ class SpotifyClient:
                           limit:int=20, 
                           offset:int=0,
                           market:str=None,
+                          limitTotal:int=None
                           ) -> TrackPageSaved:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'.
@@ -6103,10 +7164,10 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item).  
             market (str):
@@ -6117,6 +7178,12 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `TrackPageSaved` object that contains saved track information.
@@ -6129,9 +7196,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetTrackFavorites.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetTrackFavorites_AutoPaging.py
         ```
         </details>
         """
@@ -6146,6 +7219,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users track favorites", apiMethodParms)
                 
             # validations.
@@ -6153,6 +7227,19 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 2  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = TrackPageSaved()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -6163,15 +7250,49 @@ class SpotifyClient:
             if market is not None:
                 urlParms['market'] = market
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = TrackPageSaved(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = TrackPageSaved(root=msg.ResponseData)
             
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:TrackSaved
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Track.Name or "").lower(), reverse=False)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -6239,6 +7360,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple tracks", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6378,7 +7502,7 @@ class SpotifyClient:
         
         Args:
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
@@ -6609,6 +7733,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("targetValence", targetValence)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get track recommendations for specified criteria", apiMethodParms)
                 
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -6939,7 +8066,8 @@ class SpotifyClient:
     def GetUsersTopArtists(self, 
                            timeRange:str='medium_term',
                            limit:int=20, 
-                           offset:int=0
+                           offset:int=0,
+                           limitTotal:int=None
                            ) -> ArtistPage:
         """
         Get the current user's top artists based on calculated affinity.
@@ -6954,12 +8082,18 @@ class SpotifyClient:
                 Default: `medium_term`  
                 Example: `long_term`
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
                 Default: 0 (the first item), Range: 0 to 1000
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -6972,9 +8106,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetUsersTopArtists.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetUsersTopArtists_AutoPaging.py
         ```
         </details>
         """
@@ -6989,6 +8129,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("timeRange", timeRange)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top artists", apiMethodParms)
                 
             # validations.
@@ -6998,6 +8139,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 20  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ArtistPage()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -7007,17 +8158,51 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/artists')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = ArtistPage(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/artists')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = ArtistPage(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Artist
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -7036,7 +8221,8 @@ class SpotifyClient:
     def GetUsersTopTracks(self, 
                           timeRange:str='medium_term',
                           limit:int=20, 
-                          offset:int=0
+                          offset:int=0,
+                          limitTotal:int=None
                           ) -> TrackPage:
         """
         Get the current user's top tracks based on calculated affinity.
@@ -7051,12 +8237,18 @@ class SpotifyClient:
                 Default: `medium_term`  
                 Example: `long_term`
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
-                Default: 0 (the first item), Range: 0 to 1000
+                Default: 0 (the first item).  
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             An `TrackPage` object of matching results.
@@ -7069,9 +8261,15 @@ class SpotifyClient:
                 If the method fails for any other reason.
 
         <details>
-          <summary>Sample Code</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetUsersTopTracks.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetUsersTopTracks_AutoPaging.py
         ```
         </details>
         """
@@ -7086,6 +8284,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("timeRange", timeRange)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top tracks", apiMethodParms)
                 
             # validations.
@@ -7095,6 +8294,16 @@ class SpotifyClient:
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                #limit = 10  # TEST TODO
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = TrackPage()
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -7104,17 +8313,51 @@ class SpotifyClient:
                 'offset': offset,
             }
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/tracks')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = TrackPage(root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/top/tracks')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                pageObj = TrackPage(root=msg.ResponseData)
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Track
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # sort items on Name property, ascending order.
+            if len(result.Items) > 0:
+                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -9214,18 +10457,192 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def Search(self, 
-               criteria:str,
-               criteriaType:str,
-               limit:int=20, 
-               offset:int=0,
-               market:str=None,
-               includeExternal:str=None
-               ) -> SearchResponse:
+    # def Search(self, 
+    #            criteria:str,
+    #            criteriaType:str,
+    #            limit:int=20, 
+    #            offset:int=0,
+    #            market:str=None,
+    #            includeExternal:str=None,
+    #            ) -> SearchResponse:
+    #     """
+    #     Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes 
+    #     or audiobooks that match a keyword string. Audiobooks are only available within the US, UK, 
+    #     Canada, Ireland, New Zealand and Australia markets.
+        
+    #     Args:
+    #         criteria (str):
+    #             Your search query.  
+    #             You can narrow down your search using field filters.  
+    #             The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+    #             isrc, and genre. Each field filter only applies to certain result types.  
+    #             The artist and year filters can be used while searching albums, artists and tracks.
+    #             You can filter on a single year or a range (e.g. 1955-1960).  
+    #             The album filter can be used while searching albums and tracks.  
+    #             The genre filter can be used while searching artists and tracks.  
+    #             The isrc and track filters can be used while searching tracks.  
+    #             The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+    #             The tag:new filter will return albums released in the past two weeks and tag:hipster 
+    #             can be used to return only albums with the lowest 10% popularity.
+    #         criteriaType (str):
+    #             A comma-separated list of item types to search across.  
+    #             Search results include hits from all the specified item types.  
+    #             For example: "album,track" returns both albums and tracks matching criteria argument.  
+    #             Allowed values: "album", "artist", "playlist", "track", "show", "episode", "audiobook".
+    #         limit (int):
+    #             The maximum number of items to return in a page of items.  
+    #             Default: 20, Range: 1 to 50.  
+    #         offset (int):
+    #             The page index offset of the first item to return.  
+    #             Use with limit to get the next set of items.  
+    #             Default: 0 (the first item).  Range: 0 to 1000.  
+    #         market (str):
+    #             An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+    #             is available in that market will be returned.  If a valid user access token is specified 
+    #             in the request header, the country associated with the user account will take priority over 
+    #             this parameter.  
+    #             Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+    #             Users can view the country that is associated with their account in the account settings.  
+    #             Example: `ES`
+    #         includeExternal (str):
+    #             If "audio" is specified it signals that the client can play externally hosted audio content, and 
+    #             marks the content as playable in the response. By default externally hosted audio content is marked 
+    #             as unplayable in the response.  
+    #             Allowed values: "audio"
+                
+    #     Returns:
+    #         A `SearchResponse` object that contains the search results.
+                
+    #     Raises:
+    #         SpotifyWebApiError: 
+    #             If the Spotify Web API request was for a non-authorization service 
+    #             and the response contains error information.
+    #         SpotifApiError: 
+    #             If the method fails for any other reason.
+
+    #     Note the offset limitation of 1000 entries; this effectively limits you to 1,050 maximum
+    #     entries that you can return with a search.
+        
+    #     <details>
+    #       <summary>Sample Code - Search Albums</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchAlbums.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Artists</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchArtists.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Audiobooks</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchAudiobooks.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Episodes</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchEpisodes.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Playlists</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Shows</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchShows.py
+    #     ```
+    #     </details>
+        
+    #     <details>
+    #       <summary>Sample Code - Search Tracks</summary>
+    #     ```python
+    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchTracks.py
+    #     ```
+    #     </details>
+    #     """
+    #     apiMethodName:str = 'Search'
+    #     apiMethodParms:SIMethodParmListContext = None
+    #     result:SearchResponse = None
+        
+    #     try:
+            
+    #         # trace.
+    #         apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+    #         apiMethodParms.AppendKeyValue("criteria", criteria)
+    #         apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+    #         apiMethodParms.AppendKeyValue("limit", limit)
+    #         apiMethodParms.AppendKeyValue("offset", offset)
+    #         apiMethodParms.AppendKeyValue("market", market)
+    #         apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+    #         _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for information.", apiMethodParms)
+                
+    #         # validations.
+    #         if limit is None: 
+    #             limit = 20
+    #         if offset is None: 
+    #             offset = 0
+
+    #         # build spotify web api request parameters.
+    #         urlParms:dict = \
+    #         {
+    #             'q': criteria,
+    #             'type': criteriaType,
+    #             'limit': limit,
+    #             'offset': offset,
+    #         }
+    #         if market is not None:
+    #             urlParms['market'] = market
+    #         if includeExternal is not None:
+    #             urlParms['include_external'] = includeExternal
+                
+    #         # execute spotify web api request.
+    #         msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+    #         msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+    #         msg.UrlParameters = urlParms
+    #         self.MakeRequest('GET', msg)
+
+    #         # process results.
+    #         result = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+
+    #         # trace.
+    #         _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+    #         return result
+
+    #     except SpotifyWebApiError: raise  # pass handled exceptions on thru
+    #     except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+    #     except Exception as ex:
+            
+    #         # format unhandled exception.
+    #         raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+    #     finally:
+        
+    #         # trace.
+    #         _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchAlbums(self, 
+                     criteria:str,
+                     limit:int=20, 
+                     offset:int=0,
+                     market:str=None,
+                     includeExternal:str=None,
+                     limitTotal:int=None
+                     ) -> SearchResponse:
         """
-        Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes 
-        or audiobooks that match a keyword string. Audiobooks are only available within the US, UK, 
-        Canada, Ireland, New Zealand and Australia markets.
+        Get Spotify catalog information about Albums that match a keyword string. 
         
         Args:
             criteria (str):
@@ -9241,18 +10658,13 @@ class SpotifyClient:
                 The upc, tag:new and tag:hipster filters can only be used while searching albums. 
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
-            criteriaType (str):
-                A comma-separated list of item types to search across.  
-                Search results include hits from all the specified item types.  
-                For example: "album,track" returns both albums and tracks matching criteria argument.  
-                Allowed values: "album", "artist", "playlist", "track", "show", "episode", "audiobook".
             limit (int):
-                The maximum number of items to return.  
+                The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
-                The index of the first item to return.  
+                The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
-                Default: 0 (the first item), Range: 0 to 1000
+                Default: 0 (the first item).  Range: 0 to 1000.  
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -9266,6 +10678,12 @@ class SpotifyClient:
                 marks the content as playable in the response. By default externally hosted audio content is marked 
                 as unplayable in the response.  
                 Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
                 
         Returns:
             A `SearchResponse` object that contains the search results.
@@ -9277,61 +10695,26 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
-        Note the offset limitation of 1000 entries; this effectively limits you to 1,050 maximum
-        entries that you can return with a search.
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
         
         <details>
-          <summary>Sample Code - Search Albums</summary>
+          <summary>Sample Code - Manual Paging</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/SearchAlbums.py
         ```
         </details>
-        
         <details>
-          <summary>Sample Code - Search Artists</summary>
+          <summary>Sample Code - Auto Paging</summary>
         ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchArtists.py
-        ```
-        </details>
-        
-        <details>
-          <summary>Sample Code - Search Audiobooks</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchAudiobooks.py
-        ```
-        </details>
-        
-        <details>
-          <summary>Sample Code - Search Episodes</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchEpisodes.py
-        ```
-        </details>
-        
-        <details>
-          <summary>Sample Code - Search Playlists</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists.py
-        ```
-        </details>
-        
-        <details>
-          <summary>Sample Code - Search Shows</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchShows.py
-        ```
-        </details>
-        
-        <details>
-          <summary>Sample Code - Search Tracks</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchTracks.py
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchAlbums_AutoPaging.py
         ```
         </details>
         """
-        apiMethodName:str = 'Search'
+        apiMethodName:str = 'SearchAlbums'
         apiMethodParms:SIMethodParmListContext = None
-        result:SearchResponse = None
+        criteriaType:str = 'album'
+        result:AlbumPageSimplified = None
         
         try:
             
@@ -9343,13 +10726,26 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for information.", apiMethodParms)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
                 
             # validations.
             if limit is None: 
                 limit = 20
             if offset is None: 
                 offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AlbumPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -9364,18 +10760,1203 @@ class SpotifyClient:
             if includeExternal is not None:
                 urlParms['include_external'] = includeExternal
                 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
 
-            # process results.
-            result = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Albums
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AlbumSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
-            return result
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Albums = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchArtists(self, 
+                     criteria:str,
+                     limit:int=20, 
+                     offset:int=0,
+                     market:str=None,
+                     includeExternal:str=None,
+                     limitTotal:int=None
+                     ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Artists that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchArtists.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchArtists_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchArtists'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'artist'
+        result:ArtistPage = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+                
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ArtistPage()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Artists
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Artist
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Artists = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchAudiobooks(self, 
+                         criteria:str,
+                         limit:int=20, 
+                         offset:int=0,
+                         market:str=None,
+                         includeExternal:str=None,
+                         limitTotal:int=None
+                         ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Audiobooks that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Audiobooks are only available within the US, UK, Canada, Ireland, New Zealand and Australia markets.
+        
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchAudiobooks.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchAudiobooks_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchAudiobooks'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'audiobook'
+        result:AudiobookPageSimplified = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+                
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = AudiobookPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Audiobooks
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:AudiobookSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Audiobooks = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchEpisodes(self, 
+                       criteria:str,
+                       limit:int=20, 
+                       offset:int=0,
+                       market:str=None,
+                       includeExternal:str=None,
+                       limitTotal:int=None
+                       ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Episodes that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchEpisodes.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchEpisodes_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchEpisodes'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'episode'
+        result:EpisodePageSimplified = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+            
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = EpisodePageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Episodes
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:EpisodeSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Episodes = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchPlaylists(self, 
+                        criteria:str,
+                        limit:int=20, 
+                        offset:int=0,
+                        market:str=None,
+                        includeExternal:str=None,
+                        limitTotal:int=None
+                        ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Playlists that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists_AutoPaging.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Spotify Generated, Daily Mix</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists_Spotify_DailyMix.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchPlaylists'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'playlist'
+        result:PlaylistPageSimplified = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+                
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = PlaylistPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Playlists
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:PlaylistSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Playlists = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchShows(self, 
+                    criteria:str,
+                    limit:int=20, 
+                    offset:int=0,
+                    market:str=None,
+                    includeExternal:str=None,
+                    limitTotal:int=None
+                    ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Shows that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchShows.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchShows_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchShows'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'show'
+        result:ShowPageSimplified = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+                
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = ShowPageSimplified()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Shows
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:ShowSimplified
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Shows = result
+            return response
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SearchTracks(self, 
+                     criteria:str,
+                     limit:int=20, 
+                     offset:int=0,
+                     market:str=None,
+                     includeExternal:str=None,
+                     limitTotal:int=None
+                     ) -> SearchResponse:
+        """
+        Get Spotify catalog information about Tracks that match a keyword string. 
+        
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            limit (int):
+                The maximum number of items to return in a page of items.  
+                Default: 20, Range: 1 to 50.  
+            offset (int):
+                The page index offset of the first item to return.  
+                Use with limit to get the next set of items.  
+                Default: 0 (the first item).  Range: 0 to 1000.  
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request.  
+                If specified, this argument overrides the limit and offset argument values
+                and paging is automatically used to retrieve all available items up to the
+                maximum number specified.  
+                Default: None (disabled)
+                
+        Returns:
+            A `SearchResponse` object that contains the search results.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
+        be returned with a search.
+        
+        <details>
+          <summary>Sample Code - Manual Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchTracks.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Auto Paging</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SearchTracks_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SearchTracks'
+        apiMethodParms:SIMethodParmListContext = None
+        criteriaType:str = 'track'
+        result:TrackPage = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("limit", limit)
+            apiMethodParms.AppendKeyValue("offset", offset)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
+                
+            # validations.
+            if limit is None: 
+                limit = 20
+            if offset is None: 
+                offset = 0
+            if not isinstance(limitTotal, int):
+                limitTotal = 0
+                
+            # are we auto-paging?  if so, then use max limit.
+            if limitTotal > 0: 
+                limit = 50
+                if limit > limitTotal:
+                    limit = limitTotal
+                result = TrackPage()
+
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'q': criteria,
+                'type': criteriaType,
+                'limit': limit,
+                'offset': offset,
+            }
+            if market is not None:
+                urlParms['market'] = market
+            if includeExternal is not None:
+                urlParms['include_external'] = includeExternal
+                
+            # handle pagination, as spotify limits us to a set # of items returned per response.
+            while True:
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                searchResponse:SearchResponse = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+                pageObj = searchResponse.Tracks
+            
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE_PAGE + pageObj.PagingInfo) % (apiMethodName, type(pageObj).__name__), pageObj, excludeNonPublic=True)
+
+                # was limit total argument specified?
+                if (limitTotal <= 0):
+                
+                    # no - just return the initial page of results.
+                    result = pageObj
+                    break
+
+                else:
+                
+                    # append page of items to final results.
+                    item:Track
+                    for item in pageObj.Items:
+                        result.Items.append(item)
+                        result.Limit = result.ItemsCount
+                        if result.ItemsCount >= limitTotal:
+                            break
+                    
+                    # anymore pages to process?  if not, then exit the loop.
+                    if not self._CheckForNextPage(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
+                        break
+
+            # update result object with final paging details.
+            result.Total = pageObj.Total
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # return a search response object.
+            response:SearchResponse = SearchResponse(criteria, criteriaType)
+            response.Tracks = result
+            return response
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
@@ -9808,14 +12389,16 @@ class SpotifyClient:
             
             # note that we cannot retrieve spotify user basic details, as the client credentials
             # authentication type does not utilize an authorization token.  in this case, we will
-            # build a "public access" user profile, just so we have something there.
+            # build a "public access" user profile, just so we have something there.  
+            # 
+            # also note that we do not set a value for Country, as some endpoints require a country
+            # (or market) code in order to work properly (e.g. any of the Search... methods).
             userProfile:UserProfile = UserProfile()
             userProfile._DisplayName = 'Public Access'
             userProfile._Followers = Followers()
             userProfile._Followers._Total = 0
             userProfile._Id = 'unknown'
             userProfile._Uri = 'spotify.user.' + userProfile._Id
-            userProfile._Country = 'unknown'
             self._UserProfile = userProfile
 
             # trace.

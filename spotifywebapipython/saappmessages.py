@@ -32,10 +32,10 @@ class SAAppMessages:
 
     MSG_SPOTIFY_WEB_API_ERROR:str = "SAM1001E - Spotify Web API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\""
     """
-    SAM1002E - Spotify Web API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\"
+    SAM1001E - Spotify Web API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\"
     """
     
     MSG_SPOTIFY_WEB_API_AUTH_ERROR:str = "SAM1002E - Spotify Web API returned an authorization error status while processing the \"{methodname}\" method.\nHTTP Status: {httpstatus} - {httpreason}\nError: {error}\nError Description: \"{errordescription}\""
     """
-    SAM1003E - Spotify Web API returned an authorization error status while processing the \"{methodname}\" method.\nHTTP Status: {httpstatus} - {httpreason}\nError: {error}\nError Description: \"{errordescription}\"
+    SAM1002E - Spotify Web API returned an authorization error status while processing the \"{methodname}\" method.\nHTTP Status: {httpstatus} - {httpreason}\nError: {error}\nError Description: \"{errordescription}\"
     """

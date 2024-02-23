@@ -114,6 +114,17 @@ class Category:
         return self._Name
 
 
+    @property
+    def Uri(self) -> str:
+        """
+        A simulated Spotify URI value for the category.
+        
+        This is a helper property - no value with this name is returned from the
+        Spotify Web API.
+        """
+        return f"spotify:category:{self._Id}"
+
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.

@@ -14,11 +14,10 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # get Spotify catalog information about tracks that match a keyword string.
+    # get Spotify catalog information about Tracks that match a keyword string.
     criteria:str = 'Flawless'
-    criteriaType:str = 'track'
-    print('\nSearching for tracks - criteria: "%s" ...\n' % criteria)
-    searchResponse:SearchResponse = spotify.Search(criteria, criteriaType, limit=50)
+    print('\nSearching for Tracks - criteria: "%s" ...\n' % criteria)
+    searchResponse:SearchResponse = spotify.SearchTracks(criteria, limit=25)
 
     # display search response details.
     print(str(searchResponse))
@@ -32,9 +31,14 @@ try:
 
     # handle pagination, as spotify limits us to a set # of items returned per response.
     while True:
-
+                
         # only display track results for this example.
         pageObj:TrackPage = searchResponse.Tracks
+
+        # for testing - don't return 1000 results!  
+        # comment the following 2 lines of code if you want ALL results.
+        if pageObj.Offset + pageObj.Limit > 75:
+            break
 
         # display paging details.
         print(str(pageObj))
@@ -44,7 +48,6 @@ try:
         # display track details.
         track:Track
         for track in pageObj.Items:
-        
             print('- "{name}" ({uri})'.format(name=track.Name, uri=track.Uri))
          
         # anymore page results?
@@ -54,7 +57,7 @@ try:
         else:
             # yes - retrieve the next page of results.
             print('\nGetting next page of %d items ...\n' % (pageObj.Limit))
-            searchResponse = spotify.Search(criteria, criteriaType, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
+            searchResponse = spotify.SearchTracks(criteria, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
 
 except Exception as ex:
 

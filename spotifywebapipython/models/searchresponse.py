@@ -34,25 +34,19 @@ class SearchResponse:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
-        self._Albums:AlbumPageSimplified = None
-        self._Artists:ArtistPage = None
-        self._Audiobooks:AudiobookPageSimplified = None
-        self._Episodes:EpisodePageSimplified = None
-        self._Playlists:PlaylistPageSimplified = None
+        self._Albums:AlbumPageSimplified = AlbumPageSimplified()
+        self._Artists:ArtistPage = ArtistPage()
+        self._Audiobooks:AudiobookPageSimplified = AudiobookPageSimplified()
+        self._Episodes:EpisodePageSimplified = EpisodePageSimplified()
+        self._Playlists:PlaylistPageSimplified = PlaylistPageSimplified()
         self._SearchCriteria:str = searchCriteria
         self._SearchCriteriaType:str = searchCriteriaType
-        self._Shows:ShowPageSimplified = None
-        self._Tracks:TrackPage = None
+        self._Shows:ShowPageSimplified = ShowPageSimplified()
+        self._Tracks:TrackPage = TrackPage()
         
         if (root is None):
 
-            self._Albums:AlbumPageSimplified = AlbumPageSimplified()
-            self._Artists:ArtistPage = ArtistPage()
-            self._Audiobooks:AudiobookPageSimplified = AudiobookPageSimplified()
-            self._Episodes:EpisodePageSimplified = EpisodePageSimplified()
-            self._Playlists:PlaylistPageSimplified = PlaylistPageSimplified()
-            self._Shows:ShowPageSimplified = ShowPageSimplified()
-            self._Tracks:TrackPage = TrackPage()
+            pass
         
         else:
 
@@ -97,13 +91,10 @@ class SearchResponse:
     @property
     def AlbumsCount(self) -> int:
         """ 
-        The total number of album items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `AlbumPageSimplified` object, as paging limits are applied.
+        The total number of album items returned in the `Tracks.Items` collection
         """
         if self._Albums is not None:
-            return self._Albums.Total
+            return self._Albums.ItemsCount
         return 0
 
 
@@ -114,17 +105,23 @@ class SearchResponse:
         """
         return self._Albums
     
+    @Albums.setter
+    def Albums(self, value:str):
+        """ 
+        Sets the Albums property value.
+        """
+        if value is not None:
+            if isinstance(value, AlbumPageSimplified):
+                self._Albums = value
+
 
     @property
     def ArtistsCount(self) -> int:
         """ 
-        The total number of artist items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `ArtistPage` object, as paging limits are applied.
+        The total number of artist items returned in the `Tracks.Items` collection
         """
         if self._Artists is not None:
-            return self._Artists.Total
+            return self._Artists.ItemsCount
         return 0
 
 
@@ -135,17 +132,23 @@ class SearchResponse:
         """
         return self._Artists
     
+    @Artists.setter
+    def Artists(self, value:str):
+        """ 
+        Sets the Artists property value.
+        """
+        if value is not None:
+            if isinstance(value, ArtistPage):
+                self._Artists = value
+
 
     @property
     def AudiobooksCount(self) -> int:
         """ 
-        The total number of audiobook items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `AudiobookPageSimplified` object, as paging limits are applied.
+        The total number of audiobook items returned in the `Tracks.Items` collection
         """
         if self._Audiobooks is not None:
-            return self._Audiobooks.Total
+            return self._Audiobooks.ItemsCount
         return 0
 
 
@@ -156,17 +159,23 @@ class SearchResponse:
         """
         return self._Audiobooks
     
+    @Audiobooks.setter
+    def Audiobooks(self, value:str):
+        """ 
+        Sets the Audiobooks property value.
+        """
+        if value is not None:
+            if isinstance(value, AudiobookPageSimplified):
+                self._Audiobooks = value
+
 
     @property
     def EpisodesCount(self) -> int:
         """ 
-        The total number of episode items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `EpisodePageSimplified` object, as paging limits are applied.
+        The total number of episode items returned in the `Tracks.Items` collection
         """
         if self._Episodes is not None:
-            return self._Episodes.Total
+            return self._Episodes.ItemsCount
         return 0
 
 
@@ -177,17 +186,23 @@ class SearchResponse:
         """
         return self._Episodes
     
+    @Episodes.setter
+    def Episodes(self, value:str):
+        """ 
+        Sets the Episodes property value.
+        """
+        if value is not None:
+            if isinstance(value, EpisodePageSimplified):
+                self._Episodes = value
+
 
     @property
     def PlaylistsCount(self) -> int:
         """ 
-        The total number of playlist items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `PlaylistPageSimplified` object, as paging limits are applied.
+        The total number of playlist items returned in the `Tracks.Items` collection
         """
         if self._Playlists is not None:
-            return self._Playlists.Total
+            return self._Playlists.ItemsCount
         return 0
 
 
@@ -198,6 +213,15 @@ class SearchResponse:
         """
         return self._Playlists
     
+    @Playlists.setter
+    def Playlists(self, value:str):
+        """ 
+        Sets the Playlists property value.
+        """
+        if value is not None:
+            if isinstance(value, PlaylistPageSimplified):
+                self._Playlists = value
+
 
     @property
     def SearchCriteria(self) -> str:
@@ -220,13 +244,10 @@ class SearchResponse:
     @property
     def ShowsCount(self) -> int:
         """ 
-        The total number of show items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `ShowPageSimplified` object, as paging limits are applied.
+        The total number of show items returned in the `Tracks.Items` collection
         """
         if self._Shows is not None:
-            return self._Shows.Total
+            return self._Shows.ItemsCount
         return 0
 
 
@@ -237,17 +258,23 @@ class SearchResponse:
         """
         return self._Shows
     
+    @Shows.setter
+    def Shows(self, value:str):
+        """ 
+        Sets the Shows property value.
+        """
+        if value is not None:
+            if isinstance(value, ShowPageSimplified):
+                self._Shows = value
+
 
     @property
     def TracksCount(self) -> int:
         """ 
-        The total number of track items found in the search.  
-        
-        Note that this value could be different than the number of items in the
-        underlying `TrackPage` object, as paging limits are applied.
+        The total number of track items returned in the `Tracks.Items` collection
         """
         if self._Tracks is not None:
-            return self._Tracks.Total
+            return self._Tracks.ItemsCount
         return 0
 
 
@@ -258,6 +285,15 @@ class SearchResponse:
         """
         return self._Tracks
     
+    @Tracks.setter
+    def Tracks(self, value:str):
+        """ 
+        Sets the Tracks property value.
+        """
+        if value is not None:
+            if isinstance(value, TrackPage):
+                self._Tracks = value
+
 
     def GetSpotifyOwnedPlaylists(self) -> list[PlaylistSimplified]:
         """ 
@@ -347,7 +383,7 @@ class SearchResponse:
         msg = '%s\n Search Type="%s"' % (msg, str(self._SearchCriteriaType))
         msg = '%s\n Albums Count=%s' % (msg, str(self.AlbumsCount))
         msg = '%s\n Artists Count=%s' % (msg, str(self.ArtistsCount))
-        # msg = '%s\n AudioBooks Count=%s' % (msg, str(self.AudioBooksCount))
+        msg = '%s\n Audiobooks Count=%s' % (msg, str(self.AudiobooksCount))
         msg = '%s\n Episodes Count=%s' % (msg, str(self.EpisodesCount))
         msg = '%s\n Playlists Count=%s' % (msg, str(self.PlaylistsCount))
         msg = '%s\n Shows Count=%s' % (msg, str(self.ShowsCount))

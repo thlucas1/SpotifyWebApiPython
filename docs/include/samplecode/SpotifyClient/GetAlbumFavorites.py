@@ -25,7 +25,7 @@ try:
 
         print(str(pageObj))
         print('')
-        print('Albums in this page of results:')
+        print('Items in this page of results:')
 
         # display album details.
         albumSaved:AlbumSaved

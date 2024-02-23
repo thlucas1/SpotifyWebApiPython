@@ -21,13 +21,12 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # get Spotify catalog information about shows that match a keyword string.
-    # note - it seems that you have to use an Authorization type of token in 
-    # order to return show objects in the results (otherwise they are all null).
+    # get Spotify catalog information about Shows that match a keyword string.
+    # note - use an Authorization type of token or the `market` argument for this
+    # method, otherwise the item result are all null.
     criteria:str = 'Joe Rogan'
-    criteriaType:str = 'show'
-    print('\nSearching for shows - criteria: "%s" ...\n' % criteria)
-    searchResponse:SearchResponse = spotify.Search(criteria, criteriaType, limit=50)
+    print('\nSearching for Shows - criteria: "%s" ...\n' % criteria)
+    searchResponse:SearchResponse = spotify.SearchShows(criteria, limit=25)
 
     # display search response details.
     print(str(searchResponse))
@@ -41,21 +40,25 @@ try:
 
     # handle pagination, as spotify limits us to a set # of items returned per response.
     while True:
-
+                
         # only display show results for this example.
         pageObj:ShowPageSimplified = searchResponse.Shows
 
         # display paging details.
         print(str(pageObj))
-        print('')
-        print('Shows in this page of results:')
+        print('\nShows in this page of results:')
 
         # display show details.
         show:ShowSimplified
         for show in pageObj.Items:
-        
             print('- "{name}" ({uri})'.format(name=show.Name, uri=show.Uri))
          
+        # for testing - don't return 1000 results!  
+        # comment the following 3 lines of code if you want ALL results.
+        if pageObj.Offset + pageObj.Limit >= 75:
+            print('\n*** Stopping paging loop after 75 entries for testing.')
+            break
+
         # anymore page results?
         if (pageObj.Next is None) or ((pageObj.Offset + pageObj.Limit) > pageObjInitialTotal):
             # no - all pages were processed.
@@ -63,7 +66,7 @@ try:
         else:
             # yes - retrieve the next page of results.
             print('\nGetting next page of %d items ...\n' % (pageObj.Limit))
-            searchResponse = spotify.Search(criteria, criteriaType, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
+            searchResponse = spotify.SearchShows(criteria, offset=pageObj.Offset + pageObj.Limit, limit=pageObj.Limit)
 
 except Exception as ex:
 
