@@ -2648,9 +2648,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('albums',[])
-            for item in items:
-                result.append(Album(root=item))
+            items = msg.ResponseData.get('albums',None)
+            if items is not None:
+                for item in items:
+                    result.append(Album(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Album]'), result)
@@ -3109,9 +3110,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('artists',[])
-            for item in items:
-                result.append(Artist(root=item))
+            items = msg.ResponseData.get('artists',None)
+            if items is not None:
+                for item in items:
+                    result.append(Artist(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
@@ -3183,9 +3185,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('artists',[])
-            for item in items:
-                result.append(Artist(root=item))
+            items = msg.ResponseData.get('artists',None)
+            if items is not None:
+                for item in items:
+                    result.append(Artist(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
@@ -3419,9 +3422,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('tracks',[])
-            for item in items:
-                result.append(Track(root=item))
+            items = msg.ResponseData.get('tracks',None)
+            if items is not None:
+                for item in items:
+                    result.append(Track(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)
@@ -3908,9 +3912,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('audiobooks',[])
-            for item in items:
-                result.append(AudiobookSimplified(root=item))
+            items = msg.ResponseData.get('audiobooks',None)
+            if items is not None:
+                for item in items:
+                    result.append(AudiobookSimplified(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[AudiobookSimplified]'), result)
@@ -4357,6 +4362,9 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifApiError: 
                 If the method fails for any other reason.
+                
+        The following are special undocumented category ID's that I have found:  
+        - 0JQ5DAt0tbjZptfcdMSKl3: Made For You  
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -4641,9 +4649,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('chapters',[])
-            for item in items:
-                result.append(Chapter(root=item))
+            items = msg.ResponseData.get('chapters',None)
+            if items is not None:
+                for item in items:
+                    result.append(Chapter(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Chapter]'), result)
@@ -4969,9 +4978,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('episodes',[])
-            for item in items:
-                result.append(Episode(root=item))
+            items = msg.ResponseData.get('episodes',None)
+            if items is not None:
+                for item in items:
+                    result.append(Episode(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Episode]'), result)
@@ -5520,9 +5530,10 @@ class SpotifyClient:
                 self.MakeRequest('GET', msg)
 
                 # process results.
-                items = msg.ResponseData.get('devices',[])
-                for item in items:
-                    result.append(Device(root=item))
+                items = msg.ResponseData.get('devices',None)
+                if items is not None:
+                    for item in items:
+                        result.append(Device(root=item))
 
                 # sort items on Name property, ascending order.
                 if len(result) > 0:
@@ -7099,9 +7110,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('shows',[])
-            for item in items:
-                result.append(ShowSimplified(root=item))
+            items = msg.ResponseData.get('shows',None)
+            if items is not None:
+                for item in items:
+                    result.append(ShowSimplified(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[ShowSimplified]'), result)
@@ -7475,9 +7487,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('tracks',[])
-            for item in items:
-                result.append(Track(root=item))
+            items = msg.ResponseData.get('tracks',None)
+            if items is not None:
+                for item in items:
+                    result.append(Track(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)
@@ -7549,9 +7562,10 @@ class SpotifyClient:
             self.MakeRequest('GET', msg)
 
             # process results.
-            items = msg.ResponseData.get('audio_features',[])
-            for item in items:
-                result.append(AudioFeatures(root=item))
+            items = msg.ResponseData.get('audio_features',None)
+            if items is not None:
+                for item in items:
+                    result.append(AudioFeatures(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[AudioFeatures]'), result)

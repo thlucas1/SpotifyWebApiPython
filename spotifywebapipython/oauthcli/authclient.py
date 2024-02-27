@@ -648,7 +648,7 @@ class AuthClient:
             arrScopeSession.sort()
 
         if token is not None and isinstance(token, dict):
-            arrScopeToken = token.get('scope', [])
+            arrScopeToken = token.get('scope', None) or []
             if isinstance(arrScopeToken, str):
                 arrScopeToken = arrScopeSession.split(' ')
             arrScopeToken.sort()

@@ -36,9 +36,10 @@ class Category:
             self._Name = root.get('name', None)
 
             # process all collections and objects.
-            items:list = root.get('icons',[])
-            for item in items:
-                self._Icons.append(ImageObject(root=item))
+            items:list = root.get('icons',None)
+            if items is not None:
+                for item in items:
+                    self._Icons.append(ImageObject(root=item))
 
         
     def __repr__(self) -> str:

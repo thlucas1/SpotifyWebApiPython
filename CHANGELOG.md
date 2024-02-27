@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.31 ] - 2024/02/27
+
+  * Updated all models that used a `root.get('...',[])` syntax to use `root.get('...',None)` instead, as Spotify Web API will sometimes return a `null` instead of an `[]` (empty array) for a key item value.  This was causing methods to fail with `'NoneType' object is not iterable` errors.
+
 ###### [ 1.0.30 ] - 2024/02/23
 
   * Updated `SpotifyClient.SearchPlaylists` method with argument `spotifyOwnedOnly` to filter found items by owner.  This simulates the spotify "content generated for you" functionality provided by the Spotify AI engine.

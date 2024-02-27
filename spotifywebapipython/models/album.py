@@ -44,17 +44,19 @@ class Album(AlbumSimplified):
             self._Popularity = root.get('popularity', None)
 
             # process all collections and objects.
-            items:list = root.get('copyrights',[])
-            for item in items:
-                self._Copyrights.append(Copyright(root=item))
+            items:list = root.get('copyrights',None)
+            if items is not None:
+                for item in items:
+                    self._Copyrights.append(Copyright(root=item))
 
             item:dict = root.get('external_ids',None)
             if item is not None:
                 self._ExternalIds = ExternalIds(root=item)
 
-            items:list[str] = root.get('genres',[])
-            for item in items:
-                self._Genres.append(item)
+            items:list[str] = root.get('genres',None)
+            if items is not None:
+                for item in items:
+                    self._Genres.append(item)
         
             item:dict = root.get('tracks',None)
             if item is not None:

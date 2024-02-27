@@ -30,13 +30,15 @@ class TrackRecommendations:
         else:
 
             # process all collections and objects.
-            items:list = root.get('seeds',[])
-            for item in items:
-                self._Seeds.append(RecommendationSeed(root=item))
+            items:list = root.get('seeds',None)
+            if items is not None:
+                for item in items:
+                    self._Seeds.append(RecommendationSeed(root=item))
         
-            items:list = root.get('tracks',[])
-            for item in items:
-                self._Tracks.append(Track(root=item))
+            items:list = root.get('tracks',None)
+            if items is not None:
+                for item in items:
+                    self._Tracks.append(Track(root=item))
 
         
     def __repr__(self) -> str:

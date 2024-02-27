@@ -57,7 +57,7 @@ class EpisodeSimplified:
             self._Id = root.get('id', None)
             self._IsExternallyHosted = root.get('is_externally_hosted', None)
             self._IsPlayable = root.get('is_playable', None)
-            self._Languages = root.get('languages', [])
+            self._Languages = root.get('languages', None) or []
             self._Name = root.get('name', None)
             self._ReleaseDate = root.get('release_date', None)
             self._ReleaseDatePrecision = root.get('release_date_precision', None)
@@ -69,9 +69,10 @@ class EpisodeSimplified:
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
             item:dict = root.get('restrictions',None)
             if item is not None:

@@ -54,9 +54,10 @@ class UserProfileSimplified:
             if item is not None:
                 self._Followers = Followers(root=item)
         
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
         UNKNOWN:str = 'unknown'
         

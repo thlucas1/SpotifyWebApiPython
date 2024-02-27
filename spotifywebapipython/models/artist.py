@@ -43,13 +43,15 @@ class Artist(ArtistSimplified):
             if item is not None:
                 self._Followers = Followers(root=item)
 
-            items:list[str] = root.get('genres',[])
-            for item in items:
-                self._Genres.append(item)
+            items:list[str] = root.get('genres',None)
+            if items is not None:
+                for item in items:
+                    self._Genres.append(item)
         
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
         
     def __repr__(self) -> str:

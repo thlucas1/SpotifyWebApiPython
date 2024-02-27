@@ -45,7 +45,7 @@ class TrackSimplified:
         
         else:
 
-            self._AvailableMarkets = root.get('available_markets', [])
+            self._AvailableMarkets = root.get('available_markets', None) or []
             self._DiscNumber = root.get('disc_number', None)
             self._DurationMS = root.get('duration_ms', None)
             self._Explicit = root.get('explicit', None)
@@ -60,9 +60,10 @@ class TrackSimplified:
             self._Uri = root.get('uri', None)
 
             # process all collections and objects.
-            items:list = root.get('artists',[])
-            for item in items:
-                self._Artists.append(ArtistSimplified(root=item))
+            items:list = root.get('artists',None)
+            if items is not None:
+                for item in items:
+                    self._Artists.append(ArtistSimplified(root=item))
         
             item:dict = root.get('external_urls',None)
             if item is not None:

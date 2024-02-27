@@ -44,7 +44,7 @@ class AlbumSimplified:
         else:
 
             self._AlbumType = root.get('album_type', None)
-            self._AvailableMarkets = root.get('available_markets', [])
+            self._AvailableMarkets = root.get('available_markets', None) or []
             self._Href = root.get('href', None)
             self._Id = root.get('id', None)
             self._Name = root.get('name', None)
@@ -55,17 +55,19 @@ class AlbumSimplified:
             self._Uri = root.get('uri', None)
 
             # process all collections and objects.
-            items:list = root.get('artists',[])
-            for item in items:
-                self._Artists.append(ArtistSimplified(root=item))
+            items:list = root.get('artists',None)
+            if items is not None:
+                for item in items:
+                    self._Artists.append(ArtistSimplified(root=item))
 
             item:dict = root.get('external_urls',None)
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
             item:dict = root.get('restrictions',None)
             if item is not None:

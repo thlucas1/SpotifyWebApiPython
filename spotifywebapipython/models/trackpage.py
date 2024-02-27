@@ -35,9 +35,10 @@ class TrackPage(PageObject):
         else:
 
             # process all collections and objects.
-            items:list = root.get('items',[])
-            for item in items:
-                self._Items.append(Track(root=item))
+            items:list = root.get('items',None)
+            if items is not None:
+                for item in items:
+                    self._Items.append(Track(root=item))
 
         
     def __repr__(self) -> str:

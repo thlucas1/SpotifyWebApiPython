@@ -49,14 +49,14 @@ class AudiobookSimplified:
         
         else:
 
-            self._AvailableMarkets = root.get('available_markets', [])
+            self._AvailableMarkets = root.get('available_markets', None) or []
             self._Description = root.get('description', None)
             self._Edition = root.get('edition', None)
             self._Explicit = root.get('explicit', None)
             self._Href = root.get('href', None)
             self._HtmlDescription = root.get('html_description', None)
             self._Id = root.get('id', None)
-            self._Languages = root.get('languages', [])
+            self._Languages = root.get('languages', None) or []
             self._MediaType = root.get('media_type', None)
             self._Name = root.get('name', None)
             self._Publisher = root.get('publisher', None)
@@ -65,25 +65,29 @@ class AudiobookSimplified:
             self._Uri = root.get('uri', None)
 
             # process all collections and objects.
-            items:list = root.get('authors',[])
-            for item in items:
-                self._Authors.append(Author(root=item))
+            items:list = root.get('authors',None)
+            if items is not None:
+                for item in items:
+                    self._Authors.append(Author(root=item))
 
-            items:list = root.get('copyrights',[])
-            for item in items:
-                self._Copyrights.append(Copyright(root=item))
+            items:list = root.get('copyrights',None)
+            if items is not None:
+                for item in items:
+                    self._Copyrights.append(Copyright(root=item))
 
             item:dict = root.get('external_urls',None)
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
-            items:list = root.get('narrators',[])
-            for item in items:
-                self._Narrators.append(Narrator(root=item))
+            items:list = root.get('narrators',None)
+            if items is not None:
+                for item in items:
+                    self._Narrators.append(Narrator(root=item))
 
         
     def __repr__(self) -> str:

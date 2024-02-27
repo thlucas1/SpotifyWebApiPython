@@ -57,9 +57,10 @@ class PlaylistSimplified:
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
         
             item:dict = root.get('owner',None)
             if item is not None:

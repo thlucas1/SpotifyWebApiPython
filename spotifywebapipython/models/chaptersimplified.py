@@ -50,7 +50,7 @@ class ChapterSimplified:
         else:
 
             self._AudioPreviewUrl = root.get('audio_preview_url', None)
-            self._AvailableMarkets = root.get('available_markets', [])
+            self._AvailableMarkets = root.get('available_markets', None) or []
             self._ChapterNumber = root.get('chapter_number', None)
             self._Description = root.get('description', None)
             self._DurationMS = root.get('duration_ms', None)
@@ -59,7 +59,7 @@ class ChapterSimplified:
             self._HtmlDescription = root.get('html_description', None)
             self._Id = root.get('id', None)
             self._IsPlayable = root.get('is_playable', None)
-            self._Languages = root.get('languages', [])
+            self._Languages = root.get('languages', None) or []
             self._Name = root.get('name', None)
             self._ReleaseDate = root.get('release_date', None)
             self._ReleaseDatePrecision = root.get('release_date_precision', None)
@@ -71,9 +71,10 @@ class ChapterSimplified:
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            items:list = root.get('images',[])
-            for item in items:
-                self._Images.append(ImageObject(root=item))
+            items:list = root.get('images',None)
+            if items is not None:
+                for item in items:
+                    self._Images.append(ImageObject(root=item))
 
             item:dict = root.get('restrictions',None)
             if item is not None:

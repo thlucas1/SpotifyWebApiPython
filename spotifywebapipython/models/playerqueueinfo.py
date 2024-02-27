@@ -42,13 +42,14 @@ class PlayerQueueInfo:
                 elif self._CurrentlyPlayingType == 'episode':
                     self._CurrentlyPlaying = Episode(root=item)
 
-            items:list = root.get('queue',[])
-            for item in items:
-                itemType = item.get('type','unknown')
-                if itemType == 'track':
-                    self._Queue.append(Track(root=item))
-                elif itemType == 'episode':
-                    self._Queue.append(Episode(root=item))
+            items:list = root.get('queue',None)
+            if items is not None:
+                for item in items:
+                    itemType = item.get('type','unknown')
+                    if itemType == 'track':
+                        self._Queue.append(Track(root=item))
+                    elif itemType == 'episode':
+                        self._Queue.append(Episode(root=item))
         
 
     def __repr__(self) -> str:
