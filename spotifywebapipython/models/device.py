@@ -103,6 +103,17 @@ class Device:
 
 
     @property
+    def SelectItemNameAndId(self) -> str:
+        """
+        Returns a string that can be used in a selection list in the
+        form of "Name (Id)".
+        
+        This is a helper property, and not part of the Spotify Web API interface.
+        """
+        return "%s (%s)" % (self.Name, self.Id)
+        
+
+    @property
     def SupportsVolume(self) -> bool:
         """ 
         If this device can be used to set the volume.
@@ -130,6 +141,48 @@ class Device:
         """
         return self._VolumePercent
 
+
+    @staticmethod
+    def GetIdFromSelectItem(value:str) -> str:
+        """
+        Returns the Id portion of a `SelectItemNameAndId` property value.
+        
+        Args:
+            value (str):
+                A `SelectItemNameAndId` property value.
+                
+        Returns:
+            The Id portion of a `SelectItemNameAndId` property value, or None
+            if the Id potion could not be determined.
+        """
+        result:str = None
+        if isinstance(value, str):
+            idx:int = value.rfind("(")
+            if idx > -1:
+                result = value[idx+1:len(value)-1]  # drop the "(" and ")"
+        return result
+        
+
+    @staticmethod
+    def GetNameFromSelectItem(value:str) -> str:
+        """
+        Returns the Name portion of a `SelectItemNameAndId` property value.
+        
+        Args:
+            value (str):
+                A `SelectItemNameAndId` property value.
+                
+        Returns:
+            The Name portion of a `SelectItemNameAndId` property value, or None
+            if the Name potion could not be determined.
+        """
+        result:str = None
+        if isinstance(value, str):
+            idx:int = value.rfind("(")
+            if idx > -1:
+                result = value[:idx-1]
+        return result
+        
 
     def ToDictionary(self) -> dict:
         """

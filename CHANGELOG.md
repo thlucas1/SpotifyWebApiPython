@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.33 ] - 2024/03/02
+
+  * Added `Device.SelectItemNameAndId` property to return a string that can be used in a selection list in the form of "Name (Id)".
+  * Added `Device.GetIdFromSelectItem` method to return the Id portion of a `SelectItemNameAndId` property value.
+  * Added `Device.GetNameFromSelectItem` method to return the Name portion of a `SelectItemNameAndId` property value.
+
 ###### [ 1.0.32 ] - 2024/02/28
 
   * Updated `PlayerQueueInfo` to correctly return the `Summary` property value when the queue is empty.
