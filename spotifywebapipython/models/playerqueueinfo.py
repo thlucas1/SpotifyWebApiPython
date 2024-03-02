@@ -81,7 +81,9 @@ class PlayerQueueInfo:
     @property
     def Queue(self) -> list[object]:
         """ 
-        A Context Object; can be null.
+        The tracks or episodes in the queue. Can be empty.
+        
+        Will be one of the following: `Track` or `Episode`
         """
         return self._Queue
     
@@ -113,9 +115,9 @@ class PlayerQueueInfo:
             elif self._CurrentlyPlayingType == 'ad':
                 result = 'Advertisement'
                 
-        elif self._CurrentlyPlayingType is None and self._Context is None:
+        elif self._CurrentlyPlayingType is None:
             
-            result = "unavailable"
+            result = 'unavailable'
             
         return result
 

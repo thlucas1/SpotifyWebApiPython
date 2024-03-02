@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.32 ] - 2024/02/28
+
+  * Updated `PlayerQueueInfo` to correctly return the `Summary` property value when the queue is empty.
+  * Removed `SpotifyClient.SearchPlaylists` method argument `spotifyOwnedOnly`, as it can be replaced by other functionality (e.g. `GetCategoryPlaylists`).
+
 ###### [ 1.0.31 ] - 2024/02/27
 
   * Updated all models that used a `root.get('...',[])` syntax to use `root.get('...',None)` instead, as Spotify Web API will sometimes return a `null` instead of an `[]` (empty array) for a key item value.  This was causing methods to fail with `'NoneType' object is not iterable` errors.

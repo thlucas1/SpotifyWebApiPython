@@ -2349,7 +2349,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AlbumPageSaved()
@@ -2504,7 +2503,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AlbumPageSimplified()
@@ -2756,7 +2754,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = TrackPageSimplified()
@@ -2986,7 +2983,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 5  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AlbumPageSimplified()
@@ -3275,7 +3271,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 1  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ArtistPage()
@@ -3620,7 +3615,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ChapterPageSimplified()
@@ -3767,7 +3761,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AudiobookPageSimplified()
@@ -4141,7 +4134,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = CategoryPage()
@@ -4378,6 +4370,12 @@ class SpotifyClient:
         .. include:: ../docs/include/samplecode/SpotifyClient/GetCategoryPlaylists_AutoPaging.py
         ```
         </details>
+        <details>
+          <summary>Sample Code - Made For You Playlists</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetCategoryPlaylists_MadeForYou.py
+        ```
+        </details>
         """
         apiMethodName:str = 'GetCategoryPlaylists'
         apiMethodParms:SIMethodParmListContext = None
@@ -4406,7 +4404,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPageSimplified()
@@ -4833,7 +4830,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 1  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = EpisodePageSaved()
@@ -5102,7 +5098,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPageSimplified()
@@ -5903,7 +5898,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 40  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlayHistoryPage()
@@ -6271,7 +6265,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPage()
@@ -6422,7 +6415,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPageSimplified()
@@ -6571,7 +6563,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPageSimplified()
@@ -6747,7 +6738,7 @@ class SpotifyClient:
         Args:
             showId (str):  
                 The Spotify ID for the show.
-                Example: `38bS44xjbVVZ3No3ByF1dJ`
+                Example: `6kAsbP8pxwaU2kPibKTuHE`
             limit (int):  
                 The maximum number of items to return in a page of items.  
                 Default: 20, Range: 1 to 50.  
@@ -6818,7 +6809,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = EpisodePageSimplified()
@@ -6965,7 +6955,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ShowPageSaved()
@@ -7342,7 +7331,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 2  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = TrackPageSaved()
@@ -8256,7 +8244,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 20  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ArtistPage()
@@ -8411,7 +8398,6 @@ class SpotifyClient:
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
                 limit = 50
-                #limit = 10  # TEST TODO
                 if limit > limitTotal:
                     limit = limitTotal
                 result = TrackPage()
@@ -8572,13 +8558,13 @@ class SpotifyClient:
                 Valid contexts are albums, artists & playlists.  
                 Example: `spotify:album:6vc9OTcyd3hyzabCmsdnwE`.   
             offsetUri (str):
-                Indicates from where in the context playback should start.  
+                Indicates from what Uri in the context playback should start.  
                 Only available when contextUri corresponds to an artist, album or playlist.  
-                The offsetPosition argument will be used if
+                The offsetPosition argument will be used if this value is null.  
                 Default is null.  
-                Example: `5`  start playing at track # 4 (0=track 1, etc).  
+                Example: `spotify:track:1301WleyT98MSxVHPZCA6M` start playing at the specified track Uri.  
             offsetPosition (int):
-                Indicates from where in the context playback should start.  
+                Indicates from what position in the context playback should start.  
                 The value is zero-based, and can't be negative.  
                 Only available when contextUri corresponds to an album or playlist.  
                 Default is `0`.  
@@ -8586,7 +8572,7 @@ class SpotifyClient:
             positionMS (int):
                 The position in milliseconds to seek to; must be a positive number.  
                 Passing in a position that is greater than the length of the track will cause the 
-                player to start playing the next song.  
+                player to start playing the next track.  
                 Default is `0`.  
                 Example: `25000`  
             deviceId (str):
@@ -8699,7 +8685,7 @@ class SpotifyClient:
             positionMS (int):
                 The position in milliseconds to seek to; must be a positive number.  
                 Passing in a position that is greater than the length of the track will cause the 
-                player to start playing the next song.  
+                player to start playing the next track.  
                 Default is `0`.  
                 Example: `25000`  
             deviceId (str):
@@ -11513,7 +11499,6 @@ class SpotifyClient:
                         market:str=None,
                         includeExternal:str=None,
                         limitTotal:int=None,
-                        spotifyOwnedOnly:bool=False
                         ) -> SearchResponse:
         """
         Get Spotify catalog information about Playlists that match a keyword string. 
@@ -11558,10 +11543,6 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
-            spotifyOwnedOnly (bool):
-                True to return only found items that are owned by spotify (e.g. content generated for you by the spotify AI engine); 
-                otherwise, False to return all found items.   
-                Default is False.
                 
         Returns:
             A `SearchResponse` object that contains the search results.
@@ -11588,12 +11569,6 @@ class SpotifyClient:
         .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists_AutoPaging.py
         ```
         </details>
-        <details>
-          <summary>Sample Code - Spotify Generated, Daily Mix</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists_Spotify_DailyMix.py
-        ```
-        </details>
         """
         apiMethodName:str = 'SearchPlaylists'
         apiMethodParms:SIMethodParmListContext = None
@@ -11611,7 +11586,6 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
-            apiMethodParms.AppendKeyValue("spotifyOwnedOnly", spotifyOwnedOnly)
             _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for %s information" % criteriaType, apiMethodParms)
                 
             # validations.
@@ -11684,12 +11658,6 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
-
-            # was request for spotify owned items only?
-            if spotifyOwnedOnly:
-                _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
-                _logsi.LogVerbose("Filtering results for Spotify owned content")
-                result._Items = result.GetSpotifyOwnedItems()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
