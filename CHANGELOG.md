@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.34 ] - 2024/03/18
+
+  * Fixed `SpotifyClient.CreatePlaylist` method to properly pass the Public and Collaborative parameters to the Spotify Web API.  Prior to this, any created playlists were being marked with Public=True.
+
 ###### [ 1.0.33 ] - 2024/03/02
 
   * Added `Device.SelectItemNameAndId` property to return a string that can be used in a selection list in the form of "Name (Id)".

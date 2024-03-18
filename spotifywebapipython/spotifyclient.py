@@ -1933,8 +1933,8 @@ class SpotifyClient:
             {
                 'name': '%s' % name,
                 'description': '%s' % description,
-                'public': str(public).lower(),
-                'collaborative': str(collaborative).lower(),
+                'public': public,
+                'collaborative': collaborative,
             }
             
             # execute spotify web api request.
@@ -8678,9 +8678,9 @@ class SpotifyClient:
         Args:
             uris (str):
                 A list of Spotify track URIs to play; can be track or episode URIs.  
-                Example: [`spotify:track:4iV5W9uYEdYUVa79Axb7Rh` ,`spotify:episode:512ojhOuo1ktJprKbVcKyQ`].  
+                Example: [`spotify:track:6zd8T1PBe9JFHmuVnurdRp` ,`spotify:track:1kWUud3vY5ij5r62zxpTRy`].  
                 It can also be specified as a comma-delimited string.  
-                Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh,spotify:episode:512ojhOuo1ktJprKbVcKyQ`.  
+                Example: `spotify:track:6zd8T1PBe9JFHmuVnurdRp,spotify:track:1kWUud3vY5ij5r62zxpTRy`.  
                 A maximum of 50 items can be added in one request.
             positionMS (int):
                 The position in milliseconds to seek to; must be a positive number.  

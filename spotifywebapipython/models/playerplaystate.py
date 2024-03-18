@@ -143,6 +143,14 @@ class PlayerPlayState:
         """
         return self._IsPlaying
 
+    @IsPlaying.setter
+    def IsPlaying(self, value:bool):
+        """ 
+        Sets the IsPlaying property value.
+        """
+        if value is None or isinstance(value, bool):
+            self._IsPlaying = value
+
 
     @property
     def IsRepeatEnabled(self) -> bool:
