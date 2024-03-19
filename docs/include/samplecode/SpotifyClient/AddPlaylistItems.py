@@ -39,6 +39,13 @@ try:
 
     print('Playlist updated successfully:\n- snapshot ID = "%s"' % result)
 
+    # add nowplaying item to end of a playlist.
+    playlistId:str = '4yptcTKnXjCu3V92tVVafS'
+    print('\nAdding nowplaying item to end of playlist id "%s" ...\n' % playlistId)
+    result:str = spotify.AddPlaylistItems(playlistId)
+
+    print('Playlist updated successfully:\n- snapshot ID = "%s"' % result)
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

@@ -25,6 +25,10 @@ try:
     print('\nRemoving saved track(s) from the current users profile: \n- %s' % trackIds.replace(',','\n- '))
     spotify.RemoveTrackFavorites(trackIds)
             
+    # remove nowplaying track from the current user's 'Your Library'.
+    print('\nRemoving nowplaying track from the current users profile')
+    spotify.RemoveTrackFavorites()
+            
     print('\nSuccess - track(s) were removed')
 
 except Exception as ex:

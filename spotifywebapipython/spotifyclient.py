@@ -484,6 +484,26 @@ class SpotifyClient:
         msg.ResponseData = responseData
 
 
+    def _GetPlayerNowPlayingUri(self) -> str:
+        """
+        Returns the uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        
+        # is anything playing?  if so, return the uri value.
+        if nowPlaying is not None:
+            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
+            if nowPlaying.Item is not None:
+                result = nowPlaying.Item.Uri
+                
+        return result
+    
+
     def _ValidateMarket(self, 
                         market:str,
                         ) -> str:
@@ -823,9 +843,6 @@ class SpotifyClient:
                     else:
                         break
                     
-            # reset buffer position for read.
-            #fData.seek(0)
-            
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -869,7 +886,8 @@ class SpotifyClient:
             uris (str):  
                 A comma-separated list of Spotify URIs to add; can be track or episode URIs.  
                 Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh,spotify:episode:512ojhOuo1ktJprKbVcKyQ`.  
-                A maximum of 100 items can be added in one request.
+                A maximum of 100 items can be specified in one request.
+                If null, the currently playing context uri value is used.
             position (int):  
                 The position to insert the items, a zero-based index.  
                 For example, to insert the items in the first position: position=0;  
@@ -907,6 +925,12 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("position", position)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add items to a user's playlist", apiMethodParms)
                 
+            # if uris not specified, then return currently playing uri value.
+            if uris is None or len(uris.strip() == 0):
+                uris = self._GetPlayerNowPlayingUri()
+                if uris is None:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
+                    
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -934,6 +958,7 @@ class SpotifyClient:
             _logsi.LogString(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9699,7 +9724,7 @@ class SpotifyClient:
 
     def RemovePlaylistItems(self, 
                             playlistId:str, 
-                            uris:str,
+                            uris:str=None,
                             snapshotId:str=None
                             ) -> str:
         """
@@ -9715,7 +9740,8 @@ class SpotifyClient:
             uris (str):  
                 A comma-separated list of Spotify URIs to remove; can be track or episode URIs.  
                 Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh,spotify:episode:512ojhOuo1ktJprKbVcKyQ`.  
-                A maximum of 100 items can be removed in one request.
+                A maximum of 100 items can be specified in one request.
+                If null, the currently playing context uri value is used.
             snapshotId (str):  
                 The playlist's snapshot ID against which you want to make the changes.  
                 The API will validate that the specified items exist and in the specified positions and 
@@ -9756,6 +9782,12 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("snapshotId", snapshotId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove item(s) from a user's playlist", apiMethodParms)
                 
+            # if uris not specified, then return currently playing uri value.
+            if uris is None or len(uris.strip() == 0):
+                uris = self._GetPlayerNowPlayingUri()
+                if uris is None:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
+
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
@@ -9788,6 +9820,7 @@ class SpotifyClient:
             _logsi.LogString(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9881,7 +9914,7 @@ class SpotifyClient:
 
 
     def RemoveTrackFavorites(self, 
-                             ids:str
+                             ids:str=None
                              ) -> None:
         """
         Remove one or more tracks from the current user's 'Your Library'.
@@ -9893,6 +9926,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,4eoYKv2kDwJS7gRGh5q6SK`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9924,6 +9958,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove track(s) from user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if ids is None or len(ids.strip() == 0):
+                uri = self._GetPlayerNowPlayingUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -9946,6 +9988,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -10090,7 +10133,7 @@ class SpotifyClient:
             uris (str):  
                 A comma-separated list of Spotify URIs to replace; can be track or episode URIs.  
                 Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh,spotify:episode:512ojhOuo1ktJprKbVcKyQ`.  
-                A maximum of 100 items can be replaced in one request.
+                A maximum of 100 items can be specified in one request.
                 
         Returns:
             A snapshot ID for the updated playlist.
@@ -10476,7 +10519,7 @@ class SpotifyClient:
 
 
     def SaveTrackFavorites(self, 
-                           ids:str
+                           ids:str=None
                            ) -> None:
         """
         Save one or more tracks to the current user's 'Your Library'.
@@ -10488,6 +10531,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -10519,6 +10563,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save track(s) to user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if ids is None or len(ids.strip() == 0):
+                uri = self._GetPlayerNowPlayingUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -10541,6 +10593,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:

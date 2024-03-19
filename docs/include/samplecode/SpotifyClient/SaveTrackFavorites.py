@@ -25,6 +25,10 @@ try:
     print('\nAdding saved track(s) to the current users profile: \n- %s' % trackIds.replace(',','\n- '))
     spotify.SaveTrackFavorites(trackIds)
             
+    # save currently playing track to the current user's 'Your Library'.
+    print('\nAdding nowplaying track to the current users profile')
+    spotify.SaveTrackFavorites()
+            
     print('\nSuccess - track(s) were added')
 
 except Exception as ex:

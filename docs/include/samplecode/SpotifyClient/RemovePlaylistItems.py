@@ -40,6 +40,13 @@ try:
 
     print('\nPlaylist updated successfully:\n- snapshot ID = "%s"' % result)
 
+    # remove nowplaying item from current playlist.
+    playlistId:str = '4yptcTKnXjCu3V92tVVafS'
+    print('\nRemoving nowplaying item from playlist id "%s"' % (playlistId))
+    result:str = spotify.RemovePlaylistItems(playlistId)
+
+    print('\nPlaylist updated successfully:\n- snapshot ID = "%s"' % result)
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
