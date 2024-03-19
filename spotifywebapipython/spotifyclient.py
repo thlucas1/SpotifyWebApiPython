@@ -926,7 +926,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Add items to a user's playlist", apiMethodParms)
                 
             # if uris not specified, then return currently playing uri value.
-            if uris is None or len(uris.strip() == 0):
+            if (uris is None) or (len(uris.strip()) == 0):
                 uris = self._GetPlayerNowPlayingUri()
                 if uris is None:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
@@ -9783,7 +9783,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove item(s) from a user's playlist", apiMethodParms)
                 
             # if uris not specified, then return currently playing uri value.
-            if uris is None or len(uris.strip() == 0):
+            if (uris is None) or (len(uris.strip()) == 0):
                 uris = self._GetPlayerNowPlayingUri()
                 if uris is None:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
@@ -9959,7 +9959,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove track(s) from user favorites", apiMethodParms)
                 
             # if ids not specified, then return currently playing id value.
-            if ids is None or len(ids.strip() == 0):
+            if (ids is None) or (len(ids.strip()) == 0):
                 uri = self._GetPlayerNowPlayingUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
@@ -10564,7 +10564,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Save track(s) to user favorites", apiMethodParms)
                 
             # if ids not specified, then return currently playing id value.
-            if ids is None or len(ids.strip() == 0):
+            if (ids is None) or (len(ids.strip()) == 0):
                 uri = self._GetPlayerNowPlayingUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)

@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.36 ] - 2024/03/19
+
+  * Fixed `SpotifyClient.SaveTrackFavorites` method for a bug introduced with v1.0.35 update causeing 'object of type 'bool' has no len()' exceptions.
+  * Fixed `SpotifyClient.RemoveTrackFavorites` method for a bug introduced with v1.0.35 update causeing 'object of type 'bool' has no len()' exceptions.
+  * Fixed `SpotifyClient.AddPlaylistItems` method for a bug introduced with v1.0.35 update causeing 'object of type 'bool' has no len()' exceptions.
+  * Fixed `SpotifyClient.RemovePlaylistItems` method for a bug introduced with v1.0.35 update causeing 'object of type 'bool' has no len()' exceptions.
+
 ###### [ 1.0.35 ] - 2024/03/18
 
   * Updated `SpotifyClient.SaveTrackFavorites` method to make the `ids` argument optional; if not supplied, the currently playing id value is used instead.
