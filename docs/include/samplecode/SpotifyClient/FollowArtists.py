@@ -27,6 +27,12 @@ try:
             
     print('Success - artists are now followed')
 
+    # add the current user as a follower of the nowplaying artist.
+    print('\nStart following the nowplaying artist')
+    spotify.FollowArtists()
+
+    print('Success - artists are now followed')
+    
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

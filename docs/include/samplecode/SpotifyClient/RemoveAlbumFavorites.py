@@ -27,6 +27,12 @@ try:
             
     print('\nSuccess - album(s) were removed')
 
+    # remove nowplaying track album from the current user's 'Your Library'.
+    print('\nRemoving nowplaying track album from the current users profile')
+    spotify.RemoveAlbumFavorites()
+
+    print('\nSuccess - album(s) were removed')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

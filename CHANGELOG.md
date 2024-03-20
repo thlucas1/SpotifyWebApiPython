@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.37 ] - 2024/03/19
+
+  * Updated `SpotifyClient.FollowArtists` method to make the `ids` argument optional; if not supplied, the currently playing track artist id value is used instead.
+  * Updated `SpotifyClient.UnfollowArtists` method to make the `ids` argument optional; if not supplied, the currently playing track artist id value is used instead.
+  * Updated `SpotifyClient.SaveAlbumFavorites` method to make the `ids` argument optional; if not supplied, the currently playing track album id value is used instead.
+  * Updated `SpotifyClient.RemoveAlbumFavorites` method to make the `ids` argument optional; if not supplied, the currently playing track album id value is used instead.
+  * Updated `SpotifyClient.CreatePlaylist` method to add the `imagePath` argument, which assigns an image to the created playlist.
+  * Updated `SpotifyClient.ChangePlaylistDetails` method to add the `imagePath` argument, which assigns an image to the updated playlist details.
+
 ###### [ 1.0.36 ] - 2024/03/19
 
   * Fixed `SpotifyClient.SaveTrackFavorites` method for a bug introduced with v1.0.35 update causeing 'object of type 'bool' has no len()' exceptions.

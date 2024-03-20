@@ -26,6 +26,12 @@ try:
     spotify.SaveAlbumFavorites(albumIds)
             
     print('\nSuccess - album(s) were added')
+    
+    # save nowplaying track album to the current user's 'Your Library'.
+    print('\nSaving nowplaying track album to the current users profile')
+    spotify.SaveAlbumFavorites()
+
+    print('\nSuccess - album(s) were added')
 
 except Exception as ex:
 

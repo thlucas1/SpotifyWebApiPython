@@ -484,6 +484,50 @@ class SpotifyClient:
         msg.ResponseData = responseData
 
 
+    def _GetPlayerNowPlayingAlbumUri(self) -> str:
+        """
+        Returns the album uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        
+        # is a track playing?  if so, return the album uri value.
+        if nowPlaying is not None:
+            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
+            if nowPlaying.CurrentlyPlayingType in ['track']:
+                trackItem:Track = nowPlaying.Item
+                if (trackItem is not None) and (trackItem.Album is not None):
+                    result = trackItem.Album.Uri
+                
+        return result
+    
+
+    def _GetPlayerNowPlayingArtistUri(self) -> str:
+        """
+        Returns the artist uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        
+        # is a track playing?  if so, return the artist uri value.
+        if nowPlaying is not None:
+            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
+            if nowPlaying.CurrentlyPlayingType in ['track']:
+                trackItem:Track = nowPlaying.Item
+                if (trackItem is not None) and (len(trackItem.Artists) > 0):
+                    result = trackItem.Artists[0].Uri
+                
+        return result
+    
+
     def _GetPlayerNowPlayingUri(self) -> str:
         """
         Returns the uri value of the currently playing media if something is
@@ -977,7 +1021,8 @@ class SpotifyClient:
                               name:str=None,
                               description:str=None,
                               public:bool=None,
-                              collaborative:bool=None
+                              collaborative:bool=None,
+                              imagePath:str=None
                               ) -> None:
         """
         Change a playlist's details (name, description, and public / private state).  
@@ -1001,6 +1046,9 @@ class SpotifyClient:
                 If true, the playlist will become collaborative and other users will be able to modify 
                 the playlist in their Spotify client.  
                 Note: You can only set collaborative to true on non-public playlists.
+            imagePath (str):
+                A fully-qualified path of an image to display for the playlist.
+                The image must be in JPEG format, and cannot exceed 256KB in Base64 encoded size.  
 
         The user must own the playlist.
         
@@ -1021,6 +1069,9 @@ class SpotifyClient:
         A playlist can also be made collaborative by setting the `collaborative` argument to true. 
         This means that anyone with the link can add to or remove a track from it.
                 
+        If the `imagePath` argument is specified, the `AddPlaylistCoverImage` method is called to 
+        upload the image after the playlist details are updated.
+
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -1040,6 +1091,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("description", description)
             apiMethodParms.AppendKeyValue("public", public)
             apiMethodParms.AppendKeyValue("collaborative", collaborative)
+            apiMethodParms.AppendKeyValue("imagePath", imagePath)
             _logsi.LogMethodParmList(SILevel.Verbose, "Change a playlist details", apiMethodParms)
                 
             # if collaborative is True, then force public to false as Spotify requires it.
@@ -1066,6 +1118,13 @@ class SpotifyClient:
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
+
+            # was a playlist image path specified?  if so, then assign the image.
+            if imagePath is not None:
+                try:
+                    self.AddPlaylistCoverImage(playlistId, imagePath)
+                except Exception as ex:
+                    pass   # ignore exceptions, as they are already logged.
 
             # process results.
             # no results to process - this is pass or fail.
@@ -1871,7 +1930,8 @@ class SpotifyClient:
                        name:str=None,
                        description:str=None,
                        public:bool=True,
-                       collaborative:bool=False
+                       collaborative:bool=False,
+                       imagePath:str=None
                        ) -> Playlist:
         """
         Create an empty playlist for a Spotify user.  
@@ -1900,6 +1960,9 @@ class SpotifyClient:
                 To create collaborative playlists you must have granted `playlist-modify-private`
                 and `playlist-modify-public` scope.  
                 Defaults to false.
+            imagePath (str):
+                A fully-qualified path of an image to display for the playlist.
+                The image must be in JPEG format, and cannot exceed 256KB in Base64 encoded size.  
 
         The playlist will be empty until you add tracks. 
         
@@ -1912,6 +1975,9 @@ class SpotifyClient:
         This means that anyone with the link can add to or remove a track from it.
         
         Each user is generally limited to a maximum of 11,000 playlists.
+        
+        If the `imagePath` argument is specified, the `AddPlaylistCoverImage` method is called to 
+        upload the image after the playlist is created.
 
         Returns:
             A `Playlist` object that contains the playlist details.
@@ -1943,6 +2009,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("description", description)
             apiMethodParms.AppendKeyValue("public", public)
             apiMethodParms.AppendKeyValue("collaborative", collaborative)
+            apiMethodParms.AppendKeyValue("imagePath", imagePath)
             _logsi.LogMethodParmList(SILevel.Verbose, "Create an empty playlist for a user", apiMethodParms)
                 
             # if userId is not supplied, then use profile value.
@@ -1970,6 +2037,13 @@ class SpotifyClient:
 
             # process results.
             result = Playlist(root=msg.ResponseData)
+
+            # was a playlist image path specified?  if so, then assign the image.
+            if imagePath is not None:
+                try:
+                    self.AddPlaylistCoverImage(result.Id, imagePath)
+                except Exception as ex:
+                    pass   # ignore exceptions, as they are already logged.
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -1989,7 +2063,7 @@ class SpotifyClient:
 
 
     def FollowArtists(self, 
-                      ids:str,
+                      ids:str=None,
                       ) -> None:
         """
         Add the current user as a follower of one or more artists.
@@ -2001,6 +2075,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify artist IDs.  
                 A maximum of 50 IDs can be sent in one request.
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
+                If null, the currently playing track artist uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -2027,7 +2102,15 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of one or more artists", apiMethodParms)
-                
+                                   
+            # if ids not specified, then return currently playing artist id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -9486,7 +9569,7 @@ class SpotifyClient:
 
 
     def RemoveAlbumFavorites(self, 
-                             ids:str
+                             ids:str=None
                              ) -> None:
         """
         Remove one or more albums from the current user's 'Your Library'.
@@ -9498,6 +9581,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX`
+                If null, the currently playing track album uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9529,6 +9613,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove album(s) from user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing album id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAlbumUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -10203,7 +10295,7 @@ class SpotifyClient:
 
 
     def SaveAlbumFavorites(self, 
-                           ids:str
+                           ids:str=None
                            ) -> None:
         """
         Save one or more albums to the current user's 'Your Library'.
@@ -10215,6 +10307,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
+                If null, the currently playing track album uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -10246,6 +10339,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save album(s) to user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing album id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAlbumUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -12681,7 +12782,7 @@ class SpotifyClient:
 
 
     def UnfollowArtists(self, 
-                        ids:str,
+                        ids:str=None,
                         ) -> None:
         """
         Remove the current user as a follower of one or more artists.
@@ -12693,6 +12794,7 @@ class SpotifyClient:
                 A comma-separated list of Spotify artist IDs.  
                 A maximum of 50 IDs can be sent in one request.
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
+                If null, the currently playing track artist uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12720,6 +12822,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of one or more artists", apiMethodParms)
                 
+            # if ids not specified, then return currently playing artist id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')

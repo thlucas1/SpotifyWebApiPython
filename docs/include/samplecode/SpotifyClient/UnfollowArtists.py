@@ -26,6 +26,12 @@ try:
     spotify.UnfollowArtists(ids)
             
     print('Success - artists are now unfollowed')
+    
+    # remove the current user as a follower of the nowplaying artist.
+    print('\nStop following the nowplaying artist')
+    spotify.UnfollowArtists()
+
+    print('Success - artists are now unfollowed')
 
 except Exception as ex:
 

@@ -30,6 +30,14 @@ try:
 
     print(str(playlist))
 
+    # create a playlist for the current user, and assign an image.
+    userId:str = spotify.UserProfile.Id
+    imagePath:str = './test/testdata/PlaylistCoverImage.jpg'
+    print('\nCreating new (empty) playlist for user "%s" ...\n' % userId)
+    playlist:Playlist = spotify.CreatePlaylist(userId, 'My New Playlist 04',"Created from the SpotifyWebApiPython's library - test unicode \u00A9.",False,False,imagePath)
+
+    print(str(playlist))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

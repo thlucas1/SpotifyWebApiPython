@@ -34,6 +34,19 @@ try:
 
     print('\nSuccess - playlist details were updated')
 
+    # change playlist details, and update image.
+    playlistId:str = '4yptcTKnXjCu3V92tVVafS'
+    imagePath:str = './test/testdata/PlaylistCoverImage.jpg'
+    print('\nChanging playlist details for id "%s" ...\n' % playlistId)
+    spotify.ChangePlaylistDetails(playlistId, 
+                                  name='My Updated Playlist Name',
+                                  description='This is an updated playlist description with a unicode copyright \u00A9 character in it.',
+                                  public=False,
+                                  collaborative=True,
+                                  imagePath=imagePath)
+
+    print('\nSuccess - playlist details were updated')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
