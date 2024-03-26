@@ -5780,7 +5780,7 @@ class SpotifyClient:
                 properly handles cases of new types in the future by checking against the type field of each object.
                 
         Returns:
-            A `PlayerPlayState` object that contains the currently playing media, or null if nothing is playing.
+            A `PlayerPlayState` object that contains the currently playing media state.
                 
         Raises:
             SpotifyWebApiError: 

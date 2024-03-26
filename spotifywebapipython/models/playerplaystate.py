@@ -34,8 +34,8 @@ class PlayerPlayState:
         self._IsPlaying:bool = None
         self._ProgressMS:int = None
         self._RepeatState:str = None
-        self._ShuffleState:bool = None
-        self._SmartShuffle:bool = None
+        self._ShuffleState:str = None
+        self._SmartShuffle:str = None
         self._Timestamp:int = None
         
         if (root is None):
@@ -72,7 +72,27 @@ class PlayerPlayState:
                 elif self._CurrentlyPlayingType == 'episode':
                     self._Item = Episode(root=item)
 
-        
+        # post load validations.
+        if self._Actions is None:
+            self._Actions = PlayerActions()
+        if self._Device is None:
+            self._Device = Device()
+        if self._CurrentlyPlayingType is None:
+            self._CurrentlyPlayingType = 'unknown'
+        if self._IsPlaying is None:
+            self._IsPlaying = False
+        if self._ProgressMS is None:
+            self._ProgressMS = 0
+        if self._RepeatState is None:
+            self._RepeatState = 'off'
+        if self._ShuffleState is None:
+            self._ShuffleState = 'off'
+        if self._SmartShuffle is None:
+            self._SmartShuffle = 'off'
+        if self._Timestamp is None:
+            self._Timestamp = 0
+
+
     def __repr__(self) -> str:
         return self.ToString()
 
@@ -148,7 +168,7 @@ class PlayerPlayState:
         """ 
         Sets the IsPlaying property value.
         """
-        if value is None or isinstance(value, bool):
+        if isinstance(value, bool):
             self._IsPlaying = value
 
 
@@ -159,9 +179,9 @@ class PlayerPlayState:
         
         The `RepeatState` property contains the actual repeat setting.
         """
-        if self._RepeatState is None or self._RepeatState == 'off': 
-            return False
-        return True
+        if self._RepeatState is not 'off': 
+            return True
+        return False
 
 
     @property
@@ -169,9 +189,19 @@ class PlayerPlayState:
         """ 
         True if shuffle play is enabled; otherwise, False. 
         """
-        if self.ShuffleState is None or self.ShuffleState == 'off':
-            return False
-        return True
+        if self.ShuffleState == 'on':
+            return True
+        return False
+
+
+    @property
+    def IsSmartShuffleEnabled(self) -> bool:
+        """ 
+        True if smart shuffle play is enabled; otherwise, False. 
+        """
+        if self.SmartShuffle == 'on':
+            return True
+        return False
 
 
     @property
@@ -180,6 +210,14 @@ class PlayerPlayState:
         Progress into the currently playing track or episode; can be null.
         """
         return self._ProgressMS
+
+    @ProgressMS.setter
+    def ProgressMS(self, value:int):
+        """ 
+        Sets the ProgressMS property value.
+        """
+        if isinstance(value, int):
+            self._ProgressMS = value
 
 
     @property
@@ -236,6 +274,14 @@ class PlayerPlayState:
         Unix Millisecond Timestamp when data was fetched.
         """
         return self._Timestamp
+
+    @Timestamp.setter
+    def Timestamp(self, value:int):
+        """ 
+        Sets the Timestamp property value.
+        """
+        if isinstance(value, int):
+            self._Timestamp = value
 
 
     def ToDictionary(self) -> dict:

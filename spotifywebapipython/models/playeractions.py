@@ -36,16 +36,38 @@ class PlayerActions:
         
         else:
 
-            self._InterruptingPlayback:bool = root.get('interrupting_playback', None)
-            self._Pausing:bool = root.get('pausing', None)
-            self._Resuming:bool = root.get('resuming', None)
-            self._Seeking:bool = root.get('seeking', None)
-            self._SkippingNext:bool = root.get('skipping_next', None)
-            self._SkippingPrev:bool = root.get('skipping_prev', None)
-            self._TogglingRepeatContext:bool = root.get('toggling_repeat_context', None)
-            self._TogglingRepeatTrack:bool = root.get('toggling_shuffle', None)
-            self._TogglingShuffle:bool = root.get('toggling_repeat_track', None)
-            self._TransferringPlayback:bool = root.get('transferring_playback', None)
+            self._InterruptingPlayback = root.get('interrupting_playback', None)
+            self._Pausing = root.get('pausing', None)
+            self._Resuming = root.get('resuming', None)
+            self._Seeking = root.get('seeking', None)
+            self._SkippingNext = root.get('skipping_next', None)
+            self._SkippingPrev = root.get('skipping_prev', None)
+            self._TogglingRepeatContext = root.get('toggling_repeat_context', None)
+            self._TogglingRepeatTrack = root.get('toggling_shuffle', None)
+            self._TogglingShuffle = root.get('toggling_repeat_track', None)
+            self._TransferringPlayback = root.get('transferring_playback', None)
+
+        # post load validations.
+        if self._InterruptingPlayback is None:
+            self._InterruptingPlayback = False
+        if self._Pausing is None:
+            self._Pausing = False
+        if self._Resuming is None:
+            self._Resuming = False
+        if self._Seeking is None:
+            self._Seeking = False
+        if self._SkippingNext is None:
+            self._SkippingNext = False
+        if self._SkippingPrev is None:
+            self._SkippingPrev = False
+        if self._TogglingRepeatContext is None:
+            self._TogglingRepeatContext = False
+        if self._TogglingRepeatTrack is None:
+            self._TogglingRepeatTrack = False
+        if self._TogglingShuffle is None:
+            self._TogglingShuffle = False
+        if self._TransferringPlayback is None:
+            self._TransferringPlayback = False
 
 
     def __repr__(self) -> str:

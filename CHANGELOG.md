@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.38 ] - 2024/03/26
+
+  * Updated `Device.__init__` model to validate the following properties were initialized from Spotify Web API results, and to set defaults if not: IsActive = False, IsPrivateSession = False, IsRestricted = False, SupportsVolume = False, VolumePercent = 0.
+  * Updated `PlayerPlayState.__init__` model to validate the following properties were initialized from Spotify Web API results, and to set defaults if not: Actions = PlayerActions(), Device = Device(), CurrentlyPlayingType = 'unknown', IsPlaying = False, ProgressMS = 0, RepeatState = 'off', ShuffleState = 'off', SmartShuffle = 'off', Timestamp = 0.
+  * Updated `PlayerActions.__init__` model to validate the following properties were initialized from Spotify Web API results, and to set defaults if not: InterruptingPlayback = False, Pausing = False, Resuming = False, Seeking = False, SkippingNext = False, SkippingPrev = False, TogglingRepeatContext = False, TogglingRepeatTrack = False,  TogglingShuffle = False, TransferringPlayback = False.
+
 ###### [ 1.0.37 ] - 2024/03/19
 
   * Updated `SpotifyClient.FollowArtists` method to make the `ids` argument optional; if not supplied, the currently playing track artist id value is used instead.

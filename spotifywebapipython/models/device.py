@@ -43,6 +43,18 @@ class Device:
             self._Type = root.get('type', None)
             self._VolumePercent = root.get('volume_percent', None)
 
+        # post load validations.
+        if self._IsActive is None:
+            self._IsActive = False
+        if self._IsPrivateSession is None:
+            self._IsPrivateSession = False
+        if self._IsRestricted is None:
+            self._IsRestricted = False
+        if self._SupportsVolume is None:
+            self._SupportsVolume = False
+        if self._VolumePercent is None:
+            self._VolumePercent = 0
+
 
     def __repr__(self) -> str:
         return self.ToString()
@@ -140,6 +152,14 @@ class Device:
         Example: `59`
         """
         return self._VolumePercent
+
+    @VolumePercent.setter
+    def VolumePercent(self, value:int):
+        """ 
+        Sets the VolumePercent property value.
+        """
+        if isinstance(value, int):
+            self._VolumePercent = value
 
 
     @staticmethod
