@@ -55,7 +55,9 @@ class PlayerPlayState:
             # process all collections and objects.
             item:dict = root.get('actions',None)
             if item is not None:
-                self._Actions = PlayerActions(root=item)
+                disallows:dict = item.get('disallows')
+                if disallows is not None:
+                    self._Actions = PlayerActions(root=disallows)
 
             item:dict = root.get('context',None)
             if item is not None:

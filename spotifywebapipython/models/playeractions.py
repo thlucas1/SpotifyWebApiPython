@@ -182,7 +182,7 @@ class PlayerActions:
         """
         Returns a displayable string representation of the class.
         """
-        msg:str = 'PlaybackActions:'
+        msg:str = 'PlayerActions:'
         if self._InterruptingPlayback is not None: msg = '%s\n InterruptingPlayback="%s"' % (msg, str(self._InterruptingPlayback))
         if self._Pausing is not None: msg = '%s\n Pausing="%s"' % (msg, str(self._Pausing))
         if self._Resuming is not None: msg = '%s\n Resuming="%s"' % (msg, str(self._Resuming))
