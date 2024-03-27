@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.40 ] - 2024/03/26
+
+  * Updated `SpotifyClient.PlayerVerifyDeviceDefault` method to check for a null `Device.Id` value when determining if an active device was set.
+  * Added `delay` argument to various `SpotifyClient` player command-related methods, which allows the Spotify Web API a little bit of time to process the change before returning from the method.  Methods updated: `PlayerMediaPause`, `PlayerMediaPlayContext`, `PlayerMediaPlayTracks`, `PlayerMediaResume`, `PlayerMediaSeek`, `PlayerMediaSkipNext`, `PlayerMediaSkipPrevious`, `PlayerSetRepeatMode`, `PlayerSetShuffleMode`, `PlayerSetVolume`, `PlayerTransferPlayback`, `PlayerVerifyDeviceDefault`.  Default delay is 250 milliseconds, but you can adjust accordingly (including removing the delay if you wish).
+
 ###### [ 1.0.39 ] - 2024/03/26
 
   * Updated `PlayerPlayState.__init__` model to properly parse the Actions property.

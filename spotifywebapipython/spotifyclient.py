@@ -3,6 +3,7 @@ import base64
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
+import time
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
@@ -29,6 +30,7 @@ from .const import (
     TRACE_METHOD_RESULT_TYPE_PAGE,
     TRACE_MSG_AUTHTOKEN_CREATE,
     TRACE_MSG_AUTOPAGING_NEXT,
+    TRACE_MSG_DELAY_DEVICE,
     TRACE_MSG_USERPROFILE,
     TRACE_WARN_SPOTIFY_SEARCH_NO_MARKET,
 )
@@ -547,6 +549,32 @@ class SpotifyClient:
                 
         return result
     
+
+    def _ValidateDelay(self, delay:float, default:float=0.5, maxDelay:float=10) -> float:
+        """
+        Validates a delay value.
+        
+        Args:
+            delay (int):
+                The delay value to validate.
+            default (int):
+                The default delay value to set if the user-input delay is not valid.
+            maxDelay (int):
+                The maximum delay value allowed.  
+                Default is 10.
+        """
+        if (isinstance(delay,int)): 
+            delay = float(delay)
+            
+        if (not isinstance(delay,float)) or (delay < 0): 
+            result = default
+        elif (delay > maxDelay): 
+            result = maxDelay
+        else:
+            result = delay
+            
+        return result
+
 
     def _ValidateMarket(self, 
                         market:str,
@@ -5689,7 +5717,8 @@ class SpotifyClient:
                 properly handles cases of new types in the future by checking against the type field of each object.
                 
         Returns:
-            A `PlayerPlayState` object that contains the currently playing media, or null if nothing is playing.
+            A `PlayerPlayState` object that contains player state details as well as
+            currently playing content.
                 
         Raises:
             SpotifyWebApiError: 
@@ -5780,7 +5809,8 @@ class SpotifyClient:
                 properly handles cases of new types in the future by checking against the type field of each object.
                 
         Returns:
-            A `PlayerPlayState` object that contains the currently playing media state.
+            A `PlayerPlayState` object that contains player state details as well as
+            currently playing content.
                 
         Raises:
             SpotifyWebApiError: 
@@ -8579,7 +8609,8 @@ class SpotifyClient:
 
 
     def PlayerMediaPause(self, 
-                         deviceId:str=None
+                         deviceId:str=None,
+                         delay:float=0.50
                          ) -> None:
         """
         Pause media play for the specified Spotify Connect device.
@@ -8591,7 +8622,12 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
-                
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
+                                
         Raises:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
@@ -8618,8 +8654,12 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device pause playback", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if deviceId is not None:
@@ -8631,6 +8671,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -8653,7 +8698,8 @@ class SpotifyClient:
                                offsetUri:str=None,
                                offsetPosition:int=None,
                                positionMS:int=0,
-                               deviceId:str=None
+                               deviceId:str=None,
+                               delay:float=0.50
                                ) -> None:
         """
         Start playing one or more tracks of the specified context on a Spotify Connect device.
@@ -8687,6 +8733,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -8732,8 +8783,12 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offsetPosition", offsetPosition)
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -8756,6 +8811,11 @@ class SpotifyClient:
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -8776,7 +8836,8 @@ class SpotifyClient:
     def PlayerMediaPlayTracks(self, 
                               uris:list[str],
                               positionMS:int=0,
-                              deviceId:str=None
+                              deviceId:str=None,
+                              delay:float=0.50
                               ) -> None:
         """
         Start playing one or more tracks on the specified Spotify Connect device.
@@ -8800,6 +8861,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -8829,8 +8895,12 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("uris", uris)
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = None
@@ -8860,6 +8930,11 @@ class SpotifyClient:
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -8878,7 +8953,8 @@ class SpotifyClient:
 
 
     def PlayerMediaResume(self, 
-                          deviceId:str=None
+                          deviceId:str=None,
+                          delay:float=0.50
                           ) -> None:
         """
         Resume media play for the specified Spotify Connect device.
@@ -8890,6 +8966,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -8917,8 +8998,13 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device resume playback", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # build spotify web api request parameters.
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -8929,6 +9015,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -8948,7 +9039,8 @@ class SpotifyClient:
 
     def PlayerMediaSeek(self, 
                         positionMS:int=0,
-                        deviceId:str=None
+                        deviceId:str=None,
+                        delay:float=0.50
                         ) -> None:
         """
         Seeks to the given position in the user's currently playing track for the specified 
@@ -8966,6 +9058,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -8994,8 +9091,13 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device seek position", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'position_ms': positionMS
@@ -9009,6 +9111,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9027,7 +9134,8 @@ class SpotifyClient:
 
 
     def PlayerMediaSkipNext(self, 
-                            deviceId:str=None
+                            deviceId:str=None,
+                            delay:float=0.50
                             ) -> None:
         """
         Skips to next track in the user's queue for the specified Spotify Connect device.
@@ -9039,6 +9147,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9066,8 +9179,13 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip next", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # build spotify web api request parameters.
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -9078,6 +9196,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9096,7 +9219,8 @@ class SpotifyClient:
 
 
     def PlayerMediaSkipPrevious(self, 
-                                deviceId:str=None
+                                deviceId:str=None,
+                                delay:float=0.50
                                 ) -> None:
         """
         Skips to previous track in the user's queue for the specified Spotify Connect device.
@@ -9108,6 +9232,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9135,8 +9264,13 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip previous", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # build spotify web api request parameters.
             urlParms:dict = {}
             if deviceId is not None:
                 urlParms['device_id'] = deviceId
@@ -9147,6 +9281,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9166,7 +9305,8 @@ class SpotifyClient:
 
     def PlayerSetRepeatMode(self, 
                              state:str='off',
-                             deviceId:str=None
+                             deviceId:str=None,
+                             delay:float=0.50
                              ) -> None:
         """
         Set repeat mode for the specified Spotify Connect device.
@@ -9184,6 +9324,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9212,8 +9357,12 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("state", state)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set repeat mode", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -9228,6 +9377,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9247,7 +9401,8 @@ class SpotifyClient:
 
     def PlayerSetShuffleMode(self, 
                              state:bool=False,
-                             deviceId:str=None
+                             deviceId:str=None,
+                             delay:float=0.50
                              ) -> None:
         """
         Set shuffle mode for the specified Spotify Connect device.
@@ -9264,6 +9419,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9292,8 +9452,12 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("state", state)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set shuffle mode", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -9308,6 +9472,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9327,7 +9496,8 @@ class SpotifyClient:
 
     def PlayerSetVolume(self, 
                         volumePercent:int,
-                        deviceId:str=None
+                        deviceId:str=None,
+                        delay:float=0.50
                         ) -> None:
         """
         Set volume level for the specified Spotify Connect device.
@@ -9343,6 +9513,11 @@ class SpotifyClient:
                 The id of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
                 Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9371,8 +9546,12 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("volumePercent", volumePercent)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set volume level", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -9387,6 +9566,11 @@ class SpotifyClient:
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9407,6 +9591,7 @@ class SpotifyClient:
     def PlayerTransferPlayback(self, 
                                deviceId:str=None,
                                play:bool=True,
+                               delay:float=0.50
                                ) -> None:
         """
         Transfer playback to a new Spotify Connect device and optionally begin playback.
@@ -9422,6 +9607,11 @@ class SpotifyClient:
                 - `True`  - ensure playback happens on new device.   
                 - `False` - keep the current playback state.  
                 Default: `True`  
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9450,8 +9640,12 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("play", play)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Transfer playback to a new Spotify Connect device", apiMethodParms)
-                
+            
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -9466,6 +9660,11 @@ class SpotifyClient:
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
             
+            # give spotify web api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -9486,6 +9685,7 @@ class SpotifyClient:
     def PlayerVerifyDeviceDefault(self, 
                                   defaultDeviceId:str=None,
                                   play:bool=False,
+                                  delay:float=0.50
                                   ) -> PlayerPlayState:
         """
         Checks to see if there is an active Spotify Connect device, and if not to make one active.
@@ -9505,9 +9705,15 @@ class SpotifyClient:
                 - `True`  - ensure playback happens on new device.   
                 - `False` - keep the current playback state.  
                 Default: `False`  
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
                 
         Returns:
-            A `PlayerPlayState` object that contains the currently playing media, or null if nothing is playing.
+            A `PlayerPlayState` object that contains player state details as well as
+            currently playing content.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9533,20 +9739,24 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("defaultDeviceId", defaultDeviceId)
             apiMethodParms.AppendKeyValue("play", play)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Checks if a Spotify Connect device is active, and activate one if not", apiMethodParms)
                 
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
             # get current Spotify Connect player state.
             result = self.GetPlayerPlaybackState()
             
             # is there an active device set?
-            if (result is None) \
-            or (result.CurrentlyPlayingType is None and result.Context is None) \
-            or (result.Device is None):
+            if (result.CurrentlyPlayingType is None and result.Context is None) \
+            or (result.Device is None) \
+            or (result.Device.Id is None):
                 
                 _logsi.LogVerbose('No active Spotify Connect device was found - activating device "%s"' % defaultDeviceId)
                 
                 # no - transfer control to the default device.
-                self.PlayerTransferPlayback(defaultDeviceId, play)
+                self.PlayerTransferPlayback(defaultDeviceId, play, delay)
                 
                 # get current Spotify Connect player state.
                 result = self.GetPlayerPlaybackState()
