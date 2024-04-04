@@ -3,6 +3,7 @@ from .album import Album, AlbumSimplified
 from .albumpagesaved import AlbumPageSaved, AlbumSaved
 from .albumpagesimplified import AlbumPageSimplified
 from .artist import Artist, ArtistSimplified
+from .artistinfo import ArtistInfo, ArtistInfoTourEvent
 from .artistpage import ArtistPage
 from .audiobook import Audiobook, AudiobookSimplified
 from .audiobookpagesimplified import AudiobookPageSimplified
@@ -56,6 +57,7 @@ __all__ = [
     'AlbumPageSaved','AlbumSaved',
     'AlbumPageSimplified',
     'Artist','ArtistSimplified',
+    'ArtistInfo', 'ArtistInfoTourEvent',
     'ArtistPage',
     'Audiobook','AudiobookSimplified',
     'AudiobookPageSimplified',

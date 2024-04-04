@@ -1,6 +1,7 @@
 # pip>=22.0.4
 # setuptools>=58.1.0
 
+lxml>=5.2.0
 oauthlib==3.2.2
 platformdirs==4.1.0
 smartinspectPython>=3.0.33

@@ -1,5 +1,6 @@
 # external package imports.
 import base64
+from datetime import datetime
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
@@ -7,12 +8,13 @@ import time
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
+from lxml.etree import fromstring, Element
 
 # our package imports.
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
-from .sautils import export, GetUnixTimestampMSFromUtcNow
+from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
@@ -39,7 +41,7 @@ CACHE_SOURCE_CACHED:str = "cached"
 CACHE_SOURCE_CURRENT:str = "current"
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -411,10 +413,7 @@ class SpotifyClient:
                     # no - treat it as utf-8 encoded data.
                     responseUTF8 = response.data.decode('utf-8')
                     _logsi.LogText(SILevel.Error, "SpotifyClient http response [%s-%s]: '%s' (utf-8)" % (response.status, response.reason, responseUrl), responseUTF8)
-
-                    # at this point we don't know what Spotify Web Api returned, so let's 
-                    # just raise a new exception with the non-JSON response data.
-                    #raise SpotifyWebApiError(response.status, responseUTF8, msg.MethodName, response.reason, _logsi)
+                    responseData = responseUTF8
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -668,7 +667,9 @@ class SpotifyClient:
             # formulate the request url.
             url:str = None
             uri:str = msg.Uri
-            if (uri == self.SpotifyApiTokenUrl) or (uri == self.SpotifyApiAuthorizeUrl):
+            if (uri == self.SpotifyApiTokenUrl) \
+            or (uri == self.SpotifyApiAuthorizeUrl) \
+            or (uri.startswith('https:')):
                 url = uri
             else:
                 url = f'{self.SpotifyWebApiUrlBase}{uri}'
@@ -3195,6 +3196,254 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
         
+
+    def GetArtistInfo(self, 
+                      artistId:str, 
+                      ) -> ArtistInfo:
+        """
+        Get artist about information from the Spotify Artist Biography page for the
+        specified Spotify artist ID.
+        
+        Args:
+            artistId (str):  
+                The Spotify ID of the artist.  
+                Example: `6APm8EjxOHSYM5B4i3vT3q`
+                
+        Returns:
+            An `ArtistInfo` object that contains the artist info details.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetArtistInfo.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'GetArtistInfo'
+        apiMethodParms:SIMethodParmListContext = None
+        result:ArtistInfo = None
+        
+        ABOUT_MONTHLY_LISTENERS:str = ' monthly listeners'
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("artistId", artistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single artist", apiMethodParms)
+                
+            # execute spotify web api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}'.format(id=artistId))
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            self.MakeRequest('GET', msg)
+
+            # process results.
+            artist = Artist(root=msg.ResponseData)
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(artist).__name__), artist, excludeNonPublic=True)
+        
+            # create base result.
+            result = ArtistInfo(artist.Id, artist.Name, artist.Type, artist.Uri, artist.ImageUrl)
+            
+            # does artist have a bio information url?  if not then we are done.
+            if (artist.Href is None) or (len(artist.Href.strip()) == 0):
+                _logsi.LogVerbose("No html returned for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
+                return result
+
+            # was a Spotify external url specified for the artist?  if not then we are done.
+            if artist.ExternalUrls is None or artist.ExternalUrls.Spotify is None:
+                return artist
+            
+            # retrieve artist details page.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, artist.ExternalUrls.Spotify)
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            self.MakeRequest('GET', msg)
+                
+            # log html response.
+            #_logsi.LogHtml(SILevel.Verbose, "GetArtistInfo response HTML", msg.ResponseData)
+            _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text", msg.ResponseData, SISourceId.Html)
+                
+            # if no response data then we are done.
+            if not msg.HasResponseData:
+                _logsi.LogVerbose("No html returned for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
+                return result
+                
+            # find the starting <html> tag.
+            # ElementTree fromstring method will fail if initial tag is "<!doctype html>".
+            html:str = msg.ResponseData
+            if html is None:
+                return result
+            if not html.startswith('<html'):
+                idx:int = html.find('<html')
+                if idx == -1:
+                    _logsi.LogVerbose("<html> tag could not be found for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
+                    return result
+                html = html[idx:]
+                _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text (starting from '<html')", html, SISourceId.Html)
+                    
+            # log formatted html response.
+            _logsi.LogXml(SILevel.Verbose, "GetArtistInfo response Text (formatted)", html, prettyPrint=True)
+                
+            # load html element tree so we can parse it.
+            doc:Element = fromstring(html)
+            _logsi.LogObject(SILevel.Verbose, "doc Element object", doc)
+                               
+            attrXPath:str = None
+            elm:Element = None
+            elmChild:Element = None
+            innerText:str = None
+
+            # about information - image (button / bio page):
+            attrXPath = './/button[@type="button"]/descendant-or-self::img'
+            _logsi.LogVerbose("Element search 'image button': '%s'" % attrXPath)
+            attrElements:list[Element] = doc.xpath(attrXPath)
+            for elm in attrElements:
+                _logsi.LogObject(SILevel.Verbose, "Element match: '%s'" % attrXPath, elm)
+                attrValue:str = elm.get('src', None)
+                if attrValue is not None:
+                    result.ImageUrl = attrValue
+                    break
+
+            # about information - image (entity-id):
+            # use the internal `_ImageUrl` attribute value to check, as the `ImageUrl` property
+            # will return the `ImageUrlDefault` if `_ImageUrl` attribute was not set.
+            # <img data-testid="artist-entity-image" src="https://i.scdn.co/image/ab6761610000517446196125b56397cd4e0d9c4b" />
+            if result._ImageUrl is None:
+                attrXPath = './/attribute::data-testid[contains(., "artist-entity-image")]/../@src'
+                _logsi.LogVerbose("Element search 'image entity': '%s'" % attrXPath)
+                elmChild = doc.xpath(attrXPath)
+                if elmChild is not None:
+                    _logsi.LogVerbose("Element match: '%s'" % elmChild[0])
+                    result.ImageUrl = elmChild[0]
+                
+            # about information - monthly listeners:
+            # <div data-testid="monthly-listeners-label">2,707,252 monthly listeners</div>
+            attrXPath = './/attribute::data-testid[contains(., "monthly-listeners-label")]/../text()'
+            _logsi.LogVerbose("Element search 'monthly listeners': '%s'" % attrXPath)
+            elmChild = doc.xpath(attrXPath)
+            if elmChild is not None:
+                _logsi.LogVerbose("Element match: '%s'" % elmChild[0])
+                attrValue = elmChild[0].replace(ABOUT_MONTHLY_LISTENERS,'')
+                attrValue = attrValue.replace(',','')
+                attrValue = attrValue.strip()
+                if attrValue.isnumeric:
+                    result.MonthlyListeners = int(attrValue)
+
+            # about information - bio:
+            # <div data-testid="expandable-description">
+            #    <div>
+            #       <div>
+            #          <span>MercyMe is a contemporary Christian music band ...</span>
+            #       </div>
+            #    </div>
+            # </div>                
+            attrXPath = './/attribute::data-testid[contains(., "expandable-description")]/..'
+            _logsi.LogVerbose("Element search 'bio': '%s'" % attrXPath)
+            attrElements:list[Element] = doc.xpath(attrXPath)
+            for elm in attrElements:
+                innerText = _xmlGetInnerText(elm)
+                _logsi.LogObject(SILevel.Verbose, "Element match: '%s' (innerText=%s)" % (attrXPath, innerText), elm)
+                result.Bio = innerText
+                break
+                
+            # about information - on tour dates:
+            # <h2>On tour</h2>
+            # <div><ul><li>
+            #   <a draggable="false" class="x" href="/concert/1plBKlFD04tlsD1ky081qL">
+            #      <time class="x" dateTime="2024-04-04T19:00-07:00">
+            #         <h5 class="x" data-encore-id="type">Apr</h5>
+            #         <h1 class="x" data-encore-id="type">5</h1>
+            #      </time>
+            #      <div class="x">
+            #         <h3 class="x" data-encore-id="type">MercyMe with David Leonard and Newsboys</h3>
+            #         <p class="x" data-encore-id="type"><time class="cR3tL5CgXmgwfJDDKQ2A">Fri, Apr 5</time>accesso ShoWare Center, Kent</p>
+            #      </div>
+            #   </a>
+            # </li></ul></div>
+            attrXPath = './/h2[text()="On tour"]/following-sibling::*/descendant-or-self::a'
+            _logsi.LogVerbose("Element search 'On tour': '%s'" % attrXPath)
+            attrElements:list[Element] = doc.xpath(attrXPath)
+            for elm in attrElements:
+                innerText = _xmlGetInnerText(elm)
+                if innerText is not None:
+                    if innerText.lower() == 'see all':
+                        break
+                _logsi.LogObject(SILevel.Verbose, "Element match: '%s' (innerText=%s)" % (attrXPath, innerText), elm)
+                event:ArtistInfoTourEvent = ArtistInfoTourEvent() 
+                elmChild = elm.xpath('.//time/@dateTime')
+                if elmChild is not None:
+                    try:
+                        attrValue = str(elmChild[0])
+                        idx:int = attrValue.rfind('-')
+                        if idx > 15:  # drop timezone portion of the datetime.
+                            event.EventDateTime = datetime.fromisoformat(attrValue[:idx])
+                    except Exception as ex:
+                        _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmChild[0], attrValue), ex, logToSystemLogger=False)
+                        event.EventDateTime = None
+                elmChild = elm.xpath('.//h3/text()')
+                if elmChild is not None:
+                    event.Title = elmChild[0]
+                elmChild = elm.xpath('.//p/text()')
+                if elmChild is not None:
+                    event.VenueName = elmChild[0]
+                result.TourEvents.append(event)
+                _logsi.LogObject(SILevel.Verbose, '%s: "%s" (%s)' % (type(event).__name__, event.Title, event.EventDateTime), event, excludeNonPublic=True)
+
+            # about information - links.
+            result.AboutUrlFacebook = self._GetArtistInfoAboutLink(doc,"Facebook")
+            result.AboutUrlInstagram = self._GetArtistInfoAboutLink(doc,"Instagram")
+            result.AboutUrlTwitter = self._GetArtistInfoAboutLink(doc,"Twitter")
+            result.AboutUrlWikipedia = self._GetArtistInfoAboutLink(doc,"Wikipedia")
+                
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            return result
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def _GetArtistInfoAboutLink(self, 
+                                doc:Element,
+                                linkTitle:str, 
+                                ) -> str:
+        """
+        Searches artist about page for the specified link title and returns the HREF 
+        attribute value if found; otherwise, null is returned.
+        """
+        result:str = None 
+        
+        # about information - link.
+        # <a href="https://facebook.com/mercyme">
+        #     <div>Facebook</div>
+        # </a>
+        attrXPath:str = './/div[text()="%s"]/parent::a' % linkTitle
+        _logsi.LogVerbose("Element search '%s link': '%s'" % (linkTitle, attrXPath))
+        attrElements:list[Element] = doc.xpath(attrXPath)
+        for elm in attrElements:
+            _logsi.LogObject(SILevel.Verbose, "Element match: '%s'" % attrXPath, elm)
+            attrValue:str = elm.get('href', None)
+            if attrValue is not None:
+                result = attrValue
+                break
+            
+        return result
+                
 
     def GetArtistRelatedArtists(self, 
                                 artistId:str, 
@@ -8833,6 +9082,97 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def PlayerMediaPlayTrackFavorites(self, 
+                                      deviceId:str=None,
+                                      shuffle:bool=True,
+                                      delay:float=0.50
+                                      ) -> None:
+        """
+        Get a list of the tracks saved in the current Spotify user's 'Your Library'
+        and starts playing them.
+        
+        Args:
+            deviceId (str):
+                The id of the device this command is targeting.  
+                If not supplied, the user's currently active device is the target.  
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+            shuffle (bool):
+                True to set player shuffle mode to on; otherwise, False for no shuffle.
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the player.  
+                This delay will give the spotify web api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        This API only works for users who have Spotify Premium. 
+        
+        This method simply calls the `GetTrackFavorites` method to retrieve the current users
+        favorite tracks (200 max), then calls the `PlayerMediaPlayTracks` method to play them.  
+        
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerMediaPlayTrackFavorites.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'PlayerMediaPlayTrackFavorites'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("shuffle", shuffle)
+            apiMethodParms.AppendKeyValue("delay", delay)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
+                
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # get current users favorite tracks.
+            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=200)
+            if (tracks.ItemsCount == 0):
+                _logsi.LogVerbose("Current user has no favorite tracks; nothing to do")
+                return
+
+            # build a list of all item uri's.
+            arrUris:list[str] = []
+            trackSaved:TrackSaved
+            for trackSaved in tracks.Items:
+                arrUris.append(trackSaved.Track.Uri)
+
+            # play the tracks.
+            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay)
+            
+            # set desired shuffle mode.
+            self.PlayerSetShuffleMode(shuffle, deviceId, delay)
+
+            # process results.
+            # no results to process - this is pass or fail.
+            return
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def PlayerMediaPlayTracks(self, 
                               uris:list[str],
                               positionMS:int=0,
@@ -10024,6 +10364,72 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def RemovePlaylist(self, 
+                       playlistId:str, 
+                       ) -> None:
+        """
+        Remove a user's playlist (calls the `UnfollowPlaylist` method).
+        
+        This method requires the `playlist-modify-public` and `playlist-modify-private` scope.
+        
+        Args:
+        
+            playlistId (str):  
+                The Spotify ID of the playlist.
+                Example: `5AC9ZXA7nJ7oGWO911FuDG`
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+        
+        There is no Spotify Web API endpoint for deleting a playlist.  The notion of deleting a playlist is 
+        not relevant within the Spotify playlist system. Even if you are the playlist owner and you choose 
+        to manually remove it from your own list of playlists, you are simply unfollowing it. Although this 
+        behavior may sound strange, it means that other users who are already following the playlist can keep 
+        enjoying it. 
+        
+        [Manually restoring a deleted playlist](https://www.spotify.com/us/account/recover-playlists/) through 
+        the Spotify Accounts Service is the same thing as following one of your own playlists that you have 
+        previously unfollowed.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/RemovePlaylist.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'RemovePlaylist'
+        apiMethodParms:SIMethodParmListContext = None
+        result:str = None
+        
+        try:
+
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("playlistId", playlistId)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove (by unfollowing) a user's playlist", apiMethodParms)
+            
+            # unfollow the playlist for the specified user.
+            return self.UnfollowPlaylist(playlistId)
+                
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def RemovePlaylistItems(self, 
                             playlistId:str, 
                             uris:str=None,
@@ -10049,6 +10455,7 @@ class SpotifyClient:
                 The API will validate that the specified items exist and in the specified positions and 
                 make the changes, even if more recent changes have been made to the playlist.
                 If null, the current playlist is updated.  
+                Example: `MTk3LGEzMjUwZGYwODljNmI5ZjAxZTRjZThiOGI4NzZhM2U5M2IxOWUyMDQ`
                 Default is null.
                 
         Returns:
@@ -10336,6 +10743,7 @@ class SpotifyClient:
             snapshotId (str):  
                 The playlist's snapshot ID against which you want to make the changes.  
                 If null, the current playlist is updated.  
+                Example: `MTk3LGEzMjUwZGYwODljNmI5ZjAxZTRjZThiOGI4NzZhM2U5M2IxOWUyMDQ`
                 Default is null.
                 
         Returns:

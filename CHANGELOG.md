@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.41 ] - 2024/04/02
+
+  * Added `ArtistInfo` model that contains artist bio information.
+  * Added `ArtistInfoTourEvent` model that contains artist on tour event information.
+  * Added `SpotifyClient.GetArtistInfo` method to retrieve artist bio information for a specified Artist id.
+  * Added `SpotifyClient.PlayerMediaPlayTrackFavorites` method to play all tracks contained in the current users track favorites.
+  * Added `SpotifyClient.RemovePlaylist` method to remove a playlist by calling the `UnfollowPlaylist` method.
+
 ###### [ 1.0.40 ] - 2024/03/26
 
   * Updated `SpotifyClient.PlayerVerifyDeviceDefault` method to check for a null `Device.Id` value when determining if an active device was set.

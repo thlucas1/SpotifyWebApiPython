@@ -56,6 +56,35 @@ def export(fn):
     return fn
     
 
+def _xmlGetInnerText(elmNode, default:str=None) -> str:
+    """
+    Finds the specified xml node inner text from the root Element object and returns its value
+    as a string.  The default argument is returned if the xml node name is not found.
+    
+    Args:
+        root (xml.etree.ElementTree.Element)
+            The Element object to search.
+        default (str):
+            A default value to assign if the xml node does not contain innerText.
+            
+    Returns:
+        The string value if innerText was found; 
+        otherwise, the default value.
+    """
+    if elmNode is None:
+        return default
+    
+    # get text of all child nodes.
+    innertext:str = (elmNode.text or '') + ''.join(_xmlGetInnerText(e) for e in elmNode) + (elmNode.tail or '')
+    
+    # did we find anything?  if not, then return default.
+    if innertext is None:
+        return default
+    
+    # return found inner text.
+    return innertext
+
+
 class Event:
     """
     C# like event processing in Python3.
