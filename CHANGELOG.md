@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.42 ] - 2024/04/05
+
+  * Added `Device.IsMuted` property to indicate if volume is zero (muted) or not (unmuted).
+  * Added `PlayerPlayState.IsMuted` property to indicate if player device volume is zero (muted) or not (unmuted).
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to set the shuffle mode prior to starting play of the track list.  Prior to this change, the first track would always play first regardless of the shuffle setting; now it is part of the shuffle.
+
 ###### [ 1.0.41 ] - 2024/04/02
 
   * Added `ArtistInfo` model that contains artist bio information.

@@ -9150,12 +9150,12 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # play the tracks.
-            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay)
-            
             # set desired shuffle mode.
             self.PlayerSetShuffleMode(shuffle, deviceId, delay)
 
+            # play the tracks.
+            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay)
+            
             # process results.
             # no results to process - this is pass or fail.
             return

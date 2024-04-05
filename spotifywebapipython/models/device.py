@@ -84,6 +84,15 @@ class Device:
 
 
     @property
+    def IsMuted(self) -> bool:
+        """ 
+        True if the player device volume is zero (muted); 
+        otherwise, false.
+        """
+        return (self._VolumePercent == 0)
+
+
+    @property
     def IsPrivateSession(self) -> bool:
         """ 
         If this device is currently in a private session.
@@ -229,6 +238,7 @@ class Device:
         msg:str = 'Device:'
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._IsActive is not None: msg = '%s\n IsActive="%s"' % (msg, str(self._IsActive))
+        if self.IsMuted is not None: msg = '%s\n IsMuted="%s"' % (msg, str(self.IsMuted))
         if self._IsPrivateSession is not None: msg = '%s\n IsPrivateSession="%s"' % (msg, str(self._IsPrivateSession))
         if self._IsRestricted is not None: msg = '%s\n IsRestricted="%s"' % (msg, str(self._IsRestricted))
         if self._Name is not None: msg = '%s\n Name="%s"' % (msg, str(self._Name))

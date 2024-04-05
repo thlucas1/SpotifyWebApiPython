@@ -159,6 +159,18 @@ class PlayerPlayState:
 
 
     @property
+    def IsMuted(self) -> bool:
+        """ 
+        True if the player device volume is zero (muted) OR there is no device; 
+        otherwise, false.
+        """
+        if self._Device is None:
+            return True
+        else:
+            return self._Device.IsMuted
+
+
+    @property
     def IsPlaying(self) -> bool:
         """ 
         True if something is currently playing; otherwise, false.
@@ -333,6 +345,7 @@ class PlayerPlayState:
         if self._Device is not None: msg = '%s\n Device Name="%s"' % (msg, str(self._Device.Name))
         #if self._Context is not None: msg = '%s\n %s' % (msg, str(self._Context))
         #if self._Item is not None: msg = '%s\n %s' % (msg, str(self._Item))
+        if self.IsMuted is not None: msg = '%s\n IsMuted="%s"' % (msg, str(self.IsMuted))
         if self._IsPlaying is not None: msg = '%s\n IsPlaying="%s"' % (msg, str(self._IsPlaying))
         if self._ProgressMS is not None: msg = '%s\n ProgressMS="%s"' % (msg, str(self._ProgressMS))
         if self._RepeatState is not None: msg = '%s\n RepeatState="%s"' % (msg, str(self._RepeatState))
