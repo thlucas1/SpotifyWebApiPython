@@ -69,6 +69,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetShuffleMode.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetVolume.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerTransferPlayback.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerConvertDeviceNameToId.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerVerifyDeviceDefault.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerPlaybackState.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerNowPlaying.py" />

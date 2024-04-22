@@ -22,6 +22,8 @@ try:
 
     # play artist on the specified Spotify Connect device.
     deviceId:str = None   # use currently playing device
+    #deviceId:str = "Web Player (Chrome)" # or device name
+    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     contextUri:str = 'spotify:artist:6APm8EjxOHSYM5B4i3vT3q'  # Artist = MercyMe
     print('\nPlaying artist on Spotify Connect device: \nID: %s \n- %s' % (deviceId, contextUri))
     spotify.PlayerMediaPlayContext(contextUri, deviceId=deviceId)

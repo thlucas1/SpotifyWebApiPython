@@ -8,8 +8,8 @@ try:
     CLIENT_ID:str = 'your_client_id'
     SPOTIFY_SCOPES:list = \
     [
-        'user-modify-playback-state',
         'user-read-email',
+        'user-read-playback-state'
     ]
 
     # create new spotify client instance.
@@ -20,14 +20,11 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # resume play on the specified Spotify Connect device.
-    deviceId:str = None   # use currently playing device
-    #deviceId:str = "Web Player (Chrome)" # or device name
-    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
-    print('\nResume media on Spotify Connect device:\n- "%s" ...' % str(deviceId))
-    spotify.PlayerMediaResume(deviceId)
-
-    print('\nSuccess - media was resumed')
+    # get device id for specified device name.
+    deviceName:str = 'Web Player (Chrome)'
+    print('\nGetting Spotify Connect Player device id for name:\n- Name: %s ...' % (deviceName))
+    deviceId:str = spotify.PlayerConvertDeviceNameToId(deviceName, True)
+    print('- ID:   %s' % (deviceId))
 
 except Exception as ex:
 

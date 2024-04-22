@@ -22,6 +22,8 @@ try:
 
     # set shuffle mode ON for the user's current playback device.
     deviceId:str = None   # use currently playing device
+    #deviceId:str = "Web Player (Chrome)" # or device name
+    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     print('\nSet shuffle mode ON for Spotify Connect device:\n- "%s" ...' % (str(deviceId)))
     spotify.PlayerSetShuffleMode(True, deviceId)
 

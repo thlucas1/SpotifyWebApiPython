@@ -22,6 +22,8 @@ try:
 
     # play all track favorites on the specified Spotify Connect device.
     deviceId:str = None   # use currently playing device
+    #deviceId:str = "Web Player (Chrome)" # or device name
+    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     print('\nPlaying track favorites on Spotify Connect device: \nID: %s' % deviceId)
     spotify.PlayerMediaPlayTrackFavorites(deviceId)
 

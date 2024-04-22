@@ -22,18 +22,16 @@ try:
 
     # transfer Spotify Connect playback control to another device.
     # the device name and id can be retrieved from `GetPlayerDevices` method.
-    deviceName:str = 'Web Player (Chrome)'
-    deviceId:str = '13c7b6361ab322f28c39bf7638f058290d88bb58'
-    print('\nTransfer Spotify Connect playback control to:\n-Name: "%s"\nID:   %s ...' % (deviceName, deviceId))
+    deviceId:str = "Web Player (Chrome)" # or device name
+    print('\nTransfer Spotify Connect playback control to:\n-Name: "%s" ...' % deviceId)
     spotify.PlayerTransferPlayback(deviceId, True)
 
     print('\nSuccess - control was transferred')
 
     # transfer Spotify Connect playback control to another device.
     # the device name and id can be retrieved from `GetPlayerDevices` method.
-    deviceName:str = 'Bose ST-10 Speaker'
-    deviceId:str = '30fbc80e35598f3c242f2120413c943dfd9715fe'
-    print('\nTransfer Spotify Connect playback control to:\n-Name: "%s"\nID:   %s ...' % (deviceName, deviceId))
+    deviceId:str = 'Bose-ST10-1'
+    print('\nTransfer Spotify Connect playback control to:\n-Name: "%s" ...' % deviceId)
     spotify.PlayerTransferPlayback(deviceId, True)
 
     print('\nSuccess - control was transferred')

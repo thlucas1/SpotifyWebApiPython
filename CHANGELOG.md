@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.43 ] - 2024/04/21
+
+  * Added device name support to the following player methods that take a `deviceId` argument for player functions.  You can now specify either a device id or device name in the `deviceId` argument to target a specific Spotify Connect Player device.  `SpotifyClient` methods updated were: `AddPlayerQueueItem`, `PlayerMediaPause`, `PlayerMediaPlayContext`, `PlayerMediaPlayTrackFavorites`, `PlayerMediaPlayTracks`, `PlayerMediaResume`, `PlayerMediaSeek`, `PlayerMediaSkipNext`, `PlayerMediaSkipPrevious`, `PlayerSetRepeatMode`, `PlayerSetShuffleMode`, `PlayerSetVolume`, `PlayerTransferPlayback`.
+  * Added `SpotifyClient.PlayerConvertDeviceNameToId` method that converts a Spotify Connect player device name to it's equivalent id value if the value is a device name.  If the value is a device id, then the value is returned as-is.
+
 ###### [ 1.0.42 ] - 2024/04/05
 
   * Added `Device.IsMuted` property to indicate if volume is zero (muted) or not (unmuted).

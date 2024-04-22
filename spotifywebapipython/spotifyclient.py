@@ -793,9 +793,10 @@ class SpotifyClient:
                 The uri of the item to add to the queue; must be a track or an episode uri.  
                 Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh`
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
                 
         Raises:
             SpotifyWebApiError: 
@@ -826,6 +827,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add item to playback queue", apiMethodParms)
                 
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
+            # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'uri': uri
@@ -5826,7 +5831,7 @@ class SpotifyClient:
                     result = item
                     break
                 
-            # if no match by id, then try to macth by device name.
+            # if no match by id, then try to match by device name.
             if result is None:
                 for item in devices:
                     if deviceId == item.Name.lower():
@@ -5836,6 +5841,115 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'Device'), result, excludeNonPublic=True)
             return result
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def PlayerConvertDeviceNameToId(self, 
+                                    value:str, 
+                                    refresh:bool=False
+                                    ) -> str:
+        """
+        Converts a Spotify Connect player device name to it's equivalent id value if
+        the value is a device name.  If the value is a device id, then the value is 
+        returned as-is.
+        
+        This method requires the `user-read-playback-state` scope.
+
+        Args:
+            value (str):
+                The device id or name value to check.
+            refresh (bool):
+                True to resolve the device real-time from the spotify web api device list; 
+                otherwise, False (default) to use the cached device list to resolve the device.
+                
+        Returns:
+            One of the following:  
+            - if value is a device id, then the value is returned as-is; no device list 
+              lookup is performed, and the value is assumed to be a valid device id.  
+            - if value is not a device id, then it is assumed to be a name; a device list
+              lookup is performed to retrieve it's device id.  if found, then the id is
+              returned; otherwise, the value is returned as-is with the understanding that
+              subsequent operations will fail since it's not in the device list.  
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        The id for the first match found on the device name will be returned if multiple devices 
+        are found in the Spotify Connect player device list that have the same name (with different 
+        id's).  Care should be taken to make device names unique if using device names for
+        methods that require a device id or name.
+        
+        If the `refresh` argument is specified, then the `ConfigurationCache` is updated with 
+        the latest Spotify Connect player device list.  Use the `refresh` argument (with False 
+        value) to retrieve the cached value and avoid the spotify web api request.  This results 
+        in better performance.
+                        
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerConvertDeviceNameToId.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'PlayerConvertDeviceNameToId'
+        apiMethodParms:SIMethodParmListContext = None
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("value", value)
+            apiMethodParms.AppendKeyValue("refresh", refresh)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Checking Spotify Connect Player device for name", apiMethodParms)
+
+            # if nothing specified then just use it as-is.
+            if (value is None) or (len(value.strip()) == 0):
+                _logsi.LogVerbose("Device ID not specified; active device will be used")
+                return value
+
+            try:
+            
+                # is this a hex string value?
+                intValue:int = int(str(value), 16)
+            
+                # if it IS a hex string, then it should have been converted to a number.
+                # at this point we can assume it's a device id.  in this case, just return it.
+                # note that we will NOT perform a lookup in the device list 
+                _logsi.LogVerbose("Device id '%s' was specified, and will be used as-is" % value)
+                if intValue is not None:
+                    return value
+                return value
+            
+            except Exception:
+            
+                # the above will fail if it's a device name.
+                pass
+
+            # try resolving the device name to a device id value.
+            device:Device = self.GetPlayerDevice(value, refresh)
+            if device is not None:
+                _logsi.LogVerbose("Converted device name '%s' to device id '%s'" % (value, device.Id))
+                return device.Id
+
+            # if a name could not be found in the Spotify Connect Player devices then just 
+            # return the value as-is.
+            _logsi.LogVerbose("Device name '%s' could not be found in the Spotify Connect Device list; subsequent actions will probably fail using this device name" % value)
+            return value
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
@@ -8868,9 +8982,10 @@ class SpotifyClient:
 
         Args:
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -8908,6 +9023,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -8979,9 +9097,10 @@ class SpotifyClient:
                 Default is `0`.  
                 Example: `25000`  
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9038,6 +9157,9 @@ class SpotifyClient:
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
 
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -9093,9 +9215,10 @@ class SpotifyClient:
         
         Args:
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             shuffle (bool):
                 True to set player shuffle mode to on; otherwise, False for no shuffle.
             delay (float):
@@ -9150,6 +9273,9 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
             # set desired shuffle mode.
             self.PlayerSetShuffleMode(shuffle, deviceId, delay)
 
@@ -9198,9 +9324,10 @@ class SpotifyClient:
                 Default is `0`.  
                 Example: `25000`  
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9251,6 +9378,9 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
                 
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -9303,9 +9433,10 @@ class SpotifyClient:
 
         Args:
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9343,6 +9474,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -9395,9 +9529,10 @@ class SpotifyClient:
                 player to start playing the next song.
                 Example: `25000`  
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9436,6 +9571,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -9484,9 +9622,10 @@ class SpotifyClient:
 
         Args:
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9524,6 +9663,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -9569,9 +9711,10 @@ class SpotifyClient:
 
         Args:
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9609,6 +9752,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -9661,9 +9807,10 @@ class SpotifyClient:
                 - `off`     - will turn repeat off.
                 Default: `off`  
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9702,6 +9849,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -9756,9 +9906,10 @@ class SpotifyClient:
                 - `False` - Do not shuffle user's playback.
                 Default: `False`  
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9797,6 +9948,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -9850,9 +10004,10 @@ class SpotifyClient:
                 Must be a value from 0 to 100 inclusive.
                 Example: `50`
             deviceId (str):
-                The id of the device this command is targeting.  
+                The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -9891,6 +10046,9 @@ class SpotifyClient:
                 
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -9940,8 +10098,9 @@ class SpotifyClient:
 
         Args:
             deviceId (str):
-                The id of the device on which playback should be started/transferred.
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                The id or name of the device on which playback should be started/transferred.
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
             play (bool):
                 The transfer method:  
                 - `True`  - ensure playback happens on new device.   
@@ -9985,6 +10144,9 @@ class SpotifyClient:
             
             # validations.
             delay = self._ValidateDelay(delay, 0.50, 10)
+            
+            # check for device name; convert to an id if a name was supplied.
+            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -10038,8 +10200,8 @@ class SpotifyClient:
         Args:
             defaultDeviceId (str):
                 The id of the device on which playback should be started/transferred if there is
-                currently no active device.
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`
+                currently no active device.  
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
             play (bool):
                 The transfer method:  
                 - `True`  - ensure playback happens on new device.   
