@@ -14,6 +14,7 @@ from lxml.etree import fromstring, Element
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
+from .models.zeroconfblobbuilder import int_to_b64str
 from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
@@ -39,6 +40,8 @@ from .const import (
 
 CACHE_SOURCE_CACHED:str = "cached"
 CACHE_SOURCE_CURRENT:str = "current"
+
+SPOTIFY_DJ_PLAYLIST_ID = "37i9dqzf1eykqdzj48dyyq"
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
@@ -454,6 +457,19 @@ class SpotifyClient:
             
         elif responseData is not None:
             
+            # if response is a string (e.g. html response) and is not in the 2xx range then 
+            # we will assume it's an error, even though no json 'error' response body was returned!  
+            # this is usually due to a '503 Server Error' response.
+            if (response.status > 299) and (isinstance(responseData, str)):
+
+                errCode = response.status
+                errMessage = response.reason
+                
+                if responseUTF8 is not None:
+                    errMessage = responseUTF8
+
+                raise SpotifyWebApiError(errCode, errMessage, msg.MethodName, response.reason, _logsi)
+            
             # does json response contain error details?
             if CONST_ERROR in responseData:
                 
@@ -669,7 +685,8 @@ class SpotifyClient:
             uri:str = msg.Uri
             if (uri == self.SpotifyApiTokenUrl) \
             or (uri == self.SpotifyApiAuthorizeUrl) \
-            or (uri.startswith('https:')):
+            or (uri.startswith('https:')) \
+            or (uri.startswith('http:')):
                 url = uri
             else:
                 url = f'{self.SpotifyWebApiUrlBase}{uri}'
@@ -705,9 +722,13 @@ class SpotifyClient:
             # call the appropriate poolmanager request method.
             if msg.HasUrlParameters:
                 
-                # add querystring parameters to url.
+                # add querystring parameters to url; if url already has a partial parm
+                # string (e.g. has a '?xxx=...') then use the append separator (e.g. '...&xxx=...').
                 urlQS:str = urlencode(msg.UrlParameters)
-                url = url + '?' + urlQS
+                urlParmSep:str = '?'
+                if (url.find('?') > 0):
+                    urlParmSep = '&'
+                url = url + urlParmSep + urlQS
                 
                 _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with urlparms)" % (url), msg.UrlParameters, prettyPrint=True)
                 response = self._Manager.request_encode_url(method, url, headers=msg.RequestHeaders)
@@ -6551,6 +6572,27 @@ class SpotifyClient:
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+            
+            # was the Spotify DJ playlist specified?
+            # the DJ is not fully integrated with the playlist API, so the GET request will fail.
+            # we will manually build a basic playlist object to return for the playlist.
+            if (playlistId is not None) and (playlistId.lower() == SPOTIFY_DJ_PLAYLIST_ID):
+                
+                # build basic playlist response.
+                result = Playlist()
+                result._Collaborative = False
+                result._Description = 'Spotify DJ Playlist'
+                result._ExternalUrls._Spotify = 'https://open.spotify.com/playlist/%s' % playlistId
+                result._Id = playlistId
+                result._Name = 'DJ'
+                result._Public = False
+                result._Type = 'playlist'
+                result._Uri = 'spotify:playlist:%s' % playlistId
+                               
+                # trace.
+                _logsi.LogVerbose("Spotify DJ Playlist detected; request will be bypassed, and a basic PlayList object returned")
+                _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+                return result
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -13765,6 +13807,254 @@ class SpotifyClient:
             # process results.
             # no results to process - this is pass or fail.
             return
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+
+    def ZeroconfGetInformation(self, 
+                               actionUrl:str,
+                               ) -> ZeroconfGetInfo:
+        """
+        Retrieve Spotify Connect device information from the Spotify Zeroconf API `getInfo` endpoint.
+        
+        Args:
+            actionUrl (str):  
+                The Zeroconf action url to issue the request to.  
+                Example: `http://192.168.1.80:8200/zc?action=getInfo`
+                
+        Returns:
+            An `ZeroconfGetInfo` object that contains the response.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/ZeroconfGetInformation.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'ZeroconfGetInformation'
+        apiMethodParms:SIMethodParmListContext = None
+        result:ZeroconfGetInfo = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("actionUrl", actionUrl)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Zeroconf getInfo response", apiMethodParms)
+                
+            # execute spotify zeroconf api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, actionUrl)
+            self.MakeRequest('GET', msg)
+
+            # process results.
+            result = ZeroconfGetInfo(root=msg.ResponseData)
+        
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            return result
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def ZeroconfResetUsers(self, 
+                           actionUrl:str,
+                           ) -> ZeroconfResponse:
+        """
+        Reset users for a Spotify Connect device by calling the Spotify Zeroconf API `resetUsers` endpoint.
+        
+        Args:
+            actionUrl (str):  
+                The Zeroconf action url to issue the request to.  
+                Example: `http://192.168.1.80:8200/zc?action=resetUsers`
+                
+        Returns:
+            An `ZeroconfResponse` object that contains the response.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/ZeroconfResetUsers.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'ZeroconfResetUsers'
+        apiMethodParms:SIMethodParmListContext = None
+        result:ZeroconfResponse = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("actionUrl", actionUrl)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Zeroconf GetInfo response", apiMethodParms)
+                
+            # execute spotify zeroconf api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, actionUrl)
+            self.MakeRequest('GET', msg)
+
+            # process results.
+            result = ZeroconfResponse(root=msg.ResponseData)
+        
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            return result
+
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def ZeroconfAddUser(self, 
+                        actionUrl:str,
+                        getInfoResponse:ZeroconfGetInfo,
+                        username:str,
+                        password:str,
+                        ) -> ZeroconfResponse:
+        """
+        Add a user to a Spotify Connect device by calling the Spotify Zeroconf API `addUser` endpoint.
+        
+        Args:
+            actionUrl (str):  
+                The Zeroconf action url to issue the request to.  
+                Example: `http://192.168.1.80:8200/zc?action=addUser&version=1.0`
+                
+        Returns:
+            An `ZeroconfResponse` object that contains the response.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/ZeroconfGetInformation.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'ZeroconfAddUser'
+        apiMethodParms:SIMethodParmListContext = None
+        result:ZeroconfResponse = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("actionUrl", actionUrl)
+            apiMethodParms.AppendKeyValue("getInfoResponse", getInfoResponse)
+            apiMethodParms.AppendKeyValue("username", username)
+            apiMethodParms.AppendKeyValue("password", password)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Zeroconf addUser response", apiMethodParms)
+            
+            raise NotImplemented()
+
+            # build credentials object.
+            self.credentials = ZeroconfCredentials(username, password)
+
+            # build authentication blob.
+            builder = ZeroconfBlobBuilder(self.credentials, getInfoResponse.DeviceId, getInfoResponse.PublicKey)
+            blob = builder.build()
+
+            # # call zeroconf to add the user to the device.
+            # r = self._add_user(
+            #     self.credentials.username.decode('ascii'),
+            #     int_to_b64str(builder.dh_keys.public_key),
+            #     blob)
+
+        # def _add_user(self, username: str, client_key: str, blob: str): # -> bool
+        #     respone = requests.post(
+        #         self.uri,
+        #         headers={
+        #             'Content-Type': 'application/x-www-form-urlencoded'
+        #         },
+        #         params={
+        #             'action': 'addUser',
+        #             'userName': username,
+        #             'clientKey': client_key,
+        #             'blob': blob
+        #         }
+        #     )
+        #     return respone
+
+            # build spotify zeroconf addUser parameters.
+            urlParms:dict = \
+            {
+                'userName': self.credentials.username.decode('ascii'),
+                'clientKey': int_to_b64str(builder.dh_keys.public_key),
+                'blob': blob,
+                'deviceId': getInfoResponse.DeviceId,
+                'deviceName': getInfoResponse.RemoteName,
+                'loginId': 'xxxxxxxxxxx',
+            }
+
+    # let params = [
+    #   3  ("action", "addUser"),
+    #   3  ("userName", username),
+    #   3  ("blob", blob),
+    #   3  ("clientKey", my_public_key),
+    #     ("deviceId", &device_id),
+    #     ("deviceName", "spotify-connect"),
+    #     ("loginId", &login_id),
+        
+            
+            # execute spotify zeroconf api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, actionUrl)
+            msg.UrlParameters = urlParms
+            self.MakeRequest('POST', msg)
+
+            # process results.
+            result = ZeroconfResponse(root=msg.ResponseData)
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            return result
 
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru

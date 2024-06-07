@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_ZeroconfDiscovery.py</StartupFile>
+    <StartupFile>test\test_SSDP_Discovery.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -89,6 +89,8 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\SearchShows_AutoPaging.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\SearchTracks_AutoPaging.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\UnfollowArtists.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ZeroconfResetUsers.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\ZeroconfGetInformation.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\UnfollowUsers.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\FollowUsers.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\FollowArtists.py" />
@@ -220,6 +222,13 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="spotifywebapipython\models\showsimplified.py" />
     <Compile Include="spotifywebapipython\models\showsaved.py" />
     <Compile Include="spotifywebapipython\models\trackrecommendations.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfblobbuilder.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfgetinfodrmmediaformat.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfgetinfoalias.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfresponse.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfgetinfo.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfproperty.py" />
+    <Compile Include="spotifywebapipython\models\zeroconfdiscoveryresult.py" />
     <Compile Include="spotifywebapipython\models\userprofilesimplified.py" />
     <Compile Include="spotifywebapipython\models\userprofile.py" />
     <Compile Include="spotifywebapipython\models\album.py" />
@@ -264,6 +273,8 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
     <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_SSDP_Discovery2.py" />
+    <Compile Include="test\test_SSDP_Discovery.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />
     <Compile Include="test\test_ToDictionary.py" />
     <Compile Include="test\test_FreeAccount.py" />

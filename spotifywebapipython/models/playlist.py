@@ -31,7 +31,10 @@ class Playlist(PlaylistSimplified):
 
         if (root is None):
 
-            pass
+            # if not building the class from json response, then initialize various properties as 
+            # the playlist is probably being built manually.
+            self._Followers = Followers()
+            self._Tracks = PlaylistPage()
         
         else:
 

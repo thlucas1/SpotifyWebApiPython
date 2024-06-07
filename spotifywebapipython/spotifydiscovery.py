@@ -3,6 +3,7 @@ try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
+from time import sleep
 from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceStateChange, IPVersion
 
 # our package imports.
@@ -10,6 +11,7 @@ from .saappmessages import SAAppMessages
 from .sautils import export
 from .models.device import Device
 from .spotifyclient import SpotifyClient, SpotifyApiError
+from .models import ZeroconfDiscoveryResult, ZeroconfProperty
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession
@@ -63,6 +65,7 @@ class SpotifyDiscovery:
         # initialize instance properties.
         self._AreDevicesVerified:bool = areDevicesVerified
         self._DiscoveredDeviceNames:dict = {}
+        self._DiscoveryResults:list[ZeroconfDiscoveryResult] = []
         self._PrintToConsole:bool = printToConsole
         self._SpotifyClient:SpotifyClient = spotifyClient
         self._VerifiedDevices:dict = {}
@@ -120,6 +123,15 @@ class SpotifyDiscovery:
 
 
     @property
+    def DiscoveryResults(self) -> list[ZeroconfDiscoveryResult]:
+        """
+        An array of `ZeroconfDiscoveryResult` items that contain discovery details for
+        each service that was discovered.
+        """
+        return self._DiscoveryResults
+
+
+    @property
     def VerifiedDevices(self) -> dict:
         """
         A dictionary of discovered `Device` instances that were detected on the network.
@@ -170,6 +182,23 @@ class SpotifyDiscovery:
             # create device instances for each ipv4 address found.
             for deviceIpAddress in ipAddressList:
                 
+                # create new result instance.
+                result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
+                result.DeviceName = deviceName
+                result.Domain = '.local'
+                result.HostIpv4Address = deviceIpAddress
+                result.HostIpPort = serviceInfo.port
+                result.HostTTL = serviceInfo.host_ttl
+                result.Key = serviceInfo.key
+                result.Name = serviceInfo.name
+                result.OtherTTL = serviceInfo.other_ttl
+                result.Priority = serviceInfo.priority
+                result.Server = serviceInfo.server
+                result.ServerKey = serviceInfo.server_key
+                result.ServiceInfo = serviceInfo
+                result.ServiceType = serviceType
+                result.Weight = serviceInfo.weight
+                
                 devicePort:int = serviceInfo.port
                 deviceKey:str = '%s:%i' % (deviceIpAddress, devicePort)
                 _logsi.LogVerbose("Discovered Spotify Connect device: %s - %s" % (deviceKey, deviceName))
@@ -177,19 +206,29 @@ class SpotifyDiscovery:
                     print("Discovered Spotify Connect device: %s - %s" % (deviceKey, deviceName))
                 _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo: %s - %s" % (deviceKey, deviceName), serviceInfo) 
                 
-                # # trace service info propertys if desired.
-                # # note that the property keys and values must first be decoded to utf-8 encoding.
-                # if _logsi.IsOn(SILevel.Verbose):
-                #     if serviceInfo.properties is not None:
-                #         dspProperties:dict = {}
-                #         for key, value in serviceInfo.properties.items():
-                #             dspProperties[key.decode('utf-8')] = value.decode('utf-8')
-                #         _logsi.LogDictionary(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), dspProperties) 
+                # process service info propertys.
+                # note that the property keys and values must first be decoded to utf-8 encoding.
+                if serviceInfo.properties is not None:
+                    dspProperties:dict = {}
+                    for key, value in serviceInfo.properties.items():
+                        keyStr = key.decode('utf-8')
+                        valueStr = value.decode('utf-8')
+                        result.Properties.append(ZeroconfProperty(keyStr, valueStr)) 
+                        dspProperties[keyStr] = valueStr
+                        # check for Spotify Connect common properties.
+                        if keyStr.lower() == 'cpath':
+                            result.SpotifyConnectCPath = valueStr
+                        elif keyStr.lower() == 'version':
+                            result.SpotifyConnectVersion = valueStr
+                    _logsi.LogDictionary(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), dspProperties)                        
 
                 # add the device name to the list (if not already added) using its 
                 # ipv4 address and port number as the key.
                 if deviceKey not in self._DiscoveredDeviceNames.keys():
                     self._DiscoveredDeviceNames[deviceKey] = deviceName
+
+                # add the device result to the list.
+                self._DiscoveryResults.append(result)
 
                 # are we verifying devices connections?  if so, then create a SpotifyClient
                 # object, which will verify the connection and gather basic capabilities of the device.
@@ -198,12 +237,15 @@ class SpotifyDiscovery:
                     
                     if deviceKey not in self._VerifiedDevices.keys():
                         
-                        #device:SpotifyClient = SpotifyClient(host=deviceIpAddress, port=devicePort)
-                        
                         # get Spotify Connect player device by it's Name value.
                         device:Device = self._SpotifyClient.GetPlayerDevice(deviceName)
                         if device is not None:
                             self._VerifiedDevices[deviceKey] = device
+                            result.SpotifyConnectIsInDeviceList = True
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device result: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result, excludeNonPublic=True)                        
+                #_logsi.LogArray(SILevel.Verbose, "Discovered Spotify Connect device result.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result.Properties)                        
 
         elif (serviceStateChange is ServiceStateChange.Removed):
             _logsi.LogVerbose("Discovered Spotify Connect device removal (ignored): '%s' (%s:%s)", serviceName, serviceType, serviceStateChange)
@@ -258,6 +300,52 @@ class SpotifyDiscovery:
         return self._DiscoveredDeviceNames
 
 
+    def BroadcastService(self, serviceInfo:ServiceInfo, port:int=5353) -> None:
+        """
+        Generate a Zeroconf / mDNS broadcast to announce a service, and sends the broadcast out.
+
+        Args:
+            serviceInfo (ServiceInfo): 
+                Service information to broadcast.
+            port (int): 
+                mDNS port number to send the broadcast on.  
+                Default is 5353.  
+        """
+        try:
+
+            # create the zeroconf service.
+            zeroconf:Zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
+                   
+            # # TEST TODO - hardcoded serviceinfo properties for testing.
+            # serviceType:str = '_spotify-connect._tcp.local.'
+            # serviceName:str = 'Bose-ST10-95._spotify-connect._tcp.local.'
+            # parsedAddresses:list[str] = ['192.168.1.82']
+            # port:int = 8200
+            # hostTTL:int = 120
+            # priority:int = 0
+            # otherTTL:int = 4500
+            # server:str = 'Bose-SM2-987bf3244-95.local.'
+            # weight:int = 0
+            # properties:dict = {b'CPath': b'/zc', b'VERSION': b'1.0'}
+
+            # # create the zeroconf serviceinfo object.
+            # zcfServiceInfo:ServiceInfo = ServiceInfo(serviceType, serviceName, port, weight, priority, properties, server, hostTTL, otherTTL, parsed_addresses=parsedAddresses)
+        
+            # generate a broadcast packet to announce the service.
+            _logsi.LogVerbose("Generating Zeroconf Service Broadcast for service: '%s'" % serviceInfo.name)
+            dnsOutgoing = zeroconf.generate_service_broadcast(serviceInfo, serviceInfo.host_ttl, True)
+
+            # send the broadcast packet.
+            _logsi.LogVerbose("Sending Zeroconf Service Broadcast for service: '%s'" % serviceInfo.name)
+            zeroconf.send(dnsOutgoing, addr=None, port=port)
+           
+        except Exception as ex:
+            
+            # this is not really an exception, but more of an indicator that
+            # the timeout has been reached.
+            _logsi.LogException("Zeroconf Broadcast Service exception: %s" % str(ex), ex, logToSystemLogger=False)
+        
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.
@@ -273,7 +361,6 @@ class SpotifyDiscovery:
         if includeItems == True:
             
             for key, deviceName in self._DiscoveredDeviceNames.items():
-                
                 device:Device
                 verifiedStatus:str = ''
                 device = self._VerifiedDevices.get(key, None)

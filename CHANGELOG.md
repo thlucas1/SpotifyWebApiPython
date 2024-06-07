@@ -6,6 +6,19 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.44 ] - 2024/06/07
+
+  * Added `SpotifyClient.ZeroconfGetInfo` method to retrieve the Spotify Zeroconf action=GetInfo response for a discovered device.
+  * Added `SpotifyDiscovery.DiscoveredResults` class property that will contain an array of `ZeroconfDiscoveryResult` items that contain discovery details for each service that was discovered.
+  * Added model `ZeroconfDiscoveryResult` class that contains detailed Zeroconf ServiceInfo details that were discovered via Zeroconf.
+  * Added model `ZeroconfProperty` class that contains Zeroconf ServiceInfo property details that were discovered via Zeroconf.
+  * Added model `ZeroconfResponse` class that contains Zeroconf basic response variables.
+  * Added model `ZeroconfGetInfo` class that contains Zeroconf action=getInfo response variables.
+  * Added model `ZeroconfGetInfoAlias` class that contains Zeroconf action=getInfo Alias response variables.
+  * Added model `ZeroconfGetInfoDrmMediaFormat` class that contains Zeroconf action=getInfo DRM Media format response variables.
+  * Added logic to handle `503 Server Error` responses from the Spotify Web API.
+  * Added support for Spotify DJ playlist retrieval.  As the Spotify Web API does not support retrieving the DJ playlist (`spotify:playlist:37i9dQZF1EYkqdzj48dyYq`), it simply returns a manually built representation of the playlist.  Note that playlist tracks cannot be retrieved either for the DJ playlist, as the Spotify Web API does not support it.
+
 ###### [ 1.0.43 ] - 2024/04/21
 
   * Added device name support to the following player methods that take a `deviceId` argument for player functions.  You can now specify either a device id or device name in the `deviceId` argument to target a specific Spotify Connect Player device.  `SpotifyClient` methods updated were: `AddPlayerQueueItem`, `PlayerMediaPause`, `PlayerMediaPlayContext`, `PlayerMediaPlayTrackFavorites`, `PlayerMediaPlayTracks`, `PlayerMediaResume`, `PlayerMediaSeek`, `PlayerMediaSkipNext`, `PlayerMediaSkipPrevious`, `PlayerSetRepeatMode`, `PlayerSetShuffleMode`, `PlayerSetVolume`, `PlayerTransferPlayback`.

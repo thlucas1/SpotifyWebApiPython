@@ -106,7 +106,7 @@ class SearchResponse:
         return self._Albums
     
     @Albums.setter
-    def Albums(self, value:str):
+    def Albums(self, value:AlbumPageSimplified):
         """ 
         Sets the Albums property value.
         """
