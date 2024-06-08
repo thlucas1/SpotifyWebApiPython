@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.46 ] - 2024/06/07
+
+  * Updated the following requirements due to Home Assistant dependency issues: 'oauthlib>=3.2.2', 'platformdirs>=4.1.0', 'requests>=2.31.0', 'requests_oauthlib>=1.3.1', 'zeroconf>=0.132.2'.
+
 ###### [ 1.0.45 ] - 2024/06/07
 
   * Updated `zeroconf` requirements to "zeroconf>=0.132.2".  This was causing installation issues with other components that utilize zeroconf.
