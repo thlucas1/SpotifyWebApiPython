@@ -13922,7 +13922,7 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("actionUrl", actionUrl)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Zeroconf GetInfo response", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Zeroconf ResetUsers response", apiMethodParms)
                 
             # execute spotify zeroconf api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, actionUrl)

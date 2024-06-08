@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.45 ] - 2024/06/07
+
+  * Updated `zeroconf` requirements to "zeroconf>=0.132.2".  This was causing installation issues with other components that utilize zeroconf.
+
 ###### [ 1.0.44 ] - 2024/06/07
 
   * Added `SpotifyClient.ZeroconfGetInfo` method to retrieve the Spotify Zeroconf action=GetInfo response for a discovered device.
