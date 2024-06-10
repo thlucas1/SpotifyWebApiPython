@@ -32,6 +32,9 @@ class ZeroconfConnect:
     
     More information about Spotify Connect Zeroconf API can be found here:  
     https://developer.spotify.com/documentation/commercial-hardware/implementation/guides/zeroconf
+    
+    Inspiration and some of the blob encryption encoding was derived from the [zerospot](https://github.com/maraid/zerospot) 
+    GitHub repository.
     """
     
     def __init__(self, 
@@ -53,12 +56,6 @@ class ZeroconfConnect:
                 on the Spotify Connect device (e.g. "8200").
             cpath (str):
                 Spotify Connect Zeroconf API CPath property value (e.g. "/zc").
-            username (str):
-                Spotify Connect user name to login with.  
-                Not required for some methods.
-            password (str):
-                Spotify Connect user password to login with.  
-                Not required for some methods.
             version (str):
                 Spotify Connect Zeroconf API version number that the device supports (e.g. "2.10.0").  
                 Default is '1.0'.

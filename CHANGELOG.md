@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.48 ] - 2024/06/10
+
+  * Forgot to re-build prior to deploying!
+  
 ###### [ 1.0.47 ] - 2024/06/10
 
   * Moved all Spotify Zeroconf API related classes to a new namespace called `zeroconfapi`.  Classes moved were: `ZeroconfResponse`, `ZeroconfGetInfo`, `ZeroconfGetInfoAlias`, `ZeroconfGetInfoDrmMediaFormat`.
