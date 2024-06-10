@@ -9,7 +9,7 @@ from .zeroconfresponse import ZeroconfResponse
 @export
 class ZeroconfGetInfo(ZeroconfResponse):
     """
-    Spotify Web API Zeroconf GetInfo response object.
+    Spotify Zeroconf API GetInfo response object.
     """
 
     def __init__(self, root:dict=None) -> None:
@@ -96,7 +96,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def AccountReq(self) -> str:
         """ 
-        ? TODO
+        ? (e.g. "DONTCARE").
         """
         return self._AccountReq
 
@@ -114,7 +114,16 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def Aliases(self) -> list:
         """ 
+        Device alias information, IF the device supports aliases.  
         
+        Using ZeroConf, it is possible to announce multiple "virtual devices" from a device. 
+        This allows the eSDK device to expose, for instance, multiroom zones as ZeroConf devices.  
+
+        Device aliases will show up as separate devices in the Spotify app.  
+        
+        Note
+        
+        Please refer to the `RemoteName` property for more information.       
         """
         return self._Aliases
 
@@ -122,7 +131,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def Availability(self) -> str:
         """ 
-        ? TODO
+        The SpZeroConfVars availability field returned by SpZeroConfGetVars.
         """
         return self._Availability
 
@@ -178,7 +187,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def GroupStatus(self) -> str:
         """ 
-        ? TODO ... (e.g. "NONE").
+        The SpZeroConfVars group_status field returned by SpZeroConfGetVars (e.g. "NONE").
         """
         return self._GroupStatus
 
@@ -219,6 +228,11 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def RemoteName(self) -> str:
         """ 
         Name to be displayed for the device (e.g. "BOSE-ST10-1").
+        
+        This value will be null if the response is from a device using device aliases,
+        as the displayed name for respective alias is defined in the aliases field.  
+        
+        Please refer to the `Aliases` property for more information.
         """
         return self._RemoteName
 
@@ -226,7 +240,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def ResolverVersion(self) -> str:
         """ 
-        ? TODO ... (e.g. "0").
+        The SpZeroConfVars resolver_version field returned by SpZeroConfGetVars (e.g. "0").
         """
         return self._ResolverVersion
 
@@ -242,7 +256,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def SupportedCapabilities(self) -> int:
         """ 
-        ? TODO
+        Bitmasked integer representing list of device capabilities (e.g. 0).
         """
         return self._SupportedCapabilities
 
@@ -250,7 +264,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def SupportedDrmMediaFormats(self) -> list:
         """ 
-        ? TODO
+        The SpZeroConfVars supported_drm_media_formats field returned by SpZeroConfGetVars (e.g. []).
         """
         return self._SupportedDrmMediaFormats
 

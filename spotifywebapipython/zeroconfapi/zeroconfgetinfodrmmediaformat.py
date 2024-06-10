@@ -6,7 +6,7 @@ from ..sautils import export
 @export
 class ZeroconfGetInfoDrmMediaFormat:
     """
-    Spotify Web API Zeroconf GetInfo DRM Media Format object.
+    Spotify Zeroconf API GetInfo DRM Media Format object.
     """
 
     def __init__(self, root:dict=None) -> None:

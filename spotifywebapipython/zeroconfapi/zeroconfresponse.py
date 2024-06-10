@@ -6,7 +6,7 @@ from ..sautils import export
 @export
 class ZeroconfResponse:
     """
-    Spotify Web API Zeroconf basic response object.
+    Spotify Zeroconf API basic response object.
     """
 
     def __init__(self, root:dict=None) -> None:
@@ -46,7 +46,7 @@ class ZeroconfResponse:
     @property
     def ResponseSource(self) -> str:
         """ 
-        Token type provided by the client (e.g. "accesstoken").
+        TODO - Response source string (e.g. "???").
         """
         return self._ResponseSource
 
@@ -89,7 +89,7 @@ class ZeroconfResponse:
         return result
         
 
-    def ToString(self, includeTitle:bool=False) -> str:
+    def ToString(self, includeTitle:bool=True) -> str:
         """
         Returns a displayable string representation of the class.
         

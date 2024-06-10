@@ -6,6 +6,17 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.47 ] - 2024/06/10
+
+  * Moved all Spotify Zeroconf API related classes to a new namespace called `zeroconfapi`.  Classes moved were: `ZeroconfResponse`, `ZeroconfGetInfo`, `ZeroconfGetInfoAlias`, `ZeroconfGetInfoDrmMediaFormat`.
+  * Added `ZeroconfConnect` class that contains various methods that support interfacing with the Spotify Zeroconf API.
+  * Added `ZeroconfConnect.Connect` method that calls the `addUser` Spotify Zeroconf API endpoint to issue a call to SpConnectionLoginBlob.  If successful, the associated device id is added to the Spotify Connect active device list for the specified user account.
+  * Added `ZeroconfConnect.Disconnect` method that calls the `resetUsers` Spotify Zeroconf API endpoint to issue a call to SpConnectionLogout; the currently logged in user (if any) will be logged out of Spotify Connect, and the device id removed from the active Spotify Connect device list.
+  * Added `ZeroconfConnect.GetInformation` method that calls the `getInfo` Spotify Zeroconf API endpoint to return information about the device.
+  * Removed `SpotifyClient.ZeroconfAddUser` method, and replaced it with method `ZeroconfConnect.Connect`.
+  * Removed `SpotifyClient.ZeroconfResetUsers` method, and replaced it with method `ZeroconfConnect.Disconnect`.
+  * Removed `SpotifyClient.ZeroconfGetInformation` method, and replaced it with method `ZeroconfConnect.GetInformation`.
+
 ###### [ 1.0.46 ] - 2024/06/07
 
   * Updated the following requirements due to Home Assistant dependency issues: 'oauthlib>=3.2.2', 'platformdirs>=4.1.0', 'requests>=2.31.0', 'requests_oauthlib>=1.3.1', 'zeroconf>=0.132.2'.
@@ -16,7 +27,6 @@ Change are listed in reverse chronological order (newest to oldest).
 
 ###### [ 1.0.44 ] - 2024/06/07
 
-  * Added `SpotifyClient.ZeroconfGetInfo` method to retrieve the Spotify Zeroconf action=GetInfo response for a discovered device.
   * Added `SpotifyDiscovery.DiscoveredResults` class property that will contain an array of `ZeroconfDiscoveryResult` items that contain discovery details for each service that was discovered.
   * Added model `ZeroconfDiscoveryResult` class that contains detailed Zeroconf ServiceInfo details that were discovered via Zeroconf.
   * Added model `ZeroconfProperty` class that contains Zeroconf ServiceInfo property details that were discovered via Zeroconf.

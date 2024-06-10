@@ -50,13 +50,8 @@ from .trackpagesaved import TrackPageSaved, TrackSaved
 from .trackpagesimplified import TrackPageSimplified
 from .trackrecommendations import TrackRecommendations
 from .userprofile import UserProfile, UserProfileSimplified
-from .zeroconfblobbuilder import ZeroconfBlobBuilder, ZeroconfCredentials
 from .zeroconfdiscoveryresult import ZeroconfDiscoveryResult
-from .zeroconfgetinfoalias import ZeroconfGetInfoAlias
-from .zeroconfgetinfodrmmediaformat import ZeroconfGetInfoDrmMediaFormat
-from .zeroconfgetinfo import ZeroconfGetInfo
 from .zeroconfproperty import ZeroconfProperty
-from .zeroconfresponse import ZeroconfResponse
 
 # all classes to import when "import *" is specified.
 __all__ = [
@@ -111,11 +106,6 @@ __all__ = [
     'TrackPageSimplified',
     'TrackRecommendations',
     'UserProfile','UserProfileSimplified',
-    'ZeroconfBlobBuilder', 'ZeroconfCredentials',
     'ZeroconfDiscoveryResult',
-    'ZeroconfGetInfo',
-    'ZeroconfGetInfoAlias',
-    'ZeroconfGetInfoDrmMediaFormat',
     'ZeroconfProperty',
-    'ZeroconfResponse',
 ]

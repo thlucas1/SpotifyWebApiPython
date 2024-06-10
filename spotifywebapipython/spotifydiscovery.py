@@ -300,52 +300,6 @@ class SpotifyDiscovery:
         return self._DiscoveredDeviceNames
 
 
-    def BroadcastService(self, serviceInfo:ServiceInfo, port:int=5353) -> None:
-        """
-        Generate a Zeroconf / mDNS broadcast to announce a service, and sends the broadcast out.
-
-        Args:
-            serviceInfo (ServiceInfo): 
-                Service information to broadcast.
-            port (int): 
-                mDNS port number to send the broadcast on.  
-                Default is 5353.  
-        """
-        try:
-
-            # create the zeroconf service.
-            zeroconf:Zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
-                   
-            # # TEST TODO - hardcoded serviceinfo properties for testing.
-            # serviceType:str = '_spotify-connect._tcp.local.'
-            # serviceName:str = 'Bose-ST10-95._spotify-connect._tcp.local.'
-            # parsedAddresses:list[str] = ['192.168.1.82']
-            # port:int = 8200
-            # hostTTL:int = 120
-            # priority:int = 0
-            # otherTTL:int = 4500
-            # server:str = 'Bose-SM2-987bf3244-95.local.'
-            # weight:int = 0
-            # properties:dict = {b'CPath': b'/zc', b'VERSION': b'1.0'}
-
-            # # create the zeroconf serviceinfo object.
-            # zcfServiceInfo:ServiceInfo = ServiceInfo(serviceType, serviceName, port, weight, priority, properties, server, hostTTL, otherTTL, parsed_addresses=parsedAddresses)
-        
-            # generate a broadcast packet to announce the service.
-            _logsi.LogVerbose("Generating Zeroconf Service Broadcast for service: '%s'" % serviceInfo.name)
-            dnsOutgoing = zeroconf.generate_service_broadcast(serviceInfo, serviceInfo.host_ttl, True)
-
-            # send the broadcast packet.
-            _logsi.LogVerbose("Sending Zeroconf Service Broadcast for service: '%s'" % serviceInfo.name)
-            zeroconf.send(dnsOutgoing, addr=None, port=port)
-           
-        except Exception as ex:
-            
-            # this is not really an exception, but more of an indicator that
-            # the timeout has been reached.
-            _logsi.LogException("Zeroconf Broadcast Service exception: %s" % str(ex), ex, logToSystemLogger=False)
-        
-
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

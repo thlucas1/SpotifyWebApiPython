@@ -6,7 +6,7 @@ from ..sautils import export
 @export
 class ZeroconfGetInfoAlias:
     """
-    Spotify Web API Zeroconf GetInfo Alias object.
+    Spotify Zeroconf API GetInfo Alias object.
     """
 
     def __init__(self, root:dict=None) -> None:

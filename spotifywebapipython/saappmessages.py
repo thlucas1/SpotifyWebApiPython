@@ -39,3 +39,9 @@ class SAAppMessages:
     """
     SAM1002E - Spotify Web API returned an authorization error status while processing the \"{methodname}\" method.\nHTTP Status: {httpstatus} - {httpreason}\nError: {error}\nError Description: \"{errordescription}\"
     """
+    
+    MSG_SPOTIFY_ZEROCONF_API_ERROR:str = "SAM1003E - Spotify ZeroConf API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\""
+    """
+    SAM1001E - Spotify ZeroConf API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\"
+    """
+    
