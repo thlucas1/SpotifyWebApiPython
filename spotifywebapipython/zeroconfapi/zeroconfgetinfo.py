@@ -26,7 +26,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         
         # initialize our attributes.
         self._AccountReq:str = None
-        self._ActiveUser:str = None
+        self._ActiveUser:str = ""
         self._Aliases:list[ZeroconfGetInfoAlias] = []
         self._Availability:str = None
         self._BrandDisplayName:str = None
@@ -54,7 +54,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         else:
 
             self._AccountReq = root.get('accountReq', None)
-            self._ActiveUser = root.get('activeUser', None)
+            self._ActiveUser = root.get('activeUser', "")
             self._Availability = root.get('availability', None)
             self._BrandDisplayName = root.get('brandDisplayName', None)
             self._ClientId = root.get('clientID', None)
@@ -106,7 +106,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Canonical username of the logged in user (e.g. "31l77y2123456789012345678901").  
         
-        This value will be blank if there is no user logged into the device.
+        This value will be an empty string if there is no user logged into the device.
         """
         return self._ActiveUser
 
@@ -190,6 +190,24 @@ class ZeroconfGetInfo(ZeroconfResponse):
         The SpZeroConfVars group_status field returned by SpZeroConfGetVars (e.g. "NONE").
         """
         return self._GroupStatus
+
+
+    @property
+    def HasActiveUser(self) -> bool:
+        """
+        Returns True if the device has an active user account specified;
+        otherwise, False.
+        """
+        return (self._ActiveUser != "")
+
+
+    @property
+    def HasAliases(self) -> bool:
+        """
+        Returns True if the device has alias entries defined;
+        otherwise, False.
+        """
+        return (len(self._Aliases) > 0)
 
 
     @property

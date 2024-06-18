@@ -8,9 +8,9 @@ from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceStateChange, 
 
 # our package imports.
 from .saappmessages import SAAppMessages
+from .spotifyapierror import SpotifyApiError
 from .sautils import export
 from .models.device import Device
-from .spotifyclient import SpotifyClient, SpotifyApiError
 from .models import ZeroconfDiscoveryResult, ZeroconfProperty
 
 # get smartinspect logger reference; create a new session for this module name.
@@ -32,43 +32,40 @@ class SpotifyDiscovery:
     Click the **Sample Code** links in the individual methods for sample code examples.
     """
 
-    def __init__(self, spotifyClient:SpotifyClient=None, areDevicesVerified:bool=False, printToConsole:bool=False) -> None:
+    def __init__(
+            self, 
+            zeroconfClient:Zeroconf=None,
+            printToConsole:bool=False
+            ) -> None:
         """
         Initializes a new instance of the class.
         
         Args:
-            spotifyClient (SpotifyClient):
-                A SpotifyClient instance that will be used to verify discovered devices.   
-                This can be null if the areDevicesVerified argument is False.  
-                This argument is required if the areDevicesVerified argument is True.  
-            areDevicesVerified (bool):
-                True to create a `SpotifyClient` instance for discovered devices, which
-                verifies that the device can be accessed and basic information obtained 
-                about its capabilities; otherwise, False to just identify the IPV4 Address, 
-                Port, and Device Name.  
-                Default is False.
+            zeroconfClient (Zeroconf)
+                A Zeroconf client instance that will be used to discover Spotify Connect devices,
+                or null to create a new instance of Zeroconf.
+                Default is null.
             printToConsole (bool):
                 True to print discovered device information to the console as the devices
                 are discovered; otherwise, False to not print anything to the console.
                 Default is False.
-                
-        Specify False for the `areDevicesVerified` argument if you want to speed up
-        device discovery, as it takes extra time to verify device connections as they 
-        are discovered.
         """
         # validations.
-        if spotifyClient is not None and (not isinstance(spotifyClient, SpotifyClient)):
-            raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % ("__init__", 'spotifyClient', 'SpotifyClient', type(spotifyClient).__name__), logsi=_logsi)
-        if spotifyClient is None and areDevicesVerified == True:
-            raise SpotifyApiError("The spotifyClient argument is required if devices are to be verified (areDevicesVerified argument = True)", logsi=_logsi)
+        if zeroconfClient is not None and (not isinstance(zeroconfClient, Zeroconf)):
+            raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % ("__init__", 'zeroconfClient', 'Zeroconf', type(zeroconfClient).__name__), logsi=_logsi)
+
+        # create the zeroconf client if one was not specified.
+        if zeroconfClient is None:
+            _logsi.LogVerbose("Creating new Zeroconf instance for discovery")
+            zeroconfClient = Zeroconf()
+        else:
+            _logsi.LogObject(SILevel.Verbose, "Using existing Zeroconf instance for discovery", zeroconfClient)
 
         # initialize instance properties.
-        self._AreDevicesVerified:bool = areDevicesVerified
         self._DiscoveredDeviceNames:dict = {}
         self._DiscoveryResults:list[ZeroconfDiscoveryResult] = []
         self._PrintToConsole:bool = printToConsole
-        self._SpotifyClient:SpotifyClient = spotifyClient
-        self._VerifiedDevices:dict = {}
+        self._Zeroconf = zeroconfClient
 
 
     def __getitem__(self, key):
@@ -93,21 +90,6 @@ class SpotifyDiscovery:
 
 
     @property
-    def AreDevicesVerified(self) -> bool:
-        """
-        Determines if a `Device` object is created for devices that are
-        discovered.  This property is set by what is passed to the class constructor.
-        
-        If False, then the `VerifiedDevices` property will be empty;
-        
-        If True, then the `VerifiedDevices` property will contain a `Device`
-        instance for each device that was detected as part of the discovery process
-        and was found in the Spotify User's player devices list.
-        """
-        return self._AreDevicesVerified
-        
-
-    @property
     def DiscoveredDeviceNames(self) -> dict:
         """
         A dictionary of discovered device names that were detected by the discovery process.
@@ -129,23 +111,6 @@ class SpotifyDiscovery:
         each service that was discovered.
         """
         return self._DiscoveryResults
-
-
-    @property
-    def VerifiedDevices(self) -> dict:
-        """
-        A dictionary of discovered `Device` instances that were detected on the network.
-        
-        This property is only populated if the `AreDevicesVerified` property is True.
-        
-        Dictionary keys will be in the form of "address:port", where "address" is the device
-        ipv4 address and the "port" is the ipv4 port number the Spotify Connect device
-        is listening on.
-        
-        Dictionary values will be `Device` instances that represent the discovered
-        device.
-        """
-        return self._VerifiedDevices
 
 
     def _OnServiceStateChange(self,
@@ -230,19 +195,6 @@ class SpotifyDiscovery:
                 # add the device result to the list.
                 self._DiscoveryResults.append(result)
 
-                # are we verifying devices connections?  if so, then create a SpotifyClient
-                # object, which will verify the connection and gather basic capabilities of the device.
-                # we will also add the SpotifyClient instance using the same key as the device name list.
-                if self._AreDevicesVerified == True:
-                    
-                    if deviceKey not in self._VerifiedDevices.keys():
-                        
-                        # get Spotify Connect player device by it's Name value.
-                        device:Device = self._SpotifyClient.GetPlayerDevice(deviceName)
-                        if device is not None:
-                            self._VerifiedDevices[deviceKey] = device
-                            result.SpotifyConnectIsInDeviceList = True
-
                 # trace.
                 _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device result: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result, excludeNonPublic=True)                        
                 #_logsi.LogArray(SILevel.Verbose, "Discovered Spotify Connect device result.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result.Properties)                        
@@ -256,19 +208,19 @@ class SpotifyDiscovery:
             pass
 
 
-    def DiscoverDevices(self, timeout:int=5) -> dict:
+    def DiscoverDevices(self, timeout:float=2) -> dict:
         """
         Discover Spotify Connect devices on the local network via the 
         ZeroConf (aka MDNS) service.
 
         Args:
-            timeout (int): 
+            timeout (float): 
                 Maximum amount of time to wait (in seconds) for the 
                 discovery to complete.  
-                Default is 5 seconds.
+                Default is 2 seconds.
                 
         Returns:
-            A dictionary of discovered `SpotifyClient` objects.
+            A dictionary of `ZeroconfDiscoveryResult` objects.
 
         <details>
           <summary>Sample Code</summary>
@@ -280,12 +232,9 @@ class SpotifyDiscovery:
         # using Queue as a timer (timeout functionality).
         discoveryQueueTimer = Queue()
 
-        # create the zeroconf service and our listener callback.
-        zeroconf:Zeroconf = Zeroconf()
-        
         # create the zeroconf service browser that will start device discovery.
         _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf is starting ...")
-        ServiceBrowser(zeroconf, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
+        ServiceBrowser(self._Zeroconf, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
         
         try:
             # give the ServiceBrowser time to discover
@@ -296,7 +245,7 @@ class SpotifyDiscovery:
             # this is not really an exception, but more of an indicator that
             # the timeout has been reached.
             _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf has ended.")
-        
+            
         return self._DiscoveredDeviceNames
 
 
@@ -315,11 +264,6 @@ class SpotifyDiscovery:
         if includeItems == True:
             
             for key, deviceName in self._DiscoveredDeviceNames.items():
-                device:Device
-                verifiedStatus:str = ''
-                device = self._VerifiedDevices.get(key, None)
-                if device is not None:
-                    verifiedStatus = ' (verified - ID=%s)' % device.Id
-                msg = "%s\n- %s - %s %s" % (msg, key, deviceName, verifiedStatus)
+                msg = "%s\n- %s - %s" % (msg, key, deviceName)
             
         return msg

@@ -9,6 +9,7 @@ from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
 from lxml.etree import fromstring, Element
+from zeroconf import Zeroconf
 
 # our package imports.
 from .oauthcli import AuthClient
@@ -19,8 +20,11 @@ from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
 from .spotifyauthtoken import SpotifyAuthToken
+from .spotifydiscovery import SpotifyDiscovery
 from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
+from .zeroconfapi.zeroconfconnect import ZeroconfConnect, ZeroconfGetInfo, ZeroconfResponse, SpotifyZeroconfApiError
+from .zeroconfapi.zeroconfgetinfoalias import ZeroconfGetInfoAlias
 from .const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
@@ -71,7 +75,11 @@ class SpotifyClient:
     def __init__(self, 
                  manager:PoolManager=None,
                  tokenStorageDir:str=None,
-                 tokenUpdater:Callable=None
+                 tokenUpdater:Callable=None,
+                 zeroconfClient:Zeroconf=None,
+                 spotifyConnectUsername:str=None,
+                 spotifyConnectPassword:str=None,
+                 spotifyConnectDiscoveryTimeout:float=2.0
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -87,14 +95,58 @@ class SpotifyClient:
                 A method to call when a token needs to be refreshed by an external provider.  
                 The defined method is called with no parameters, and should return a token dictionary.  
                 Default is null.  
+            zeroconfClient (Zeroconf)
+                A Zeroconf client instance that will be used to discover Spotify Connect devices,
+                or null to create a new instance of Zeroconf.
+                Default is null.
+            spotifyConnectUsername (str):
+                Spotify Connect user name used to login to a Spotify Connect device.
+                This MUST match the account name (or one of them) that was used to configure Spotify Connect 
+                on a manufacturer device.               
+            spotifyConnectPassword (str):
+                Spotify Connect password used to login to a Spotify Connect device.
+                This value is required if a non-null value was specified for the `spotifyConnectUsername` argument.
+            spotifyConnectDiscoveryTimeout (float):
+                Maximum amount of time to wait (in seconds) for the Spotify Connect discovery to complete.  
+                Default is 2 seconds.
+                
+        The `spotifyConnectUsername` and `spotifyConnectPassword` arguments are only used when a
+        Spotify Connect account switch is performed on a selected player device.  Note that these credentials
+        are NOT used to access the Spotify Web API (the Spotify Web API token is used for that).
+        Please see the `PlayerResolveDeviceId` method for more details.
+        
+        Note that if you don't have a password setup for your Spotify account (e.g. you utilize the "Continue with Google" 
+        or other non-password methods for login), then you will need to define a "device password" in order to use the 
+        ZeroConf Connect service; use the [Spotify Set Device Password](https://www.spotify.com/uk/account/set-device-password/) 
+        page to define a device password.  You will then use your Spotify username and the device password as your 
+        Spotify Connect credentials.
         """
+        # validations.
+        if zeroconfClient is not None and (not isinstance(zeroconfClient, Zeroconf)):
+            raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % ("__init__", 'zeroconfClient', 'Zeroconf', type(zeroconfClient).__name__), logsi=_logsi)
+
+        # timeout value needs to be a float.
+        if (spotifyConnectDiscoveryTimeout is None):
+            spotifyConnectDiscoveryTimeout = 2.0
+        if (not isinstance(spotifyConnectDiscoveryTimeout, int) and (not isinstance(spotifyConnectDiscoveryTimeout, float))):
+            spotifyConnectDiscoveryTimeout = 2.0
+
+        # password is required if username was specified.
+        if spotifyConnectUsername is not None:
+            if (spotifyConnectPassword is None) or (not isinstance(spotifyConnectPassword,str)):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % ("__init__", 'spotifyConnectPassword'), logsi=_logsi)
+
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
         self._Manager:PoolManager = manager
+        self._SpotifyConnectUsername:str = spotifyConnectUsername
+        self._SpotifyConnectPassword:str = spotifyConnectPassword
+        self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenUpdater:Callable = tokenUpdater
         self._UserProfile:UserProfile = None
+        self._Zeroconf = zeroconfClient
         
         # if pool manager instance is none or not a PoolManager instance, then create one.
         # we increase the maximum number of connections to keep in the pool (maxsize=) to avoid the following warnings:
@@ -109,6 +161,13 @@ class SpotifyClient:
                                         maxsize=30,     # maximum number of connections to keep in the pool.
                                         block=True      # limit number of connections to the device.
                                         )
+
+        # create the zeroconf client if one was not specified.
+        if zeroconfClient is None:
+            _logsi.LogVerbose("Creating new Zeroconf instance for discovery")
+            self._Zeroconf = Zeroconf()
+        else:
+            _logsi.LogObject(SILevel.Verbose, "Using existing Zeroconf instance for discovery", zeroconfClient)
         
         
     def __enter__(self) -> 'SpotifyClient':
@@ -5875,6 +5934,166 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def PlayerActivateDevices(
+            self, 
+            verifyUserContext:bool=False,
+            delay:float=0.50,
+            ) -> None:
+        """
+        Activates all Spotify Connect player devices, and (optionally) switches the active user
+        context to the current user context.
+        
+        Args:
+            verifyUserContext (bool):
+                If True, the active user context of the resolved device is checked to ensure it
+                matches the user context specified on the class constructor.
+                If False, the user context will not be checked.
+                Default is False.
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the final Connect command (if necessary).
+                This delay will give the spotify web api time to process the device list change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyZeroconfApiError:
+                If any Spotify Zeroconf API request failed.  
+                If the `spotifyConnectUsername` aregument was not specified for the class contructor.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected
+        to the local network.  A Spotify Zeroconf API `getInfo` call is then issued for each device
+        that was found to retrieve device information.  A Spotify Zeroconf API `addUser` call is also
+        issued for each device that does not have an active user context established, OR if the currently
+        active user context does not match the `SpotifyConnectUsername` argument specified on the class constructor.
+        
+        The user context switch is bypassed if the `verifyUserContext` argument is False.  If the user context 
+        is to be switched, then a Disconnect will be issued if a user context is active on the device followed 
+        by a Connect to the user context specified on the class constructor.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerActivateDevices.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'PlayerActivateDevices'
+        apiMethodParms:SIMethodParmListContext = None
+        result:str = ""
+
+        MSG_RESULT:str = '- Device Name="%s", ID="%s", ActiveUser="%s", Status=%s'
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
+            apiMethodParms.AppendKeyValue("delay", delay)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Activating Spotify Connect Player Devices", apiMethodParms)
+
+            # validation - ensure spotify connect user context was specified on the class constructor.
+            if (self._SpotifyConnectUsername is None):
+                raise SpotifyZeroconfApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'SpotifyConnectUsername'), logsi=_logsi)
+
+            # validations.
+            delay = self._ValidateDelay(delay, 0.50, 10)
+            if (not isinstance(verifyUserContext, bool)):
+                verifyUserContext = False
+
+            deviceActiveUser:str = None
+            deviceIdResult:str = None
+                
+            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
+            # for all devices to be discovered.  this will return all Spotify Connect devices that
+            # are currently powered on, and are registered to Zeroconf / mDNS.
+            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
+            discovery:SpotifyDiscovery = SpotifyDiscovery(self._Zeroconf, printToConsole=False)
+            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+            # process all discovered devices.
+            discoverResult:ZeroconfDiscoveryResult
+            for discoverResult in discovery.DiscoveryResults:
+                
+                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
+                # returned in the zeroconf discovery result.
+                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                        discoverResult.HostIpPort, 
+                                                        discoverResult.SpotifyConnectCPath,
+                                                        useSSL=False)
+                info:ZeroconfGetInfo = zconn.GetInformation()
+
+                # store the currently active user of the device, in case we need to switch users later on.
+                deviceActiveUser = info.ActiveUser.lower()
+                deviceIdResult = info.DeviceId
+                
+                status:str = "INACTIVE"
+                if (info.HasActiveUser):
+                    status = "ACTIVE, "
+                
+                # did we resolve the device id?
+                if deviceIdResult is not None:
+                    
+                    # does our Spotify Connect user account need to take control of the device?
+                    # if not, then we are done.
+                    if (deviceActiveUser == self._SpotifyConnectUsername.lower()):  # or (deviceActiveUser == self.UserProfile.Id.lower()):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
+                        status = status + "user context switch not needed"
+                    
+                    # did caller request user context switch bypass?
+                    # if so, then just return the device id.
+                    elif (info.HasActiveUser) and (not verifyUserContext):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' will be used for Device id '%s', as caller chose to bypass user context switch" % (deviceActiveUser, deviceIdResult))
+                        status = status + "caller bypassed user context switch"
+
+                    else:
+                        zcfResult:ZeroconfResponse
+                    
+                        # if a different user context has control of the device then we need to disconnect 
+                        # the current user context before connecting a different user.
+                        if (info.HasActiveUser):
+                            _logsi.LogVerbose("Spotify Connect user context '%s' is being disconnected for Device id '%s'" % (deviceActiveUser, deviceIdResult))
+                            zcfResult = zconn.Disconnect()
+                            status = status + 'disconnected from user context "%s";' % deviceActiveUser
+                    
+                        # connect the device to OUR Spotify Connect user context.
+                        # note that the result here only indicates that the connect was submitted - NOT that it was successful!
+                        _logsi.LogVerbose("Spotify Connect user context '%s' is being connected for Device id '%s'" % (self._SpotifyConnectUsername, deviceIdResult))
+                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword)
+                        status = status + 'connected to user context "%s"' % self._SpotifyConnectUsername
+
+                        # trace.
+                        _logsi.LogVerbose("Spotify Connect user context switch from '%s' to '%s' was requested for Device id '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, deviceIdResult))
+
+                        # give spotify web api time to process the change and add the device to the device list.
+                        if delay > 0:
+                            _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                            time.sleep(delay)
+                        
+                # append device status to results.
+                result = "%s%s\n" % (result, MSG_RESULT % (info.RemoteName, info.DeviceId, info.ActiveUser, status))
+
+            # return results.
+            _logsi.LogText(SILevel.Verbose, "Spotify Connect Player Device activation results", result)    
+            return result
+
+        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def PlayerConvertDeviceNameToId(self, 
                                     value:str, 
                                     refresh:bool=False
@@ -5944,12 +6163,12 @@ class SpotifyClient:
 
             try:
             
-                # is this a hex string value?
+                # is this a hex string value (e.g. device id)?
                 intValue:int = int(str(value), 16)
             
                 # if it IS a hex string, then it should have been converted to a number.
                 # at this point we can assume it's a device id.  in this case, just return it.
-                # note that we will NOT perform a lookup in the device list 
+                # note that we will NOT perform a lookup in the device list .
                 _logsi.LogVerbose("Device id '%s' was specified, and will be used as-is" % value)
                 if intValue is not None:
                     return value
@@ -9012,6 +9231,35 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    @staticmethod
+    def IsDeviceId(value:str) -> bool:
+        """
+        Get the assumed device value format.
+               
+        Args:
+            value (str):
+                The id or name of a Spotify Connect device.
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
+
+        Returns:
+            True if the specified value is a device id format; 
+            otherwise, False to indicate it is a device name format.
+            
+        No exceptions are raised with this method.
+        """
+        result:bool = False
+        try:
+            # if it is a hex string, then it is assumed to be a device id.
+            intValue:int = int(str(value), 16)
+            result = True
+        except Exception:
+            # otherwise, assume it's a device name.
+            result = False
+            
+        return result
+
+
     def PlayerMediaPause(self, 
                          deviceId:str=None,
                          delay:float=0.50
@@ -9199,7 +9447,11 @@ class SpotifyClient:
             delay = self._ValidateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
+            # ensure the specified device id / name is active and available, and
+            # the user context is set correctly.
+            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -9315,7 +9567,11 @@ class SpotifyClient:
                 arrUris.append(trackSaved.Track.Uri)
 
             # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
+            # ensure the specified device id / name is active and available, and
+            # the user context is set correctly.
+            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # set desired shuffle mode.
             self.PlayerSetShuffleMode(shuffle, deviceId, delay)
@@ -9420,7 +9676,11 @@ class SpotifyClient:
                     arrUris[idx] = arrUris[idx].strip()
                 
             # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+
+            # ensure the specified device id / name is active and available, and
+            # the user context is set correctly.
+            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -9830,6 +10090,231 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def PlayerResolveDeviceId(
+            self, 
+            deviceValue:str, 
+            verifyUserContext:bool=True,
+            verifyTimeout:float=5.0,
+            ) -> str:
+        """
+        Resolves a Spotify Connect device identifier from a specified device id, name, alias id,
+        or alias name.  This will ensure that the device id can be found on the network, as well 
+        as connect to the device if necessary with the current user context.  
+        
+        Args:
+            deviceValue (str):
+                The device id / name value to check.
+            verifyUserContext (bool):
+                If True, the active user context of the resolved device is checked to ensure it
+                matches the user context specified on the class constructor.
+                If False, the user context will not be checked.
+                Default is True.
+            verifyTimeout (float):
+                Maximum time to wait (in seconds) for the device to become active in the Spotify
+                Connect device list.  This value is only used if a Connect command has to be
+                issued to activate the device.
+                Default is 5; value range is 0 - 10.
+                
+        Returns:
+            A device Id for the deviceValue if one could be resolved; 
+            otherwise, just the original deviceValue with the understanding that
+            subsequent operations will probably fail since it's not in the device list.  
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyZeroconfApiError:
+                If any Spotify Zeroconf API request failed.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected
+        to the local network.  A Spotify Zeroconf API `getInfo` call is then issued for each device
+        that was found, searching for a match on the `deviceValue` argument.  Depending on the format
+        of the `deviceValue`, the search will match on either a Device ID or RemoteName as well as any
+        alias ID's or Names that are in use (for multi-room configurations).  
+        
+        The device ID value is returned if a match is found; otherwise, null is returned.
+        
+        A user context switch will also be performed if a device id is resolved AND the active user of the 
+        device does not match the `SpotifyConnectUsername` argument specified on the class constructor.
+        The user context switch is bypassed if the `verifyUserContext` argument is False, or if the 
+        `SpotifyConnectUsername` was not supplied on the class constructor.  If the user context is to be
+        switched, then a Disconnect will be issued if a user context is active on the device followed by
+        a Connect to the user context specified on the class constructor.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerResolveDeviceId.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'PlayerResolveDeviceId'
+        apiMethodParms:SIMethodParmListContext = None
+        deviceIdResult:str = None
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("deviceValue", deviceValue)
+            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
+            apiMethodParms.AppendKeyValue("verifyTimeout", verifyTimeout)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Resolving Spotify Connect Player Device Id", apiMethodParms)
+
+            # if device value not specified then we are done.
+            if (deviceValue is None) or (len(deviceValue.strip()) == 0):
+                _logsi.LogVerbose("deviceValue not specified; nothing to do")
+                return None
+            
+            # validations.
+            verifyTimeout = self._ValidateDelay(verifyTimeout, 5, 10)
+            if (not isinstance(verifyUserContext, bool)):
+                verifyUserContext = True
+
+            # determine if the device value specified is a name (e.g. "Bose-ST10-1") or 
+            # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
+            isDeviceId:bool = SpotifyClient.IsDeviceId(deviceValue)
+            deviceValueCompare:str = deviceValue.lower()
+            deviceActiveUser:str = None
+                
+            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
+            # for all devices to be discovered.  this will return all Spotify Connect devices that
+            # are currently powered on, and are registered to Zeroconf / mDNS.
+            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
+            discovery:SpotifyDiscovery = SpotifyDiscovery(self._Zeroconf, printToConsole=False)
+            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+            # process all discovered devices.
+            discoverResult:ZeroconfDiscoveryResult
+            for discoverResult in discovery.DiscoveryResults:
+                
+                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
+                # returned in the zeroconf discovery result.
+                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                        discoverResult.HostIpPort, 
+                                                        discoverResult.SpotifyConnectCPath,
+                                                        useSSL=False)
+                info:ZeroconfGetInfo = zconn.GetInformation()
+
+                # store the currently active user of the device, in case we need to switch users later on.
+                deviceActiveUser = info.ActiveUser.lower()
+
+                # are aliases being used (RemoteName is null if so)?
+                if info.RemoteName is None:
+                    
+                    # if aliases are defined for the device, then we have to check each alias for a match.
+                    infoAlias:ZeroconfGetInfoAlias
+                    for infoAlias in info.Aliases:
+
+                        # if input deviceValue is a device id then compare the id; otherwise, compare the name.
+                        if isDeviceId:
+                            if (infoAlias.Id.lower() == deviceValueCompare):
+                                _logsi.LogVerbose("Device value '%s' was matched to device Alias Id '%s' (%s)" % (deviceValue, infoAlias.Name, infoAlias.Id))
+                                deviceIdResult = infoAlias.Id
+                                break  # alias processing loop
+                        else:
+                            if (infoAlias.Name.lower() == deviceValueCompare):
+                                _logsi.LogVerbose("Device value '%s' was matched to device Alias Name '%s' (%s)" % (deviceValue, infoAlias.Name, infoAlias.Id))
+                                deviceIdResult = infoAlias.Id
+                                break  # alias processing loop
+                
+                else:
+
+                    # if input deviceValue is a device id then compare the id; otherwise, compare the name.
+                    if isDeviceId:
+                        if (info.DeviceId.lower() == deviceValueCompare):
+                            _logsi.LogVerbose("Device value '%s' was matched to device Id '%s' (%s)" % (deviceValue, info.RemoteName, info.DeviceId))
+                            deviceIdResult = info.DeviceId
+                    else:
+                        if (info.RemoteName.lower() == deviceValueCompare):
+                            _logsi.LogVerbose("Device value '%s' was matched to device RemoteName '%s' (%s)" % (deviceValue, info.RemoteName, info.DeviceId))
+                            deviceIdResult = info.DeviceId
+                    
+                # did we resolve the device id?
+                if deviceIdResult is not None:
+                    
+                    # did caller request user context switch bypass?
+                    # if so, then just return the device id.
+                    if (not verifyUserContext):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' will be used for Device id '%s', as user chose to bypass user context switch" % (deviceActiveUser, deviceIdResult))
+                        break
+
+                    # was a Spotify Connect user account specified on the class constructor?
+                    # if not, then do not switch the user context.
+                    if (self._SpotifyConnectUsername is None):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' will be used for Device id '%s', as a SpotifyConnectUsername parameter was not supplied" % (deviceActiveUser, deviceIdResult))
+                        break
+                    
+                    # does our Spotify Connect user account need to take control of the device?
+                    # if not, then we are done.
+                    if (deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower()):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
+                        break
+                    
+                    zcfResult:ZeroconfResponse
+                    
+                    # if a different user context has control of the device then we need to disconnect 
+                    # the current user context before connecting a different user.
+                    if (info.HasActiveUser):
+                        _logsi.LogVerbose("Spotify Connect user context '%s' is being disconnected for Device id '%s'" % (deviceActiveUser, deviceIdResult))
+                        zcfResult = zconn.Disconnect()
+                    
+                    # connect the device to OUR Spotify Connect user context.
+                    # note that the result here only indicates that the connect was submitted - NOT that it was successful!
+                    _logsi.LogVerbose("Spotify Connect user context '%s' is being connected for Device id '%s'" % (self._SpotifyConnectUsername, deviceIdResult))
+                    zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword)
+
+                    # trace.
+                    _logsi.LogVerbose("Spotify Connect user context switch from '%s' to '%s' was requested for Device id '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, deviceIdResult))
+
+                    loopTotalDelay:float = 0
+                    LOOP_DELAY:float = 0.25
+                    while True:
+                        
+                        # wait just a bit between active device list queries.
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
+                        time.sleep(LOOP_DELAY)
+                        loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+                        # check for the device in the active device list.
+                        # if we find it, then we are done.
+                        device:Device = self.GetPlayerDevice(deviceIdResult, True)
+                        if device is not None:
+                            _logsi.LogVerbose("Spotify Connect Device id '%s' is now in the active device list; device found within %f seconds of Connect" % (deviceIdResult, loopTotalDelay))
+                            break
+                        
+                        # only check so many times before we give up;
+                        # we will keep checking until we find the device, or we exceed the verifyTimeout value.
+                        if (loopTotalDelay > verifyTimeout):
+                            _logsi.LogWarning("Verification timeout waiting for Spotify Connect Device id '%s' to be added to the active device list; device not found within %f seconds of Connect" % (deviceIdResult, verifyTimeout))
+                            break
+
+                    # end the device processing loop.
+                    break
+
+            # did we resolve the device id?
+            if deviceIdResult is None:
+                _logsi.LogWarning("Device value '%s' could not be resolved to an active Spotify Connect device, which denotes subsequent operations for the device will probably fail; please ensure that the specified device is available on the network" % (deviceValue))
+
+            # return the resolved device id.
+            return deviceIdResult
+
+        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def PlayerSetRepeatMode(self, 
                              state:str='off',
                              deviceId:str=None,
@@ -10187,7 +10672,11 @@ class SpotifyClient:
             delay = self._ValidateDelay(delay, 0.50, 10)
             
             # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            
+            # ensure the specified device id / name is active and available, and
+            # the user context is set correctly.
+            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \

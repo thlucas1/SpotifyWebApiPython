@@ -71,6 +71,8 @@ class ZeroconfConnect:
         # validations.
         if (version is None):
             version = '1.0'
+        if (useSSL is None) or (not isinstance(useSSL,bool)):
+            useSSL = False
             
         # initialize storage.
         self._CPath:str = cpath
@@ -271,6 +273,8 @@ class ZeroconfConnect:
         Args:
             username (str):
                 Spotify Connect user name to login with.  
+                This MUST match the account name (or one of them) that was used to configure Spotify Connect 
+                on the manufacturer device.               
             password (str):
                 Spotify Connect user password to login with.  
 
@@ -289,6 +293,12 @@ class ZeroconfConnect:
         is able to perform the login attempt.  You should issue a call to the Spotify Web API `Get Available Devices` 
         endpoint to check the current device list to ensure that the device id was successfully added or not.
 
+        Note that if you don't have a password setup for your Spotify account (e.g. you utilize the "Continue with Google" 
+        or other non-password methods for login), then you will need to define a "device password" in order to use the 
+        ZeroConf Connect service; use the [Spotify Set Device Password](https://www.spotify.com/uk/account/set-device-password/) 
+        page to define a device password.  You will then use your Spotify username and the device password to Connect 
+        to the device.
+        
         <details>
           <summary>Sample Code</summary>
         ```python

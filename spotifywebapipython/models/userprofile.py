@@ -110,6 +110,30 @@ class UserProfile(UserProfileSimplified):
     
 
     @property
+    def IsProductFree(self) -> str:
+        """ 
+        Returns true if the user's Spotify subscription level is `free` or `open`;
+        otherwise, False.
+        
+        This field is only valid when the current user has granted access to 
+        the `user-read-private` scope; otherwise, it is set to `unknown`.
+        """
+        return (self._Product == 'free') or (self._Product == 'opem')
+
+
+    @property
+    def IsProductPremium(self) -> str:
+        """ 
+        Returns true if the user's Spotify subscription level is `premium`;
+        otherwise, False.
+        
+        This field is only valid when the current user has granted access to 
+        the `user-read-private` scope; otherwise, it is set to `unknown`.
+        """
+        return (self._Product == 'premium')
+
+
+    @property
     def Product(self) -> str:
         """ 
         The user's Spotify subscription level: `premium`, `free`, etc. 

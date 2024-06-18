@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.49 ] - 2024/06/18
+
+  * Added `SpotifyClient.PlayerActivateDevices` method that activates all Spotify Connect player devices, and (optionally) switches the active user context to the current user context.  Note that you can still activate individual devices using the `ZeroconfConnect.Connect` method if you wish.
+  * Added `SpotifyClient.PlayerResolveDeviceId` method that resolves a Spotify Connect device identifier from a specified device id, name, alias id, or alias name.  This will ensure that the device id can be found on the network, as well as connect to the device (if necessary) with the current user context.  
+  * Updated various `SpotifyClient` methods to utilize the new `SpotifyClient.PlayerResolveDeviceId` method so that device id's are automatically activated if they are currently deactivated but available on the local network.  Methods updated were: `PlayerMediaPlayContext`, `PlayerMediaPlayTrackFavorites`, `PlayerMediaPlayTracks`, `PlayerTransferPlayback`.
+  * Updated `SpotifyClient` class constructor so that Spotify Connect user context credentials (e.g. username and password) may be supplied for the resolution of device id / name.  Note these credentials are only used for Spotify Connect device resolution, and are not used by method calls that are made to the underlying Spotify Web API.
+  * Updated `SpotifyDiscovery` class constructor so that a `Zeroconf` instance can be provided.  This allows Home Assistant integrations to use the HA Zeroconf instance and avoid the log warnings of multiple Zeroconf instances in use.
+  * Removed `SpotifyClient` processing from the `SpotifyDiscovery` class, as the processing was moved into the `SpotifyClient` class itself.
+  
 ###### [ 1.0.48 ] - 2024/06/10
 
   * Forgot to re-build prior to deploying!
