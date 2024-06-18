@@ -16,11 +16,6 @@ class ZeroconfDiscoveryResult:
     def __init__(self) -> None:
         """
         Initializes a new instance of the class.
-        
-        Args:
-            root (dict):
-                Spotify Web API JSON response in dictionary format, used to load object
-                attributes; otherwise, None to not load attributes.
         """
         self._DeviceName:str = None
         self._Domain:str = '.'

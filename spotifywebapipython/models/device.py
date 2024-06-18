@@ -64,6 +64,24 @@ class Device:
         return self.ToString()
 
 
+    # implement sorting support.
+    def __eq__(self, other):
+        try:
+            return self.Name == other.Name
+        except Exception as ex:
+            if (isinstance(self, Device )) and (isinstance(other, Device )):
+                return self.Name == other.Name
+            return False
+
+    def __lt__(self, other):
+        try:
+            return self.Name < other.Name
+        except Exception as ex:
+            if (isinstance(self, Device )) and (isinstance(other, Device )):
+                return self.Name < other.Name
+            return False
+
+
     @property
     def Id(self) -> str:
         """ 
@@ -74,6 +92,14 @@ class Device:
         """
         return self._Id
 
+    @Id.setter
+    def Id(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        if isinstance(value, str):
+            self._Id = value
+
 
     @property
     def IsActive(self) -> bool:
@@ -81,6 +107,14 @@ class Device:
         If this device is the currently active device.
         """
         return self._IsActive
+
+    @IsActive.setter
+    def IsActive(self, value:bool):
+        """ 
+        Sets the IsActive property value.
+        """
+        if isinstance(value, bool):
+            self._IsActive = value
 
 
     @property
@@ -122,6 +156,14 @@ class Device:
         """
         return self._Name
 
+    @Name.setter
+    def Name(self, value:str):
+        """ 
+        Sets the Name property value.
+        """
+        if isinstance(value, str):
+            self._Name = value
+
 
     @property
     def SelectItemNameAndId(self) -> str:
@@ -150,6 +192,14 @@ class Device:
         Example: `computer`
         """
         return self._Type
+
+    @Type.setter
+    def Type(self, value:str):
+        """ 
+        Sets the Type property value.
+        """
+        if isinstance(value, str):
+            self._Type = value
 
 
     @property

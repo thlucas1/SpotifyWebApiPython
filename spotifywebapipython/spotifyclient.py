@@ -7890,6 +7890,87 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def GetSpotifyConnectDevices(
+            self, 
+            ) -> SpotifyConnectDevices:
+        """
+        Get information about all available Spotify Connect player devices. 
+        
+        Returns:
+            A `SpotifyConnectDevices` object that contain the discovery results
+            as well as the `getInfo` result for each found device.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyZeroconfApiError:
+                If the Spotify Zeroconf API request faild for any reason.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        This method is similar to the `GetPlayerDevices` method, but it contains ALL
+        available Spotify Connect devices that are known to the local network (versus
+        just the devices known to a specific user).
+                        
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetSpotifyConnectDevices.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'GetSpotifyConnectDevices'
+        result:SpotifyConnectDevices = SpotifyConnectDevices()
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Get all available Spotify Connect devices")
+                
+            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
+            # for all devices to be discovered.  this will return all Spotify Connect devices that
+            # are currently powered on, and are registered to Zeroconf / mDNS.
+            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
+            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
+            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+            # process all discovered devices.
+            discoverResult:ZeroconfDiscoveryResult
+            for discoverResult in discovery.DiscoveryResults:
+
+                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
+                # returned in the zeroconf discovery result.
+                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                        discoverResult.HostIpPort, 
+                                                        discoverResult.SpotifyConnectCPath,
+                                                        useSSL=False)
+                info:ZeroconfGetInfo = zconn.GetInformation()
+
+                # create new spotify connect device object.
+                scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+                scDevice.DiscoveryResult = discoverResult
+                scDevice.DeviceInfo = info
+                result.Items.append(scDevice)
+                
+            # trace.
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            return result
+
+        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def GetTrack(self, 
                  trackId:str, 
                  ) -> Track:

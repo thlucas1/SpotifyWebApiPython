@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.51 ] - 2024/06/18
+
+  * Added `SpotifyClient.GetSpotifyConnectDevices` method that gets information about all available Spotify Connect player devices (not just ones controlled by a user).
+
 ###### [ 1.0.50 ] - 2024/06/18
 
   * Added `SpotifyClient.ZeroconfClient` property that contains a reference to the Zeroconf client instance used to discover Spotify Connect devices.

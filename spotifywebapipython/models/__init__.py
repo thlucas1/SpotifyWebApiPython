@@ -44,6 +44,7 @@ from .searchresponse import SearchResponse
 from .show import Show, ShowSimplified
 from .showpagesaved import ShowPageSaved, ShowSaved
 from .showpagesimplified import ShowPageSimplified
+from .spotifyconnectdevices import SpotifyConnectDevices, SpotifyConnectDevice
 from .track import Track, TrackSimplified
 from .trackpage import TrackPage
 from .trackpagesaved import TrackPageSaved, TrackSaved
@@ -100,6 +101,7 @@ __all__ = [
     'Show','ShowSimplified',
     'ShowPageSaved','ShowSaved',
     'ShowPageSimplified',
+    'SpotifyConnectDevices', 'SpotifyConnectDevice',
     'Track','TrackSimplified',
     'TrackPage',
     'TrackPageSaved','TrackSaved',
