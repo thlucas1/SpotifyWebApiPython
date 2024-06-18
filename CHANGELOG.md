@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.50 ] - 2024/06/18
+
+  * Added `SpotifyClient.ZeroconfClient` property that contains a reference to the Zeroconf client instance used to discover Spotify Connect devices.
+  * Added `SpotifyDiscovery.ZeroconfClient` property that contains a reference to the Zeroconf client instance used to discover Spotify Connect devices.
+
 ###### [ 1.0.49 ] - 2024/06/18
 
   * Added `SpotifyClient.PlayerActivateDevices` method that activates all Spotify Connect player devices, and (optionally) switches the active user context to the current user context.  Note that you can still activate individual devices using the `ZeroconfConnect.Connect` method if you wish.

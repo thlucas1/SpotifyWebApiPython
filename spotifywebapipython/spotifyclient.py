@@ -146,7 +146,7 @@ class SpotifyClient:
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenUpdater:Callable = tokenUpdater
         self._UserProfile:UserProfile = None
-        self._Zeroconf = zeroconfClient
+        self._ZeroconfClient = zeroconfClient
         
         # if pool manager instance is none or not a PoolManager instance, then create one.
         # we increase the maximum number of connections to keep in the pool (maxsize=) to avoid the following warnings:
@@ -165,7 +165,7 @@ class SpotifyClient:
         # create the zeroconf client if one was not specified.
         if zeroconfClient is None:
             _logsi.LogVerbose("Creating new Zeroconf instance for discovery")
-            self._Zeroconf = Zeroconf()
+            self._ZeroconfClient = Zeroconf()
         else:
             _logsi.LogObject(SILevel.Verbose, "Using existing Zeroconf instance for discovery", zeroconfClient)
         
@@ -297,6 +297,14 @@ class SpotifyClient:
         properties that require specific scope.
         """
         return self._UserProfile
+    
+
+    @property
+    def ZeroconfClient(self) -> Zeroconf:
+        """ 
+        Zeroconf client instance that will be used to discover Spotify Connect devices.
+        """
+        return self._ZeroconfClient
     
 
     def _CheckForNextPageWithOffset(self, 
@@ -6012,7 +6020,7 @@ class SpotifyClient:
             # for all devices to be discovered.  this will return all Spotify Connect devices that
             # are currently powered on, and are registered to Zeroconf / mDNS.
             _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-            discovery:SpotifyDiscovery = SpotifyDiscovery(self._Zeroconf, printToConsole=False)
+            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
             discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
 
             # process all discovered devices.
@@ -10184,7 +10192,7 @@ class SpotifyClient:
             # for all devices to be discovered.  this will return all Spotify Connect devices that
             # are currently powered on, and are registered to Zeroconf / mDNS.
             _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-            discovery:SpotifyDiscovery = SpotifyDiscovery(self._Zeroconf, printToConsole=False)
+            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
             discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
 
             # process all discovered devices.

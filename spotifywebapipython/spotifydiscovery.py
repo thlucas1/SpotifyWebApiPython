@@ -65,7 +65,7 @@ class SpotifyDiscovery:
         self._DiscoveredDeviceNames:dict = {}
         self._DiscoveryResults:list[ZeroconfDiscoveryResult] = []
         self._PrintToConsole:bool = printToConsole
-        self._Zeroconf = zeroconfClient
+        self._ZeroconfClient = zeroconfClient
 
 
     def __getitem__(self, key):
@@ -112,6 +112,14 @@ class SpotifyDiscovery:
         """
         return self._DiscoveryResults
 
+
+    @property
+    def ZeroconfClient(self) -> Zeroconf:
+        """ 
+        Zeroconf client instance that will be used to discover Spotify Connect devices.
+        """
+        return self._ZeroconfClient
+    
 
     def _OnServiceStateChange(self,
                               zeroconf:Zeroconf, 
@@ -234,7 +242,7 @@ class SpotifyDiscovery:
 
         # create the zeroconf service browser that will start device discovery.
         _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf is starting ...")
-        ServiceBrowser(self._Zeroconf, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
+        ServiceBrowser(self._ZeroconfClient, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
         
         try:
             # give the ServiceBrowser time to discover
