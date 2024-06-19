@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.52 ] - 2024/06/18
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevices` method to retrieve dynamic Spotify Connect devices as well as static devices.  Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery process, but still exist in the player device list.  These are usually Spotify Connect web or mobile players with temporary device id's.
+
 ###### [ 1.0.51 ] - 2024/06/18
 
   * Added `SpotifyClient.GetSpotifyConnectDevices` method that gets information about all available Spotify Connect player devices (not just ones controlled by a user).

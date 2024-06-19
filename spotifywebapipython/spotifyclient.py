@@ -5946,7 +5946,7 @@ class SpotifyClient:
             self, 
             verifyUserContext:bool=False,
             delay:float=0.50,
-            ) -> None:
+            ) -> str:
         """
         Activates all Spotify Connect player devices, and (optionally) switches the active user
         context to the current user context.
@@ -5962,6 +5962,9 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the device list change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+                
+        Returns:
+            A string that contains status text.
                 
         Raises:
             SpotifyWebApiError: 
@@ -6015,40 +6018,38 @@ class SpotifyClient:
 
             deviceActiveUser:str = None
             deviceIdResult:str = None
-                
-            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
-            # for all devices to be discovered.  this will return all Spotify Connect devices that
-            # are currently powered on, and are registered to Zeroconf / mDNS.
-            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+            discoverResult:ZeroconfDiscoveryResult
+            info:ZeroconfGetInfo
+            scDevice:SpotifyConnectDevice
+            
+            # get all Spotify Connect available devices on the network.
+            scDevices:SpotifyConnectDevices = self.GetSpotifyConnectDevices()
 
             # process all discovered devices.
-            discoverResult:ZeroconfDiscoveryResult
-            for discoverResult in discovery.DiscoveryResults:
+            for scDevice in scDevices:
                 
-                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
-                # returned in the zeroconf discovery result.
-                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
-                                                        discoverResult.HostIpPort, 
-                                                        discoverResult.SpotifyConnectCPath,
-                                                        useSSL=False)
-                info:ZeroconfGetInfo = zconn.GetInformation()
+                discoverResult = scDevice.DiscoveryResult
+                info = scDevice.DeviceInfo
 
                 # store the currently active user of the device, in case we need to switch users later on.
                 deviceActiveUser = info.ActiveUser.lower()
                 deviceIdResult = info.DeviceId
                 
-                status:str = "INACTIVE"
+                status:str = "INACTIVE, "
                 if (info.HasActiveUser):
                     status = "ACTIVE, "
                 
                 # did we resolve the device id?
                 if deviceIdResult is not None:
                     
+                    # is this a dynamic device?  if so, then we can't control it.
+                    if (discoverResult.IsDynamicDevice):
+                        _logsi.LogVerbose("Spotify Connect Device id '%s' (%s) is a dynamic device; we cannot control it" % (deviceIdResult, info.RemoteName))
+                        status = status + "dynamic device, cannot switch user context"
+                    
                     # does our Spotify Connect user account need to take control of the device?
                     # if not, then we are done.
-                    if (deviceActiveUser == self._SpotifyConnectUsername.lower()):  # or (deviceActiveUser == self.UserProfile.Id.lower()):
+                    elif (deviceActiveUser == self._SpotifyConnectUsername.lower()):  # or (deviceActiveUser == self.UserProfile.Id.lower()):
                         _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
                         status = status + "user context switch not needed"
                     
@@ -6060,6 +6061,12 @@ class SpotifyClient:
 
                     else:
                         zcfResult:ZeroconfResponse
+
+                        # create a ZeroconfConnect object to access the device.
+                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                                discoverResult.HostIpPort, 
+                                                                discoverResult.SpotifyConnectCPath,
+                                                                useSSL=False)
                     
                         # if a different user context has control of the device then we need to disconnect 
                         # the current user context before connecting a different user.
@@ -7894,7 +7901,7 @@ class SpotifyClient:
             self, 
             ) -> SpotifyConnectDevices:
         """
-        Get information about all available Spotify Connect player devices. 
+        Get information about all available Spotify Connect player devices.
         
         Returns:
             A `SpotifyConnectDevices` object that contain the discovery results
@@ -7912,6 +7919,11 @@ class SpotifyClient:
         This method is similar to the `GetPlayerDevices` method, but it contains ALL
         available Spotify Connect devices that are known to the local network (versus
         just the devices known to a specific user).
+        
+        It will also call the `GetPlayerDevices` method, in case we have any dynamic devices.
+        Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+        process, but still exist in the player device list.  These are usually Spotify Connect
+        web or mobile players with temporary device id's.
                         
         <details>
           <summary>Sample Code</summary>
@@ -7927,7 +7939,6 @@ class SpotifyClient:
             
             # trace.
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
-            _logsi.LogVerbose("Get all available Spotify Connect devices")
                 
             # discover Spotify Connect devices on the network, waiting up to the specified timeout 
             # for all devices to be discovered.  this will return all Spotify Connect devices that
@@ -7954,6 +7965,17 @@ class SpotifyClient:
                 scDevice.DeviceInfo = info
                 result.Items.append(scDevice)
                 
+            # we will also call the GetPlayerDevices method, in case we have any dynamic devices.
+            # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+            # process, but still exist in the player device list.  these are usually Spotify Connect
+            # web or mobile players with temporary device id's.
+            devices:list[Device] = self.GetPlayerDevices(True)
+          
+            device:Device
+            for device in devices:
+                if not result.ContainsDeviceId(device.Id):
+                    result.AddDynamicDevice(device, self.UserProfile.Id)
+
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
             return result
@@ -10266,33 +10288,27 @@ class SpotifyClient:
             # determine if the device value specified is a name (e.g. "Bose-ST10-1") or 
             # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
             isDeviceId:bool = SpotifyClient.IsDeviceId(deviceValue)
+
             deviceValueCompare:str = deviceValue.lower()
             deviceActiveUser:str = None
-                
-            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
-            # for all devices to be discovered.  this will return all Spotify Connect devices that
-            # are currently powered on, and are registered to Zeroconf / mDNS.
-            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+            discoverResult:ZeroconfDiscoveryResult
+            info:ZeroconfGetInfo
+            scDevice:SpotifyConnectDevice
+
+            # get all Spotify Connect available devices on the network.
+            scDevices:SpotifyConnectDevices = self.GetSpotifyConnectDevices()
 
             # process all discovered devices.
-            discoverResult:ZeroconfDiscoveryResult
-            for discoverResult in discovery.DiscoveryResults:
+            for scDevice in scDevices:
                 
-                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
-                # returned in the zeroconf discovery result.
-                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
-                                                        discoverResult.HostIpPort, 
-                                                        discoverResult.SpotifyConnectCPath,
-                                                        useSSL=False)
-                info:ZeroconfGetInfo = zconn.GetInformation()
+                discoverResult = scDevice.DiscoveryResult
+                info = scDevice.DeviceInfo
 
                 # store the currently active user of the device, in case we need to switch users later on.
                 deviceActiveUser = info.ActiveUser.lower()
 
                 # are aliases being used (RemoteName is null if so)?
-                if info.RemoteName is None:
+                if info.HasAliases:
                     
                     # if aliases are defined for the device, then we have to check each alias for a match.
                     infoAlias:ZeroconfGetInfoAlias
@@ -10325,6 +10341,11 @@ class SpotifyClient:
                 # did we resolve the device id?
                 if deviceIdResult is not None:
                     
+                    # is this a dynamic device?  if so, then we can't control it.
+                    if (discoverResult.IsDynamicDevice):
+                        _logsi.LogVerbose("Spotify Connect Device '%s' (%s) is a dynamic device; we cannot control it" % (info.RemoteName, deviceIdResult))
+                        break
+                    
                     # did caller request user context switch bypass?
                     # if so, then just return the device id.
                     if (not verifyUserContext):
@@ -10345,6 +10366,12 @@ class SpotifyClient:
                     
                     zcfResult:ZeroconfResponse
                     
+                    # create a ZeroconfConnect object to access the device.
+                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                            discoverResult.HostIpPort, 
+                                                            discoverResult.SpotifyConnectCPath,
+                                                            useSSL=False)
+
                     # if a different user context has control of the device then we need to disconnect 
                     # the current user context before connecting a different user.
                     if (info.HasActiveUser):

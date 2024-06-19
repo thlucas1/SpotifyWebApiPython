@@ -57,6 +57,14 @@ class ZeroconfResponse:
         The last error code returned by a Spotify API call or the SpCallbackError() callback (e.g. 0, -119, etc).
         """
         return self._SpotifyError
+    
+    @SpotifyError.setter
+    def SpotifyError(self, value:int):
+        """ 
+        Sets the SpotifyError property value.
+        """
+        if isinstance(value, int):
+            self._SpotifyError = value
 
 
     @property
@@ -65,6 +73,14 @@ class ZeroconfResponse:
         A code indicating the result of the operation (e.g. 101, 402, etc).
         """
         return self._Status
+    
+    @Status.setter
+    def Status(self, value:int):
+        """ 
+        Sets the Status property value.
+        """
+        if isinstance(value, int):
+            self._Status = value
 
 
     @property
@@ -73,6 +89,14 @@ class ZeroconfResponse:
         The string describing the status code (e.g. "OK", "ERROR-SPOTIFY-ERROR", etc).
         """
         return self._StatusString
+    
+    @StatusString.setter
+    def StatusString(self, value:str):
+        """ 
+        Sets the StatusString property value.
+        """
+        if isinstance(value, str):
+            self._StatusString = value
 
 
     def ToDictionary(self) -> dict:

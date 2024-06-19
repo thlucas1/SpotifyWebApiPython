@@ -5,6 +5,7 @@ from typing import Iterator
 from ..sautils import export
 from .device import Device
 from .spotifyconnectdevice import SpotifyConnectDevice
+from .zeroconfdiscoveryresult import ZeroconfDiscoveryResult
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfGetInfoAlias
 
 @export
@@ -56,6 +57,108 @@ class SpotifyConnectDevices():
         if self._Items is not None:
             return len(self._Items)
         return 0
+    
+
+    def AddDynamicDevice(self, device:Device, activeUser:str) -> None:
+        """ 
+        Adds a new dynamic device entry to the `Items` collection.  
+        
+        Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+        process, but still exist in the player device list.  These are usually devices in
+        a Spotify Connect web or mobile player.
+        """
+        # validations.
+        if (device is None) or (not isinstance(device, Device)):
+            return
+        
+        # build zeroconf discovery result with what we can.
+        discoverResult:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
+        discoverResult.DeviceName = device.Name
+        discoverResult.HostIpv4Address = '127.0.0.1'
+        discoverResult.HostIpPort = 0
+        discoverResult.Name = device.Name
+        discoverResult.SpotifyConnectCPath = '/zc'
+        discoverResult.SpotifyConnectVersion = '1.0'
+
+        # build zeroconf getinfo result with what we can.
+        info:ZeroconfGetInfo = ZeroconfGetInfo()
+        info.ActiveUser = activeUser
+        info.DeviceId = device.Id
+        info.DeviceType = device.Type
+        info.RemoteName = device.Name
+        info.SpotifyError = 0
+        info.Status = 101
+        info.StatusString = 'OK'
+        
+        # add the device.
+        scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+        scDevice.DeviceInfo = info
+        scDevice.DiscoveryResult = discoverResult
+        self._Items.append(scDevice)
+
+
+    def ContainsDeviceId(self, value:str) -> bool:
+        """ 
+        Returns True if the `Items` collection contains the specified device id value;
+        otherwise, False.
+        
+        Alias entries (if any) are also compared.
+        """
+        result:bool = False
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.DeviceInfo.HasAliases):
+                scAlias:ZeroconfGetInfoAlias
+                for scAlias in scDevice.DeviceInfo.Aliases:
+                    if (scAlias.Id.lower() == value):
+                        result = True
+                        break
+                if result:
+                    break
+            else:
+                if (scDevice.DeviceInfo.DeviceId.lower() == value):
+                    result = True
+                    break
+        return result
+    
+
+    def ContainsDeviceName(self, value:str) -> bool:
+        """ 
+        Returns True if the `Items` collection contains the specified device name value;
+        otherwise, False.
+        
+        Alias entries (if any) are also compared.
+        """
+        result:bool = False
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.DeviceInfo.HasAliases):
+                scAlias:ZeroconfGetInfoAlias
+                for scAlias in scDevice.DeviceInfo.Aliases:
+                    if (scAlias.Name.lower() == value):
+                        result = True
+                        break
+                if result:
+                    break
+            else:
+                if (scDevice.DeviceInfo.RemoteName.lower() == value):
+                    result = True
+                    break
+        return result
     
 
     def GetDeviceList(self) -> list[Device]:

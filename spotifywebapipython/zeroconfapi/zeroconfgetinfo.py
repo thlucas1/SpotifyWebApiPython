@@ -109,6 +109,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         This value will be an empty string if there is no user logged into the device.
         """
         return self._ActiveUser
+    
+    @ActiveUser.setter
+    def ActiveUser(self, value:str):
+        """ 
+        Sets the ActiveUser property value.
+        """
+        if isinstance(value, str):
+            self._ActiveUser = value
 
 
     @property
@@ -158,6 +166,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Unique device ID used for ZeroConf logins (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
         """
         return self._DeviceId
+    
+    @DeviceId.setter
+    def DeviceId(self, value:str):
+        """ 
+        Sets the DeviceId property value.
+        """
+        if isinstance(value, str):
+            self._DeviceId = value
 
 
     @property
@@ -182,6 +198,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         - kSpDeviceTypeChromebook	Chromebook.        
         """
         return self._DeviceType
+    
+    @DeviceType.setter
+    def DeviceType(self, value:str):
+        """ 
+        Sets the DeviceType property value.
+        """
+        if isinstance(value, str):
+            self._DeviceType = value
 
 
     @property
@@ -253,6 +277,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Please refer to the `Aliases` property for more information.
         """
         return self._RemoteName
+    
+    @RemoteName.setter
+    def RemoteName(self, value:str):
+        """ 
+        Sets the RemoteName property value.
+        """
+        if isinstance(value, str):
+            self._RemoteName = value
 
 
     @property

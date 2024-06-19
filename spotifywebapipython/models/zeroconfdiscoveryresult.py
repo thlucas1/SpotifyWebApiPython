@@ -128,6 +128,19 @@ class ZeroconfDiscoveryResult:
 
 
     @property
+    def IsDynamicDevice(self) -> bool:
+        """
+        Returns True if the device is a dynamic device;
+        otherwise, False.
+        
+        Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+        process, but still exist in the player device list.  These are usually Spotify Connect
+        web or mobile players with temporary device id's.       
+        """
+        return (self._HostIpPort == 0)
+
+
+    @property
     def Key(self) -> str:
         """ 
         Service key (e.g. "bose-st10-2._spotify-connect._tcp.local.").
