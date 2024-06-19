@@ -28,7 +28,7 @@ try:
     # get information about all available Spotify Connect player devices.
     print('\nRetrieving Spotify Connect player devices')
     result:SpotifyConnectDevices = spotify.GetSpotifyConnectDevices()
-            
+
     # log device summary.
     print('\nDevice Summary:')
     device:Device
@@ -44,6 +44,15 @@ try:
     for device in result:
         print(str(device))
         print('')
+
+    # get cached configuration, refreshing from device if needed.
+    result:SpotifyConnectDevices = spotify.GetSpotifyConnectDevices(refresh=False)    
+    print("\nCached configuration (count): %d" % result.ItemsCount)
+
+    # get cached configuration directly from the configuration manager dictionary.
+    if "GetPlayerDevices" in spotify.ConfigurationCache:
+        result:SpotifyConnectDevices = spotify.ConfigurationCache["GetSpotifyConnectDevices"]
+        print("\nCached configuration direct access (count): %d" % result.ItemsCount)
 
 except Exception as ex:
 

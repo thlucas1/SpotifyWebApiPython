@@ -12,8 +12,11 @@ from .spotifyzeroconfapierror import SpotifyZeroconfApiError
 from .zeroconfresponse import ZeroconfResponse
 from .zeroconfgetinfo import ZeroconfGetInfo
 from ..saappmessages import SAAppMessages
-from ..sautils import export
+from ..sautils import export, validateDelay
 from ..spotifyapierror import SpotifyApiError
+from ..const import (
+    TRACE_MSG_DELAY_DEVICE,
+)
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
@@ -261,10 +264,12 @@ class ZeroconfConnect:
         return responseData
 
 
-    def Connect(self,
-                username:str, 
-                password:str, 
-                ) -> ZeroconfResponse:
+    def Connect(
+            self,
+            username:str, 
+            password:str, 
+            delay:float=0.50
+            ) -> ZeroconfResponse:
         """
         Calls the `addUser` Spotify Zeroconf API endpoint to issue a call to SpConnectionLoginBlob.  If successful,
         the associated device id is added to the Spotify Connect active device list for the specified user account.
@@ -277,6 +282,11 @@ class ZeroconfConnect:
                 on the manufacturer device.               
             password (str):
                 Spotify Connect user password to login with.  
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the device.  
+                This delay will give the spotify zeroconf api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
 
         Returns:
             A `ZeroconfResponse` object that indicates success or failure (see notes below).
@@ -321,6 +331,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
             apiMethodParms.AppendKeyValue("username", username)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect using specified Username and Password", apiMethodParms)
 
             # validations.
@@ -328,6 +339,7 @@ class ZeroconfConnect:
                 raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'username'), logsi=_logsi)
             if (password is None) or (not isinstance(password,str)):
                 raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'password'), logsi=_logsi)
+            delay = validateDelay(delay, 0.50, 10)
 
             # get the current device id from the device via Spotify ZeroConf API `getInfo` endpoint.
             info:ZeroconfGetInfo = self.GetInformation()
@@ -342,7 +354,8 @@ class ZeroconfConnect:
                 self._Uri,
                 timeout=10,
                 headers={
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Connection': 'close'
                 },
                 data={
                     'action': 'addUser',
@@ -361,6 +374,13 @@ class ZeroconfConnect:
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, '%s result - type="%s"' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            
+            # give spotify zeroconf api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+                        
+            # return result to caller.
             return result
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
@@ -380,10 +400,20 @@ class ZeroconfConnect:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def Disconnect(self) -> ZeroconfResponse:
+    def Disconnect(
+            self,
+            delay:float=0.50
+            ) -> ZeroconfResponse:
         """
         Calls the `resetUsers` Spotify Zeroconf API endpoint to issue a call to SpConnectionLogout.
         
+        Args:
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the command to the device.  
+                This delay will give the spotify zeroconf api time to process the change before 
+                another command is issued.  
+                Default is 0.50; value range is 0 - 10.
+                
         Returns:
             A `ZeroconfResponse` object that indicates success or failure (see notes below).
 
@@ -415,14 +445,19 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Disconnecting device from Spotify Connect", apiMethodParms)
             
+            # validations.
+            delay = validateDelay(delay, 0.50, 10)
+
             # execute spotify zeroconf api request.
             response = requests.post(
                 self._Uri,
                 timeout=10,
                 headers={
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Connection': 'close'
                 },
                 data={
                     'action': 'resetUsers',
@@ -436,12 +471,15 @@ class ZeroconfConnect:
             # process results.
             result = ZeroconfResponse(root=responseData)
 
-            # just in case user tries to issue a connect immediately after this, give the device
-            # a little time to reset the connection so the subsequent connect does not fail.
-            time.sleep(0.5)
-
             # trace.
             _logsi.LogObject(SILevel.Verbose, '%s result - type="%s"' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+
+            # give spotify zeroconf api time to process the change.
+            if delay > 0:
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                time.sleep(delay)
+                        
+            # return result to caller.
             return result
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
@@ -520,7 +558,8 @@ class ZeroconfConnect:
                 self._Uri, 
                 timeout=10,
                 headers={
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Connection': 'close'
                 },
                 params={
                     'action': 'getInfo',

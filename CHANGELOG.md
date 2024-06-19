@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.54 ] - 2024/06/19
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevices` method to store results to the configuration cache.
+
+###### [ 1.0.53 ] - 2024/06/18
+
+  * Updated `ZeroconfConnect.Connect` method to provide a small delay after processing the Spotify Zeroconf API command, which will give the device some time to process the change.
+  * Updated `ZeroconfConnect.Disconnect` method to provide a small delay after processing the Spotify Zeroconf API command, which will give the device some time to process the change.
+
 ###### [ 1.0.52 ] - 2024/06/18
 
   * Updated `SpotifyClient.GetSpotifyConnectDevices` method to retrieve dynamic Spotify Connect devices as well as static devices.  Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery process, but still exist in the player device list.  These are usually Spotify Connect web or mobile players with temporary device id's.

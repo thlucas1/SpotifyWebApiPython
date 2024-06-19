@@ -15,7 +15,7 @@ from zeroconf import Zeroconf
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
-from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText
+from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText, validateDelay
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
@@ -630,32 +630,6 @@ class SpotifyClient:
                 
         return result
     
-
-    def _ValidateDelay(self, delay:float, default:float=0.5, maxDelay:float=10) -> float:
-        """
-        Validates a delay value.
-        
-        Args:
-            delay (int):
-                The delay value to validate.
-            default (int):
-                The default delay value to set if the user-input delay is not valid.
-            maxDelay (int):
-                The maximum delay value allowed.  
-                Default is 10.
-        """
-        if (isinstance(delay,int)): 
-            delay = float(delay)
-            
-        if (not isinstance(delay,float)) or (delay < 0): 
-            result = default
-        elif (delay > maxDelay): 
-            result = maxDelay
-        else:
-            result = delay
-            
-        return result
-
 
     def _ValidateMarket(self, 
                         market:str,
@@ -5945,10 +5919,10 @@ class SpotifyClient:
     def PlayerActivateDevices(
             self, 
             verifyUserContext:bool=False,
-            delay:float=0.50,
+            delay:float=0.25
             ) -> str:
         """
-        Activates all Spotify Connect player devices, and (optionally) switches the active user
+        Activates all static Spotify Connect player devices, and (optionally) switches the active user
         context to the current user context.
         
         Args:
@@ -5961,7 +5935,7 @@ class SpotifyClient:
                 Time delay (in seconds) to wait AFTER issuing the final Connect command (if necessary).
                 This delay will give the spotify web api time to process the device list change before 
                 another command is issued.  
-                Default is 0.50; value range is 0 - 10.
+                Default is 0.25; value range is 0 - 10.
                 
         Returns:
             A string that contains status text.
@@ -5985,6 +5959,10 @@ class SpotifyClient:
         The user context switch is bypassed if the `verifyUserContext` argument is False.  If the user context 
         is to be switched, then a Disconnect will be issued if a user context is active on the device followed 
         by a Connect to the user context specified on the class constructor.
+        
+        Dynamic Spotify Connect devices are not processed by this method, as they are temporary devices and are 
+        already active and in the device list.  These devices are not found in Zeroconf discovery process, and only
+        exist in the player device list.  These are usually Spotify Connect web or mobile players with temporary device id's.        
 
         <details>
           <summary>Sample Code</summary>
@@ -6012,7 +5990,7 @@ class SpotifyClient:
                 raise SpotifyZeroconfApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'SpotifyConnectUsername'), logsi=_logsi)
 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.25, 10)
             if (not isinstance(verifyUserContext, bool)):
                 verifyUserContext = False
 
@@ -6049,7 +6027,7 @@ class SpotifyClient:
                     
                     # does our Spotify Connect user account need to take control of the device?
                     # if not, then we are done.
-                    elif (deviceActiveUser == self._SpotifyConnectUsername.lower()):  # or (deviceActiveUser == self.UserProfile.Id.lower()):
+                    elif (deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower()):
                         _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
                         status = status + "user context switch not needed"
                     
@@ -6072,23 +6050,18 @@ class SpotifyClient:
                         # the current user context before connecting a different user.
                         if (info.HasActiveUser):
                             _logsi.LogVerbose("Spotify Connect user context '%s' is being disconnected for Device id '%s'" % (deviceActiveUser, deviceIdResult))
-                            zcfResult = zconn.Disconnect()
+                            zcfResult = zconn.Disconnect(delay)
                             status = status + 'disconnected from user context "%s";' % deviceActiveUser
-                    
+
                         # connect the device to OUR Spotify Connect user context.
                         # note that the result here only indicates that the connect was submitted - NOT that it was successful!
                         _logsi.LogVerbose("Spotify Connect user context '%s' is being connected for Device id '%s'" % (self._SpotifyConnectUsername, deviceIdResult))
-                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword)
+                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, delay)
                         status = status + 'connected to user context "%s"' % self._SpotifyConnectUsername
 
                         # trace.
                         _logsi.LogVerbose("Spotify Connect user context switch from '%s' to '%s' was requested for Device id '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, deviceIdResult))
 
-                        # give spotify web api time to process the change and add the device to the device list.
-                        if delay > 0:
-                            _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                            time.sleep(delay)
-                        
                 # append device status to results.
                 result = "%s%s\n" % (result, MSG_RESULT % (info.RemoteName, info.DeviceId, info.ActiveUser, status))
 
@@ -6243,6 +6216,11 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        Note that this method will only return the devices for which the current user
+        context has control of, or other available devices that do not have an active
+        user context assigned.  Use the `GetSpotifyConnectDevices` method to retrieve
+        a complete list of devices that are available to all users.
+                
         The `ConfigurationCache` is updated with the results of this method.  Use the
         `refresh` argument (with False value) to retrieve the cached value and avoid
         the spotify web api request.  This results in better performance.
@@ -7899,9 +7877,17 @@ class SpotifyClient:
 
     def GetSpotifyConnectDevices(
             self, 
+            refresh:bool=True
             ) -> SpotifyConnectDevices:
         """
         Get information about all available Spotify Connect player devices.
+        
+        This method requires the `user-read-playback-state` scope.
+        
+        Args:
+            refresh (bool):
+                True (default) to return real-time information from the spotify zeroconf api and
+                update the cache; otherwise, False to just return the cached value.
         
         Returns:
             A `SpotifyConnectDevices` object that contain the discovery results
@@ -7925,6 +7911,10 @@ class SpotifyClient:
         process, but still exist in the player device list.  These are usually Spotify Connect
         web or mobile players with temporary device id's.
                         
+        The `ConfigurationCache` is updated with the results of this method.  Use the
+        `refresh` argument (with False value) to retrieve the cached value and avoid
+        the spotify web api request.  This results in better performance.
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -7934,50 +7924,62 @@ class SpotifyClient:
         """
         apiMethodName:str = 'GetSpotifyConnectDevices'
         result:SpotifyConnectDevices = SpotifyConnectDevices()
+        cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
             # trace.
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
                 
-            # discover Spotify Connect devices on the network, waiting up to the specified timeout 
-            # for all devices to be discovered.  this will return all Spotify Connect devices that
-            # are currently powered on, and are registered to Zeroconf / mDNS.
-            _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-            discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-            discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
-
-            # process all discovered devices.
-            discoverResult:ZeroconfDiscoveryResult
-            for discoverResult in discovery.DiscoveryResults:
-
-                # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
-                # returned in the zeroconf discovery result.
-                zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
-                                                        discoverResult.HostIpPort, 
-                                                        discoverResult.SpotifyConnectCPath,
-                                                        useSSL=False)
-                info:ZeroconfGetInfo = zconn.GetInformation()
-
-                # create new spotify connect device object.
-                scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
-                scDevice.DiscoveryResult = discoverResult
-                scDevice.DeviceInfo = info
-                result.Items.append(scDevice)
+            # can we use the cached value?
+            if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
-            # we will also call the GetPlayerDevices method, in case we have any dynamic devices.
-            # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
-            # process, but still exist in the player device list.  these are usually Spotify Connect
-            # web or mobile players with temporary device id's.
-            devices:list[Device] = self.GetPlayerDevices(True)
+                result = self._ConfigurationCache[apiMethodName]
+                cacheDesc = CACHE_SOURCE_CACHED
+                
+            else:
+                
+                # discover Spotify Connect devices on the network, waiting up to the specified timeout 
+                # for all devices to be discovered.  this will return all Spotify Connect devices that
+                # are currently powered on, and are registered to Zeroconf / mDNS.
+                _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
+                discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
+                discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+                # process all discovered devices.
+                discoverResult:ZeroconfDiscoveryResult
+                for discoverResult in discovery.DiscoveryResults:
+
+                    # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
+                    # returned in the zeroconf discovery result.
+                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                                                            discoverResult.HostIpPort, 
+                                                            discoverResult.SpotifyConnectCPath,
+                                                            useSSL=False)
+                    info:ZeroconfGetInfo = zconn.GetInformation()
+
+                    # create new spotify connect device object.
+                    scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+                    scDevice.DiscoveryResult = discoverResult
+                    scDevice.DeviceInfo = info
+                    result.Items.append(scDevice)
+                
+                # we will also call the GetPlayerDevices method, in case we have any dynamic devices.
+                # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+                # process, but still exist in the player device list.  these are usually Spotify Connect
+                # web or mobile players with temporary device id's.
+                devices:list[Device] = self.GetPlayerDevices(True)
           
-            device:Device
-            for device in devices:
-                if not result.ContainsDeviceId(device.Id):
-                    result.AddDynamicDevice(device, self.UserProfile.Id)
+                device:Device
+                for device in devices:
+                    if not result.ContainsDeviceId(device.Id):
+                        result.AddDynamicDevice(device, self.UserProfile.Id)
+
+                # update cache.
+                self._ConfigurationCache[apiMethodName] = result
 
             # trace.
-            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result)
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
@@ -9422,7 +9424,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device pause playback", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -9555,7 +9557,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -9663,7 +9665,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # get current users favorite tracks.
             tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=200)
@@ -9774,7 +9776,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
@@ -9885,7 +9887,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device resume playback", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -9982,7 +9984,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device seek position", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10074,7 +10076,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip next", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10163,7 +10165,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device skip previous", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10206,6 +10208,7 @@ class SpotifyClient:
             deviceValue:str, 
             verifyUserContext:bool=True,
             verifyTimeout:float=5.0,
+            delay:float=0.25
             ) -> str:
         """
         Resolves a Spotify Connect device identifier from a specified device id, name, alias id,
@@ -10225,6 +10228,11 @@ class SpotifyClient:
                 Connect device list.  This value is only used if a Connect command has to be
                 issued to activate the device.
                 Default is 5; value range is 0 - 10.
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing any command to the device.  
+                This delay will give the spotify zeroconf api time to process the change before 
+                another command is issued.  
+                Default is 0.25; value range is 0 - 10.
                 
         Returns:
             A device Id for the deviceValue if one could be resolved; 
@@ -10273,6 +10281,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceValue", deviceValue)
             apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
             apiMethodParms.AppendKeyValue("verifyTimeout", verifyTimeout)
+            apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Resolving Spotify Connect Player Device Id", apiMethodParms)
 
             # if device value not specified then we are done.
@@ -10281,7 +10290,8 @@ class SpotifyClient:
                 return None
             
             # validations.
-            verifyTimeout = self._ValidateDelay(verifyTimeout, 5, 10)
+            delay = validateDelay(delay, 0.25, 10)
+            verifyTimeout = validateDelay(verifyTimeout, 5, 10)
             if (not isinstance(verifyUserContext, bool)):
                 verifyUserContext = True
 
@@ -10376,7 +10386,7 @@ class SpotifyClient:
                     # the current user context before connecting a different user.
                     if (info.HasActiveUser):
                         _logsi.LogVerbose("Spotify Connect user context '%s' is being disconnected for Device id '%s'" % (deviceActiveUser, deviceIdResult))
-                        zcfResult = zconn.Disconnect()
+                        zcfResult = zconn.Disconnect(delay)
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
@@ -10490,7 +10500,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set repeat mode", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10589,7 +10599,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set shuffle mode", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10687,7 +10697,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Set Spotify Connect device set volume level", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10785,7 +10795,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Transfer playback to a new Spotify Connect device", apiMethodParms)
             
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
             
             # check for device name; convert to an id if a name was supplied.
             #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -10891,7 +10901,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Checks if a Spotify Connect device is active, and activate one if not", apiMethodParms)
                 
             # validations.
-            delay = self._ValidateDelay(delay, 0.50, 10)
+            delay = validateDelay(delay, 0.50, 10)
 
             # get current Spotify Connect player state.
             result = self.GetPlayerPlaybackState()
