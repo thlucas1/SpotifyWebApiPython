@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.56 ] - 2024/06/19
+
+  * Updated `SpotifyClient.PlayerResolveDeviceId` method to raise a `SpotifyApiError` error if the specified device value could not be resolved.
+
 ###### [ 1.0.55 ] - 2024/06/19
 
   * Updated `SpotifyConnectDevices` model to include a `DateLastRefreshed` property that indicates when the device list was last refreshed.

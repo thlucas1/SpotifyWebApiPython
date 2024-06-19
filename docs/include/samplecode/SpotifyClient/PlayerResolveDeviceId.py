@@ -29,33 +29,21 @@ try:
     deviceId:str = '30fbc80e35598f3c242f2120413c943dfd9715fe'
     print('\nResolving Spotify Connect player device: \n- ID = "%s" ...' % deviceId)
     deviceResult:str = spotify.PlayerResolveDeviceId(deviceId)
-
-    if deviceResult is not None:
-        print('result "%s"' % deviceResult)
-    else:
-        print("Device Id could not be resolved!")
+    print('result "%s"' % deviceResult)
 
     # resolve Spotify Connect player device by it's Name value.
     deviceName:str = 'Bose-ST10-2'
     print('\nResolving Spotify Connect player device: \n- Name = "%s" ...' % deviceName)
     deviceResult:str = spotify.PlayerResolveDeviceId(deviceName)
-
-    if deviceResult is not None:
-        print('  result "%s"' % deviceResult)
-    else:
-        print("Device Name was not found in the list of devices")
+    print('  result "%s"' % deviceResult)
     
     # resolve Spotify Connect player device by it's Name value, using a Disconnected device.
     zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.82', 8200, '/zc', useSSL=False)
     result:ZeroconfResponse = zconn.Disconnect()            
     deviceName:str = 'Bose-ST10-2'
-    print('\nResolving Spotify Connect player device: \n- Name = "%s" ...' % deviceName)
+    print('\nResolving Spotify Connect player disconnected device: \n- Name = "%s" ...' % deviceName)
     deviceResult:str = spotify.PlayerResolveDeviceId(deviceName)
-
-    if deviceResult is not None:
-        print('  result "%s"' % deviceResult)
-    else:
-        print("Device Name was not found in the list of devices")
+    print('  result "%s"' % deviceResult)
 
 except Exception as ex:
 

@@ -46,7 +46,7 @@ class ZeroconfResponse:
     @property
     def ResponseSource(self) -> str:
         """ 
-        TODO - Response source string (e.g. "???").
+        Response source string (e.g. "").
         """
         return self._ResponseSource
 
