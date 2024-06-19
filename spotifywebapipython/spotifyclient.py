@@ -10235,8 +10235,8 @@ class SpotifyClient:
                 
         Returns:
             A device Id for the deviceValue if one could be resolved; 
-            otherwise, just the original deviceValue with the understanding that
-            subsequent operations will probably fail since it's not in the device list.  
+            otherwise, a null value with the understanding that subsequent operations will probably 
+            fail since it's not in the device list.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -10254,7 +10254,8 @@ class SpotifyClient:
         alias ID's or Names that are in use (for multi-room configurations).  
         
         The device ID value is returned if a match is found or if the `device_value` argument is null; 
-        otherwise, a `SpotifyApiError` is raised to indicate the device value could not be resolved.
+        otherwise, a null value with the understanding that subsequent operations will probably fail
+        since it's not in the device list. 
         
         A user context switch will also be performed if a device id is resolved AND the active user of the 
         device does not match the `SpotifyConnectUsername` argument specified on the class constructor.
@@ -10423,7 +10424,7 @@ class SpotifyClient:
 
             # did we resolve the device id?
             if deviceIdResult is None:
-                raise SpotifyApiError("Spotify Connect Device '%s' could not be found; please ensure that the specified device is powered on and available on the local network" % (deviceValue), logsi=_logsi) 
+                _logsi.LogWarning("Spotify Connect Device '%s' could not be found; please ensure that the specified device is powered on and available on the local network" % (deviceValue))
 
             # return the resolved device id.
             return deviceIdResult

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.58 ] - 2024/06/19
+
+  * Updated `SpotifyClient.PlayerResolveDeviceId` method callers to log a warning message if the specified device value could not be resolved and just return a null value.
+
 ###### [ 1.0.57 ] - 2024/06/19
 
   * Updated `SpotifyClient.PlayerResolveDeviceId` method callers to gracefully handle the `SpotifyApiError` error if the specified device value could not be resolved.
