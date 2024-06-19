@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.55 ] - 2024/06/19
+
+  * Updated `SpotifyConnectDevices` model to include a `DateLastRefreshed` property that indicates when the device list was last refreshed.
+
 ###### [ 1.0.54 ] - 2024/06/19
 
   * Updated `SpotifyClient.GetSpotifyConnectDevices` method to store results to the configuration cache.

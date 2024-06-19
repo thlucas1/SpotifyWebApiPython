@@ -1,4 +1,5 @@
 # external package imports.
+from datetime import datetime
 from typing import Iterator
 
 # our package imports.
@@ -18,6 +19,7 @@ class SpotifyConnectDevices():
         """
         Initializes a new instance of the class.
         """
+        self._DateLastRefreshed:int = 0
         self._Items:list[SpotifyConnectDevice] = []
 
 
@@ -40,6 +42,30 @@ class SpotifyConnectDevices():
     def __str__(self) -> str:
         return self.ToString()
 
+
+    @property
+    def AgeLastRefreshed(self) -> float:
+        """ 
+        Number of seconds between the current date time and the `DateLastRefreshed` property value.
+        """
+        return (datetime.utcnow().timestamp() - self._DateLastRefreshed)
+    
+
+    @property
+    def DateLastRefreshed(self) -> float:
+        """ 
+        Date and time the device list was last refreshed, in unix epoch format (e.g. 1669123919.331225).
+        """
+        return self._DateLastRefreshed
+    
+    @DateLastRefreshed.setter
+    def DateLastRefreshed(self, value:float):
+        """ 
+        Sets the DateLastRefreshed property value.
+        """
+        if isinstance(value, float):
+            self._DateLastRefreshed = value
+    
 
     @property
     def Items(self) -> list[SpotifyConnectDevice]:
@@ -214,6 +240,7 @@ class SpotifyConnectDevices():
         """
         result:dict = \
         {
+            'DateLastRefreshed': self._DateLastRefreshed,
             'ItemsCount': self.ItemsCount,
             'Items': [ item.ToDictionary() for item in self._Items ],
         }
@@ -231,6 +258,7 @@ class SpotifyConnectDevices():
                 to only return base properties.
         """
         msg:str = 'Items Count=%s' % (str(self.ItemsCount))
+        msg:str = '%s, DateLastRefreshed=%s' % (msg, str(self._DateLastRefreshed))
         
         if (includeItems):
             item:SpotifyConnectDevice

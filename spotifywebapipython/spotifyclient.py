@@ -7978,6 +7978,9 @@ class SpotifyClient:
                 # update cache.
                 self._ConfigurationCache[apiMethodName] = result
 
+            # update last refresh date.
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
+            
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result

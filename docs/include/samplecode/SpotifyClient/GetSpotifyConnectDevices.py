@@ -50,7 +50,7 @@ try:
     print("\nCached configuration (count): %d" % result.ItemsCount)
 
     # get cached configuration directly from the configuration manager dictionary.
-    if "GetPlayerDevices" in spotify.ConfigurationCache:
+    if "GetSpotifyConnectDevices" in spotify.ConfigurationCache:
         result:SpotifyConnectDevices = spotify.ConfigurationCache["GetSpotifyConnectDevices"]
         print("\nCached configuration direct access (count): %d" % result.ItemsCount)
 
