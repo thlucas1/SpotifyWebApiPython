@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.59 ] - 2024/06/19
+
+  * Updated `SpotifyClient` methods that call `PlayerResolveDeviceId` with a new parameter that indicates if the device should be resolved (true) or not (False).  This allows multiple methods that call `PlayerResolveDeviceId` to be called from the same method, and only resolve the device one time.  This was sone to ensure that device resolution did not occur more than once, as it's such a time consuming operation.  Methods updated were: `PlayerMediaPlayContext`, `PlayerMediaPlayTrackFavorites`, `PlayerMediaPlayTracks`, `PlayerTransferPlayback`.
+
 ###### [ 1.0.58 ] - 2024/06/19
 
   * Updated `SpotifyClient.PlayerResolveDeviceId` method callers to log a warning message if the specified device value could not be resolved and just return a null value.

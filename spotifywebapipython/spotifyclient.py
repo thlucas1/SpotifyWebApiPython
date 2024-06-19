@@ -9467,14 +9467,16 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaPlayContext(self, 
-                               contextUri:str,
-                               offsetUri:str=None,
-                               offsetPosition:int=None,
-                               positionMS:int=0,
-                               deviceId:str=None,
-                               delay:float=0.50
-                               ) -> None:
+    def PlayerMediaPlayContext(
+            self, 
+            contextUri:str,
+            offsetUri:str=None,
+            offsetPosition:int=None,
+            positionMS:int=0,
+            deviceId:str=None,
+            delay:float=0.50,
+            resolveDeviceId:bool=True,
+            ) -> None:
         """
         Start playing one or more tracks of the specified context on a Spotify Connect device.
         
@@ -9513,6 +9515,9 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+            resolveDeviceId (bool):
+                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
+                value as it has already been resolved.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9559,14 +9564,18 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
+            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # ensure the specified device id / name is active and available, and
-            # the user context is set correctly.
-            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
+            # has the device id been resolved?
+            if (resolveDeviceId):
+                
+                # ensure the specified device id / name is active and available, and
+                # the user context is set correctly.
+                deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -9613,11 +9622,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaPlayTrackFavorites(self, 
-                                      deviceId:str=None,
-                                      shuffle:bool=True,
-                                      delay:float=0.50
-                                      ) -> None:
+    def PlayerMediaPlayTrackFavorites(
+            self, 
+            deviceId:str=None,
+            shuffle:bool=True,
+            delay:float=0.50,
+            resolveDeviceId:bool=True,
+            ) -> None:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'
         and starts playing them.
@@ -9635,6 +9646,9 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+            resolveDeviceId (bool):
+                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
+                value as it has already been resolved.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9665,6 +9679,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("shuffle", shuffle)
             apiMethodParms.AppendKeyValue("delay", delay)
+            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
                 
             # validations.
@@ -9682,15 +9697,19 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # ensure the specified device id / name is active and available, and
-            # the user context is set correctly.
-            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
+            # has the device id been resolved?
+            if (resolveDeviceId):
+                
+                # ensure the specified device id / name is active and available, and
+                # the user context is set correctly.
+                deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # set desired shuffle mode.
             self.PlayerSetShuffleMode(shuffle, deviceId, delay)
 
             # play the tracks.
-            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay)
+            # indicate device id has already been resolved.
+            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay, resolveDeviceId=False)
             
             # process results.
             # no results to process - this is pass or fail.
@@ -9710,12 +9729,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaPlayTracks(self, 
-                              uris:list[str],
-                              positionMS:int=0,
-                              deviceId:str=None,
-                              delay:float=0.50
-                              ) -> None:
+    def PlayerMediaPlayTracks(
+            self, 
+            uris:list[str],
+            positionMS:int=0,
+            deviceId:str=None,
+            delay:float=0.50,
+            resolveDeviceId:bool=True,
+            ) -> None:
         """
         Start playing one or more tracks on the specified Spotify Connect device.
         
@@ -9744,6 +9765,9 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+            resolveDeviceId (bool):
+                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
+                value as it has already been resolved.
                 
         Raises:
             SpotifyWebApiError: 
@@ -9774,6 +9798,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
+            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
                 
             # validations.
@@ -9788,10 +9813,13 @@ class SpotifyClient:
                 arrUris = uris.split(',')
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
+        
+            # has the device id been resolved?
+            if (resolveDeviceId):
                 
-            # ensure the specified device id / name is active and available, and
-            # the user context is set correctly.
-            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
+                # ensure the specified device id / name is active and available, and
+                # the user context is set correctly.
+                deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -10739,11 +10767,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerTransferPlayback(self, 
-                               deviceId:str=None,
-                               play:bool=True,
-                               delay:float=0.50
-                               ) -> None:
+    def PlayerTransferPlayback(
+            self, 
+            deviceId:str=None,
+            play:bool=True,
+            delay:float=0.50,
+            resolveDeviceId:bool=True,
+            ) -> None:
         """
         Transfer playback to a new Spotify Connect device and optionally begin playback.
         
@@ -10764,6 +10794,9 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+            resolveDeviceId (bool):
+                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
+                value as it has already been resolved.
                 
         Raises:
             SpotifyWebApiError: 
@@ -10793,14 +10826,18 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("play", play)
             apiMethodParms.AppendKeyValue("delay", delay)
+            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Transfer playback to a new Spotify Connect device", apiMethodParms)
             
             # validations.
             delay = validateDelay(delay, 0.50, 10)
             
-            # ensure the specified device id / name is active and available, and
-            # the user context is set correctly.
-            deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
+            # has the device id been resolved?
+            if (resolveDeviceId):
+                
+                # ensure the specified device id / name is active and available, and
+                # the user context is set correctly.
+                deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # build spotify web api request parameters.
             reqData:dict = \
