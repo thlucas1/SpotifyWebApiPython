@@ -909,6 +909,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9452,6 +9453,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9562,9 +9564,6 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # check for device name; convert to an id if a name was supplied.
-            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-
             # ensure the specified device id / name is active and available, and
             # the user context is set correctly.
             deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
@@ -9600,6 +9599,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9682,9 +9682,6 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # check for device name; convert to an id if a name was supplied.
-            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-
             # ensure the specified device id / name is active and available, and
             # the user context is set correctly.
             deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
@@ -9699,6 +9696,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9791,9 +9789,6 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
                 
-            # check for device name; convert to an id if a name was supplied.
-            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-
             # ensure the specified device id / name is active and available, and
             # the user context is set correctly.
             deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
@@ -9826,6 +9821,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -10801,9 +10797,6 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
             
-            # check for device name; convert to an id if a name was supplied.
-            #deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-            
             # ensure the specified device id / name is active and available, and
             # the user context is set correctly.
             deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
@@ -10831,6 +10824,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
