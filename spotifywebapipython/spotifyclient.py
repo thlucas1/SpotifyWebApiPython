@@ -6029,7 +6029,10 @@ class SpotifyClient:
                     
                     # does our Spotify Connect user account need to take control of the device?
                     # if not, then we are done.
-                    elif (deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower()):
+                    # this takes into account if the device is in the active device list, as well
+                    # as if the active user is not our user context.
+                    elif (info.IsInDeviceList == True) \
+                    and ((deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower())):
                         _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
                         status = status + "user context switch not needed"
                     
@@ -7965,6 +7968,9 @@ class SpotifyClient:
                                                             discoverResult.SpotifyConnectCPath,
                                                             useSSL=False)
                     info:ZeroconfGetInfo = zconn.GetInformation()
+                    
+                    # reset the `IsInDeviceList` indicator, as we will verify later in this method.
+                    info.IsInDeviceList = False
 
                     # create new spotify connect device object.
                     scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
@@ -7978,11 +7984,22 @@ class SpotifyClient:
                 # web or mobile players with temporary device id's.
                 devices:list[Device] = self.GetPlayerDevices(True)
           
+                scDevice:SpotifyConnectDevice
                 device:Device
                 for device in devices:
+                    
+                    # is this a dynamic device?
                     if not result.ContainsDeviceId(device.Id):
                         result.AddDynamicDevice(device, self.UserProfile.Id)
-
+                        
+                    # is the device in the active device list for this user context?
+                    # if not, then set an indicator so we can re-activate it later if need be.
+                    scDevice:SpotifyConnectDevice
+                    for scDevice in result:
+                        if (scDevice.DeviceInfo.DeviceId == device.Id):
+                            scDevice.DeviceInfo.IsInDeviceList = True
+                            break
+                            
                 # update cache.
                 self._ConfigurationCache[apiMethodName] = result
 
@@ -10406,7 +10423,10 @@ class SpotifyClient:
                     
                     # does our Spotify Connect user account need to take control of the device?
                     # if not, then we are done.
-                    if (deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower()):
+                    # this takes into account if the device is in the active device list, as well
+                    # as if the active user is not our user context.
+                    if (info.IsInDeviceList == True) \
+                    and ((deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower())):
                         _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
                         break
                     

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.61 ] - 2024/06/21
+
+  * Added `ZeroconfGetInfo.IsInDeviceList` property that returns the status of active device list verification process (Verification not Performed, Verified Active, Verified Inactive).  
+
 ###### [ 1.0.60 ] - 2024/06/21
 
   * Updated `ZeroconfConnect` class to process all responses as JSON responses.  It was found that some Spotify Zeroconf API capable devices were not properly setting the `Content-Type` in the returned http response header.
