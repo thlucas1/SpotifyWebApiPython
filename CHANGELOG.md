@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.60 ] - 2024/06/21
+
+  * Updated `ZeroconfConnect` class to process all responses as JSON responses.  It was found that some Spotify Zeroconf API capable devices were not properly setting the `Content-Type` in the returned http response header.
+  * Updated `SpotifyDiscovery` class to process the individual Spotify Connect instance names that were discovered via Zeroconf.  Prior logic was adding a device for every IPV4 address that was found for an instance, assuming that each instance only contained one IP address; some services contain multiple IP addressess for the same instance name (specifically, the `SpotifyConnect` add-on, which runs in a docker container).
+  * Updated `SpotifyDiscovery` class to rename the `HostIpv4Address` property (and method arguments) to `HostIpAddress`.  The address specified in this argument can be an IP address (e.g. "192.168.1.81") or an alias (e.g. "bose.speaker.kitchen").
+  * Updated `ZeroconfConnect` class to rename the `HostIpv4Address` property (and method arguments) to `HostIpAddress`.  The address specified in this argument can be an IP address (e.g. "192.168.1.81") or an alias (e.g. "bose.speaker.kitchen").
+  * Updated various `SpotifyClient` methods to utilize the default `HostIpAddress` (or `Server` value if default `HostIpAddress` was not discovered) when connecting to a Spotify Connect capable device.  Methods updated were: `PlayerActivateDevices`, `GetSpotifyConnectDevices`, `PlayerResolveDeviceId`.
+
 ###### [ 1.0.59 ] - 2024/06/19
 
   * Updated `SpotifyClient` methods that call `PlayerResolveDeviceId` with a new parameter that indicates if the device should be resolved (true) or not (False).  This allows multiple methods that call `PlayerResolveDeviceId` to be called from the same method, and only resolve the device one time.  This was sone to ensure that device resolution did not occur more than once, as it's such a time consuming operation.  Methods updated were: `PlayerMediaPlayContext`, `PlayerMediaPlayTrackFavorites`, `PlayerMediaPlayTracks`, `PlayerTransferPlayback`.

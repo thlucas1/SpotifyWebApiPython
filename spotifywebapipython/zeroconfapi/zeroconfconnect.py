@@ -14,6 +14,7 @@ from .zeroconfgetinfo import ZeroconfGetInfo
 from ..saappmessages import SAAppMessages
 from ..sautils import export, validateDelay
 from ..spotifyapierror import SpotifyApiError
+from ..spotifywebapierror import SpotifyWebApiError
 from ..const import (
     TRACE_MSG_DELAY_DEVICE,
 )
@@ -41,8 +42,8 @@ class ZeroconfConnect:
     """
     
     def __init__(self, 
-                 hostIpv4Address:str,
-                 hostIpPort:str,
+                 hostIpAddress:str,
+                 hostIpPort:int,
                  cpath:str,
                  version:str='1.0',
                  useSSL:bool=False
@@ -51,9 +52,9 @@ class ZeroconfConnect:
         Initializes a new instance of the class.
         
         Args:
-            hostIpv4Address (str):
-                IPV4 address (as a string) at which the Spotify Connect Zeroconf API can be reached
-                on the Spotify Connect device (e.g. "192.168.1.81").
+            hostIpAddress (str):
+                IP address or alias at which the Spotify Connect Zeroconf API can be reached
+                on the Spotify Connect device (e.g. "192.168.1.81", "Bose-SM2-341513fbeeae.local.", etc).
             hostIpPort (int):
                 Port number (as an integer) at which the Spotify Connect Zeroconf API can be reached
                 on the Spotify Connect device (e.g. "8200").
@@ -80,7 +81,7 @@ class ZeroconfConnect:
         # initialize storage.
         self._CPath:str = cpath
         self._HostIpPort:int = hostIpPort
-        self._HostIpv4Address:str = hostIpv4Address
+        self._HostIpAddress:str = hostIpAddress
         self._UseSSL:bool = useSSL
         self._Version:str = version
 
@@ -97,12 +98,12 @@ class ZeroconfConnect:
 
 
     @property
-    def HostIpv4Address(self) -> str:
+    def HostIpAddress(self) -> str:
         """ 
-        IPV4 address (as a string) at which the Spotify Connect Zeroconf API can be reached
-        on the Spotify Connect device (e.g. "192.168.1.81").
+        IP address or alias at which the Spotify Connect Zeroconf API can be reached
+        on the Spotify Connect device (e.g. "192.168.1.81", "Bose-SM2-341513fbeeae.local.", etc).
         """
-        return self._HostIpv4Address
+        return self._HostIpAddress
     
 
     @property
@@ -191,43 +192,30 @@ class ZeroconfConnect:
                 if (response.headers):
                     _logsi.LogCollection(SILevel.Debug, "ZeroconfConnect http response [%s-%s]: '%s' (headers)" % (response.status_code, response.reason, responseUrl), response.headers.items())
 
-            if response.content is not None:
+            # do we have response data?
+            if (response.content is not None) and (len(response.content) > 0):
                 
-                # do response headers contain a content-type value?
-                # if so, we will use it to determine how to convert the response data.
-                if response.headers:
-                    if 'content-type' in response.headers:
-                        contentType = response.headers['content-type']
-
-                # do we have response data?
-                if len(response.content) == 0:
+                # convert response to JSON object.
+                # ALL Spotify Connect Zeroconf API responses SHOULD be JSON format!
+                # do not use the "response.json()" method to parse JSON responses, as it is unreliable!
+                data = response.content.decode('utf-8')
+                responseData = json.loads(data)
                     
-                    # some requests will not return a response, which is ok.
-                    responseData = None
-                    _logsi.LogVerbose("ZeroconfConnect http response [%s-%s]: '%s' (no data)" % (response.status_code, response.reason, responseUrl))
-
-                elif (contentType is not None) and (contentType.find('json') > -1):
-                    
-                    # response is json.
-                    # do not use the "response.json()" method to parse JSON responses, as it is unreliable!
-                    data = response.content.decode('utf-8')
-                    responseData = json.loads(data)
-                    
-                    if _logsi.IsOn(SILevel.Verbose):
-                        if isinstance(responseData, dict):
-                            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, responseUrl), responseData)
-                        elif isinstance(responseData, list):
-                            _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, responseUrl), responseData)
-                        else:
-                            _logsi.LogObject(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json object)" % (response.status_code, response.reason, responseUrl), responseData)
-                    
-                else:
-                    
-                    # no - treat it as utf-8 encoded data.
-                    responseUTF8 = response.content.decode('utf-8')
-                    _logsi.LogText(SILevel.Error, "ZeroconfConnect http response [%s-%s]: '%s' (utf-8)" % (response.status_code, response.reason, responseUrl), responseUTF8)
-                    responseData = responseUTF8
-
+                if _logsi.IsOn(SILevel.Verbose):
+                    if isinstance(responseData, dict):
+                        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, responseUrl), responseData)
+                    elif isinstance(responseData, list):
+                        _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, responseUrl), responseData)
+                    else:
+                        _logsi.LogObject(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json object)" % (response.status_code, response.reason, responseUrl), responseData)
+                pass
+                
+            else:
+                
+                # raise an exception, as we are expecting a JSON-formatted response!
+                errMessage = response.content.decode('utf-8')                       
+                raise SpotifyWebApiError(response.status_code, errMessage, methodName, response.reason, _logsi)
+                
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -325,7 +313,7 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("HostIpv4Address", self._HostIpv4Address)
+            apiMethodParms.AppendKeyValue("HostIpAddress", self._HostIpAddress)
             apiMethodParms.AppendKeyValue("HostIpPort", self._HostIpPort)
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
@@ -440,7 +428,7 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("HostIpv4Address", self._HostIpv4Address)
+            apiMethodParms.AppendKeyValue("HostIpAddress", self._HostIpAddress)
             apiMethodParms.AppendKeyValue("HostIpPort", self._HostIpPort)
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
@@ -512,7 +500,7 @@ class ZeroconfConnect:
             
         return "{protocol}://{ip}:{port}{cpath}".format(
             protocol=protocol,
-            ip=self._HostIpv4Address, 
+            ip=self._HostIpAddress, 
             port=self._HostIpPort, 
             cpath=self._CPath, 
             )
@@ -546,7 +534,7 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("HostIpv4Address", self._HostIpv4Address)
+            apiMethodParms.AppendKeyValue("HostIpAddress", self._HostIpAddress)
             apiMethodParms.AppendKeyValue("HostIpPort", self._HostIpPort)
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
@@ -573,7 +561,7 @@ class ZeroconfConnect:
             result = ZeroconfGetInfo(root=responseData)
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, '%s result - type="%s"' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, '%s result (%s) - "%s" (%s)' % (apiMethodName, type(result).__name__, result.RemoteName, result.DeviceId), result, excludeNonPublic=True)
             return result
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru

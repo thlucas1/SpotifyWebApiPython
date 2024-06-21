@@ -19,7 +19,7 @@ class ZeroconfDiscoveryResult:
         """
         self._DeviceName:str = None
         self._Domain:str = '.'
-        self._HostIpv4Address:str = None
+        self._HostIpAddresses:list = []
         self._HostIpPort:int = None
         self._HostTTL:int = None
         self._Key:str = None
@@ -80,19 +80,41 @@ class ZeroconfDiscoveryResult:
 
 
     @property
-    def HostIpv4Address(self) -> str:
+    def HostIpAddress(self) -> str:
         """ 
-        IPV4 address (as a string) at which the host can be reached (e.g. "192.168.1.81").
+        IP address at which the host can be reached (e.g. "192.168.1.81").
+        
+        This value may also contain a DNS alias, if no IP addresses were discovered
+        for the device.  This is very rare, but possible.
         """
-        return self._HostIpv4Address
+        # return server alias by default.
+        result:str = self._Server
+        
+        # if ip addresses present, then return the first one that was detected.
+        # note that addresses are in LIFO order as detected by zeroconf discovery.
+        if (len(self._HostIpAddresses) > 0):
+            result = self._HostIpAddresses[len(self._HostIpAddresses) - 1]
+            
+        return result
     
-    @HostIpv4Address.setter
-    def HostIpv4Address(self, value:str):
+
+    @property
+    def HostIpAddresses(self) -> list:
         """ 
-        Sets the HostIpv4Address property value.
+        IP address(es) at which the host can be reached (e.g. ["192.168.1.81", "172.30.32.1"]).
+        
+        Note that this value can contain multiple addresses.
         """
-        if isinstance(value, str):
-            self._HostIpv4Address = value
+        return self._HostIpAddresses
+    
+    @HostIpAddresses.setter
+    def HostIpAddresses(self, value:list):
+        """ 
+        Sets the HostIpAddresses property value.
+        """
+        if value is not None:
+            if isinstance(value, list):
+                self._HostIpAddresses = value
 
 
     @property
@@ -380,7 +402,7 @@ class ZeroconfDiscoveryResult:
             A string containing the endpoint url for the specified action key.
         """
         return "http://{ip}:{port}{cpath}?action={action}&version={version}".format(
-            ip=self.HostIpv4Address, 
+            ip=self.HostIpAddress, 
             port=self.HostIpPort, 
             cpath=self.SpotifyConnectCPath, 
             action=action, 
@@ -396,7 +418,8 @@ class ZeroconfDiscoveryResult:
         {
             'DeviceName': self._DeviceName,
             'Domain': self._Domain,
-            'HostIpv4Address': self._HostIpv4Address,
+            'HostIpAddress': self.HostIpAddress,
+            'HostIpAddresses': [ str(item) for item in self._HostIpAddresses ],
             'HostIpPort': self._HostIpPort,
             'HostTTL': self._HostTTL,
             'Key': self._Key,
@@ -438,7 +461,8 @@ class ZeroconfDiscoveryResult:
         # build result.
         if self._DeviceName is not None: msg = '%s\n DeviceName="%s"' % (msg, str(self._DeviceName))
         if self._Domain is not None: msg = '%s\n Domain="%s"' % (msg, str(self._Domain))
-        if self._HostIpv4Address is not None: msg = '%s\n HostIpv4Address="%s"' % (msg, str(self._HostIpv4Address))
+        if self._HostIpAddresses is not None: msg = '%s\n HostIpAddresses Count=%s' % (msg, str(len(self._HostIpAddresses)))
+        if self.HostIpAddress is not None: msg = '%s\n HostIpAddress="%s"' % (msg, str(self.HostIpAddress))
         if self._HostIpPort is not None: msg = '%s\n HostIpPort="%s"' % (msg, str(self._HostIpPort))
         if self._HostTTL is not None: msg = '%s\n HostTTL="%s"' % (msg, str(self._HostTTL))
         if self._Key is not None: msg = '%s\n Key="%s"' % (msg, str(self._Key))

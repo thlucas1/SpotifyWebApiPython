@@ -94,9 +94,9 @@ class SpotifyDiscovery:
         """
         A dictionary of discovered device names that were detected by the discovery process.
         
-        Dictionary keys will be in the form of "address:port", where "address" is the device
-        ipv4 address and the "port" is the ipv4 port number the Spotify Connect device
-        is listening on.
+        Dictionary keys will be in the form of "'name' (address:port)", where "name" is the
+        device name, "address" is the device server address and the "port" is the ipv4 port 
+        number the Spotify Connect device is listening on.
         
         Dictionary values will be the device names (e.g. "Web Player (Chrome)", etc.).  This SHOULD
         match the name of the device as displayed in the Spotify App, but is not guaranteed.
@@ -152,60 +152,56 @@ class SpotifyDiscovery:
             if (ipAddressList is None):
                 return
             
-            # create device instances for each ipv4 address found.
-            for deviceIpAddress in ipAddressList:
+            # create new result instance.
+            result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
+            result.DeviceName = deviceName
+            result.Domain = '.local'
+            for item in ipAddressList:
+                result.HostIpAddresses.append(item)
+            result.HostIpPort = serviceInfo.port
+            result.HostTTL = serviceInfo.host_ttl
+            result.Key = serviceInfo.key
+            result.Name = serviceInfo.name
+            result.OtherTTL = serviceInfo.other_ttl
+            result.Priority = serviceInfo.priority
+            result.Server = serviceInfo.server
+            result.ServerKey = serviceInfo.server_key
+            result.ServiceInfo = serviceInfo
+            result.ServiceType = serviceType
+            result.Weight = serviceInfo.weight
                 
-                # create new result instance.
-                result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
-                result.DeviceName = deviceName
-                result.Domain = '.local'
-                result.HostIpv4Address = deviceIpAddress
-                result.HostIpPort = serviceInfo.port
-                result.HostTTL = serviceInfo.host_ttl
-                result.Key = serviceInfo.key
-                result.Name = serviceInfo.name
-                result.OtherTTL = serviceInfo.other_ttl
-                result.Priority = serviceInfo.priority
-                result.Server = serviceInfo.server
-                result.ServerKey = serviceInfo.server_key
-                result.ServiceInfo = serviceInfo
-                result.ServiceType = serviceType
-                result.Weight = serviceInfo.weight
+            # formulate a unique key for this device.
+            deviceKey:str = "'%s' (%s:%i)" % (deviceName, result.HostIpAddress, result.HostIpPort)
+            _logsi.LogVerbose("Discovered Spotify Connect device: %s %s" % (deviceKey, result.HostIpAddresses))
+            if (self._PrintToConsole == True):
+                print("Discovered Spotify Connect device: %s [%s]" % (deviceKey, result.HostIpAddresses))
+            _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo: %s" % (deviceKey), serviceInfo) 
                 
-                devicePort:int = serviceInfo.port
-                deviceKey:str = '%s:%i' % (deviceIpAddress, devicePort)
-                _logsi.LogVerbose("Discovered Spotify Connect device: %s - %s" % (deviceKey, deviceName))
-                if (self._PrintToConsole == True):
-                    print("Discovered Spotify Connect device: %s - %s" % (deviceKey, deviceName))
-                _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo: %s - %s" % (deviceKey, deviceName), serviceInfo) 
-                
-                # process service info propertys.
-                # note that the property keys and values must first be decoded to utf-8 encoding.
-                if serviceInfo.properties is not None:
-                    dspProperties:dict = {}
-                    for key, value in serviceInfo.properties.items():
-                        keyStr = key.decode('utf-8')
-                        valueStr = value.decode('utf-8')
-                        result.Properties.append(ZeroconfProperty(keyStr, valueStr)) 
-                        dspProperties[keyStr] = valueStr
-                        # check for Spotify Connect common properties.
-                        if keyStr.lower() == 'cpath':
-                            result.SpotifyConnectCPath = valueStr
-                        elif keyStr.lower() == 'version':
-                            result.SpotifyConnectVersion = valueStr
-                    _logsi.LogDictionary(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), dspProperties)                        
+            # process service info propertys.
+            # note that the property keys and values must first be decoded to utf-8 encoding.
+            if serviceInfo.properties is not None:
+                dspProperties:dict = {}
+                for key, value in serviceInfo.properties.items():
+                    keyStr = key.decode('utf-8')
+                    valueStr = value.decode('utf-8')
+                    result.Properties.append(ZeroconfProperty(keyStr, valueStr)) 
+                    dspProperties[keyStr] = valueStr
+                    # check for Spotify Connect common properties.
+                    if keyStr.lower() == 'cpath':
+                        result.SpotifyConnectCPath = valueStr
+                    elif keyStr.lower() == 'version':
+                        result.SpotifyConnectVersion = valueStr
+                _logsi.LogDictionary(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo.Properties: %s" % (deviceKey), dspProperties)                        
 
-                # add the device name to the list (if not already added) using its 
-                # ipv4 address and port number as the key.
-                if deviceKey not in self._DiscoveredDeviceNames.keys():
-                    self._DiscoveredDeviceNames[deviceKey] = deviceName
+            # add the device name to the list (if not already added).
+            if deviceKey not in self._DiscoveredDeviceNames.keys():
+                self._DiscoveredDeviceNames[deviceKey] = deviceName
 
-                # add the device result to the list.
-                self._DiscoveryResults.append(result)
+            # add the device result to the list.
+            self._DiscoveryResults.append(result)
 
-                # trace.
-                _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device result: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result, excludeNonPublic=True)                        
-                #_logsi.LogArray(SILevel.Verbose, "Discovered Spotify Connect device result.Properties: '%s' (%s:%i)" % (deviceName, deviceIpAddress, devicePort), result.Properties)                        
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device result: %s" % (deviceKey), result, excludeNonPublic=True)                        
 
         elif (serviceStateChange is ServiceStateChange.Removed):
             _logsi.LogVerbose("Discovered Spotify Connect device removal (ignored): '%s' (%s:%s)", serviceName, serviceType, serviceStateChange)
@@ -272,6 +268,6 @@ class SpotifyDiscovery:
         if includeItems == True:
             
             for key, deviceName in self._DiscoveredDeviceNames.items():
-                msg = "%s\n- %s - %s" % (msg, key, deviceName)
+                msg = "%s\n- %s" % (msg, key)
             
         return msg

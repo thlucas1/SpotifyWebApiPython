@@ -5955,7 +5955,8 @@ class SpotifyClient:
         to the local network.  A Spotify Zeroconf API `getInfo` call is then issued for each device
         that was found to retrieve device information.  A Spotify Zeroconf API `addUser` call is also
         issued for each device that does not have an active user context established, OR if the currently
-        active user context does not match the `SpotifyConnectUsername` argument specified on the class constructor.
+        active user context does not match the `SpotifyConnectUsername` argument specified on the class 
+        constructor and the `verifyUserContext` argument is True.
         
         The user context switch is bypassed if the `verifyUserContext` argument is False.  If the user context 
         is to be switched, then a Disconnect will be issued if a user context is active on the device followed 
@@ -6042,7 +6043,10 @@ class SpotifyClient:
                         zcfResult:ZeroconfResponse
 
                         # create a ZeroconfConnect object to access the device.
-                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                        # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+                        # the "Server" property is an alias, which must be resolved via a DNS lookup under
+                        # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
                                                                 useSSL=False)
@@ -7953,7 +7957,10 @@ class SpotifyClient:
 
                     # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
                     # returned in the zeroconf discovery result.
-                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
+                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
                                                             useSSL=False)
@@ -7967,7 +7974,7 @@ class SpotifyClient:
                 
                 # we will also call the GetPlayerDevices method, in case we have any dynamic devices.
                 # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
-                # process, but still exist in the player device list.  these are usually Spotify Connect
+                # process, but exist in the player device list.  these are usually Spotify Connect
                 # web or mobile players with temporary device id's.
                 devices:list[Device] = self.GetPlayerDevices(True)
           
@@ -10406,7 +10413,10 @@ class SpotifyClient:
                     zcfResult:ZeroconfResponse
                     
                     # create a ZeroconfConnect object to access the device.
-                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpv4Address, 
+                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
+                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
                                                             useSSL=False)
@@ -10452,7 +10462,7 @@ class SpotifyClient:
 
             # did we resolve the device id?
             if deviceIdResult is None:
-                _logsi.LogWarning("Spotify Connect Device '%s' could not be found; please ensure that the specified device is powered on and available on the local network" % (deviceValue))
+                _logsi.LogWarning("Spotify Connect device name '%s' could not be resolved; please ensure that the specified device is powered on and available on the local network" % (deviceValue))
 
             # return the resolved device id.
             return deviceIdResult

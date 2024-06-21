@@ -100,7 +100,8 @@ class SpotifyConnectDevices():
         # build zeroconf discovery result with what we can.
         discoverResult:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
         discoverResult.DeviceName = device.Name
-        discoverResult.HostIpv4Address = '127.0.0.1'
+        discoverResult.HostIpAddresses.append('127.0.0.1')
+        discoverResult.Server = '127.0.0.1'
         discoverResult.HostIpPort = 0
         discoverResult.Name = device.Name
         discoverResult.SpotifyConnectCPath = '/zc'
