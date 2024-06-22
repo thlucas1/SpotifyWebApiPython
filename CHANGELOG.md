@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.62 ] - 2024/06/21
+
+  * Updated `SpotifyDiscovery.DiscoverDevices` method to properly free Zeroconf resources after service discovery, and prevent possible memory leaks and crashes due to running out of resources.
+
 ###### [ 1.0.61 ] - 2024/06/21
 
   * Added `ZeroconfGetInfo.IsInDeviceList` property that returns the status of active device list verification process (Verification not Performed, Verified Active, Verified Inactive).  

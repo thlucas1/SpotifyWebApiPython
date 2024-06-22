@@ -3,7 +3,7 @@ try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
-from time import sleep
+import time
 from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceStateChange, IPVersion
 
 # our package imports.
@@ -233,23 +233,43 @@ class SpotifyDiscovery:
         ```
         </details>
         """
+        browser:ServiceBrowser = None
+
         # using Queue as a timer (timeout functionality).
         discoveryQueueTimer = Queue()
-
-        # create the zeroconf service browser that will start device discovery.
-        _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf is starting ...")
-        ServiceBrowser(self._ZeroconfClient, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
-        
+       
         try:
-            # give the ServiceBrowser time to discover
+
+            # create the zeroconf service browser that will start device discovery.
+            _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf is starting")
+            browser = ServiceBrowser(self._ZeroconfClient, "_spotify-connect._tcp.local.", handlers=[self._OnServiceStateChange])
+            
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "ZeroconfClient object after ServiceBrowser creation", self._ZeroconfClient)
+            
+            # give the ServiceBrowser time to discover.
             discoveryQueueTimer.get(timeout=timeout)
             
         except Empty:
             
             # this is not really an exception, but more of an indicator that
             # the timeout has been reached.
-            _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf has ended.")
+            _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf has reached its timeout of %f seconds" % timeout)
             
+        finally:
+            
+            if (browser is not None):
+                
+                # remove the zeroconf service browser with associated listener and free resources.
+                _logsi.LogVerbose("Releasing Zeroconf ServiceBrowser instance")
+                browser.cancel()
+                del browser
+                _logsi.LogObject(SILevel.Verbose, "ZeroconfClient object after ServiceBrowser resources released", self._ZeroconfClient)
+
+            # trace.
+            _logsi.LogVerbose("Discovery of Spotify Connect devices via Zeroconf has ended")
+        
+        # return result to caller.
         return self._DiscoveredDeviceNames
 
 
