@@ -8013,6 +8013,7 @@ class SpotifyClient:
                     for scDevice in result:
                         if (scDevice.DeviceInfo.DeviceId == device.Id):
                             scDevice.DeviceInfo.IsInDeviceList = True
+                            scDevice.DeviceInfo.IsActiveDevice = device.IsActive
                             break
                             
                 # update cache.

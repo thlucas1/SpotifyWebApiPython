@@ -48,6 +48,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         self._VoiceSupport:str = None
         
         # non-Spotify properties.
+        self._IsActiveDevice:bool = None
         self._IsInDeviceList:bool = None
         
         if (root is None):
@@ -366,6 +367,23 @@ class ZeroconfGetInfo(ZeroconfResponse):
     # non-Spotify properties.
 
     @property
+    def IsActiveDevice(self) -> bool:
+        """ 
+        Returns True if this device is the currently active device;
+        otherwise, False.
+        """
+        return self._IsActiveDevice
+    
+    @IsActiveDevice.setter
+    def IsActiveDevice(self, value:bool):
+        """ 
+        Sets the IsActiveDevice property value.
+        """
+        if isinstance(value, bool):
+            self._IsActiveDevice = value
+
+
+    @property
     def IsInDeviceList(self) -> bool:
         """ 
         Returns the status of active device list verification:  
@@ -415,6 +433,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
             'TokenType': self._TokenType,
             'Version': self._Version,
             'VoiceSupport': self._VoiceSupport,
+            'IsActiveDevice': self._IsActiveDevice,
             'IsInDeviceList': self._IsInDeviceList,
         }
         
@@ -462,5 +481,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
         if self._TokenType is not None: msg = '%s\n TokenType="%s"' % (msg, str(self._TokenType))
         if self._Version is not None: msg = '%s\n Version="%s"' % (msg, str(self._Version))
         if self._VoiceSupport is not None: msg = '%s\n VoiceSupport="%s"' % (msg, str(self._VoiceSupport))
+        if self._IsActiveDevice is not None: msg = '%s\n IsActiveDevice="%s"' % (msg, str(self._IsActiveDevice))
         if self._IsInDeviceList is not None: msg = '%s\n IsInDeviceList="%s"' % (msg, str(self._IsInDeviceList))
         return msg 

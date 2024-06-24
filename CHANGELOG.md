@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.64 ] - 2024/06/24
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevices` method to correctly set the currently active device.
+
 ###### [ 1.0.63 ] - 2024/06/24
 
   * Updated `ZeroconfConnect` class to process the Spotify Zeroconf API status code from the JSON response instead of processing the HTTP request status code.  It has been found that some Spotify Connect manufacturers return different HTTP status codes than other manufacturers; but the Spotify Connect `status`, `statusString` and `spotifyError` JSON properties seem to be consistent across the board.

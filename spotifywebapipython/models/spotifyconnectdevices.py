@@ -228,8 +228,6 @@ class SpotifyConnectDevices():
 
             # create new mock device.
             device = Device()
-            #device.IsActive = info.HasActiveUser
-            device.IsActive = info.IsAvailable
             device.Type = info.DeviceType
                 
             # are aliases being used (RemoteName is null if so)?
