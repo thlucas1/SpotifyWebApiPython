@@ -32,6 +32,28 @@ def GetUnixTimestampMSFromUtcNow(days:int=0,
     return dtUtcUnixTSMS
 
 
+def passwordMaskString(inputObj:str) -> str:
+    """
+    Checks a string for a password value and masks the value so that the password is not displayed 
+    in a trace file.
+
+    Args:
+        inputObj (str):
+            String object to check.
+    
+    Returns:
+        A copy of the `inputObj` value with password masked.
+    """
+    # if input is null then don't bother.
+    if (inputObj is None):
+        return inputObj
+    
+    # create a new value.
+    result:str = ''.ljust(len(inputObj), '*')
+                
+    return result
+
+
 def static_init(cls):
     """
     Define the decorator used to call an initializer for a class with all static methods.

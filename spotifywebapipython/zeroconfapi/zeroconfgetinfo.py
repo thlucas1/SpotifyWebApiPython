@@ -28,7 +28,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         self._AccountReq:str = None
         self._ActiveUser:str = ""
         self._Aliases:list[ZeroconfGetInfoAlias] = []
-        self._Availability:str = None
+        self._Availability:str = ""
         self._BrandDisplayName:str = None
         self._ClientId:str = None
         self._DeviceId:str = None
@@ -58,7 +58,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
             self._AccountReq = root.get('accountReq', None)
             self._ActiveUser = root.get('activeUser', "")
-            self._Availability = root.get('availability', None)
+            self._Availability = root.get('availability', "")
             self._BrandDisplayName = root.get('brandDisplayName', None)
             self._ClientId = root.get('clientID', None)
             self._DeviceId = root.get('deviceID', None)
@@ -142,7 +142,12 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def Availability(self) -> str:
         """ 
-        The SpZeroConfVars availability field returned by SpZeroConfGetVars.
+        The SpZeroConfVars availability field returned by SpZeroConfGetVars.  
+        
+        The following are values that I have encountered thus far:  
+        - "" = Device is available and ready for use.
+        - "UNAVAILABLE" - Device is unavailable, and should probably be rebooted.
+        - "NOT-LOADED" - Spotify SDK / API is not loaded.
         """
         return self._Availability
 
@@ -236,6 +241,18 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """
         return (len(self._Aliases) > 0)
 
+
+    @property
+    def IsAvailable(self) -> bool:
+        """ 
+        Returns True if the device is available; otherwise, False.
+        
+        Determination is made based upon the `Availability` property value.
+        """
+        if (self._Availability is None) or (self._Availability == ""):
+            return True
+        return False
+    
 
     @property
     def LibraryVersion(self) -> str:

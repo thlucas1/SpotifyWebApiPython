@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.63 ] - 2024/06/24
+
+  * Updated `ZeroconfConnect` class to process the Spotify Zeroconf API status code from the JSON response instead of processing the HTTP request status code.  It has been found that some Spotify Connect manufacturers return different HTTP status codes than other manufacturers; but the Spotify Connect `status`, `statusString` and `spotifyError` JSON properties seem to be consistent across the board.
+  * Updated `SpotifyClient.GetSpotifyConnectDevices` method to filter out duplicate Spotify Connect Device entries for devices that have been grouped together.  For example, the "Bose-ST10-1" and "Bose-ST10-2" are grouped as a stereo pair; there will be two Zeroconf discovery result entries with different instance names, but their Zeroconf getInfo endpoint url will be the same.  When this happens, it causes the values to show up as duplicates if we process both of them.
+
 ###### [ 1.0.62 ] - 2024/06/21
 
   * Updated `SpotifyDiscovery.DiscoverDevices` method to properly free Zeroconf resources after service discovery, and prevent possible memory leaks and crashes due to running out of resources.

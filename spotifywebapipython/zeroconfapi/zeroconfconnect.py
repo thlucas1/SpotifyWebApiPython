@@ -18,6 +18,7 @@ from ..spotifywebapierror import SpotifyWebApiError
 from ..const import (
     TRACE_MSG_DELAY_DEVICE,
 )
+from ..sautils import passwordMaskString
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
@@ -142,7 +143,7 @@ class ZeroconfConnect:
         return self._Version
 
 
-    def _CheckResponseForErrors(self, response:Response, methodName:str) -> None:
+    def _CheckResponseForErrors(self, response:Response, methodName:str, endpoint:str) -> None:
         """
         Checks the Spotify Zeroconf API response for errors.  
         
@@ -157,6 +158,8 @@ class ZeroconfConnect:
                 Spotify Web API http response object.
             methodName (str):
                 method name that made the request (for trace purposes).
+            endpoint (str):
+                Endpoint that was requested (for trace purposes).
                 
         Raises:
             SpotifyZeroconfApiError: 
@@ -164,7 +167,6 @@ class ZeroconfConnect:
         """
         responseData:dict = None
         responseUTF8:str = None
-        contentType:str = None
         
         try:
 
@@ -172,25 +174,11 @@ class ZeroconfConnect:
             if _logsi.IsOn(SILevel.Debug):
                 _logsi.LogObject(SILevel.Debug, 'ZeroconfConnect http response object - type="%s", module="%s"' % (type(response).__name__, type(response).__module__), response)
 
-            # safely get the response url value.
-            # for some reason, the 'url' attribute is not present sometimes if a redirect occurs on the request.
-            responseUrl:str = None
-            if hasattr(response, 'url'):
-                responseUrl = response.url
-            elif hasattr(response, '_request_url'):
-                responseUrl = response._request_url
-            else:
-                try:
-                    responseUrl = response.geturl()
-                except Exception:
-                    _logsi.LogWarning('HTTPResponse method "geturl()" could not be called - defaulting to "unknown response url"')
-                    responseUrl = 'Unknown response url'
-                
             # trace.
             if _logsi.IsOn(SILevel.Debug):
-                _logsi.LogObject(SILevel.Debug, "ZeroconfConnect http response [%s-%s]: '%s' (response)" % (response.status_code, response.reason, responseUrl), response)
+                _logsi.LogObject(SILevel.Debug, "ZeroconfConnect http response [%s-%s]: '%s' (response)" % (response.status_code, response.reason, endpoint), response)
                 if (response.headers):
-                    _logsi.LogCollection(SILevel.Debug, "ZeroconfConnect http response [%s-%s]: '%s' (headers)" % (response.status_code, response.reason, responseUrl), response.headers.items())
+                    _logsi.LogCollection(SILevel.Debug, "ZeroconfConnect http response [%s-%s]: '%s' (headers)" % (response.status_code, response.reason, endpoint), response.headers.items())
 
             # do we have response data?
             if (response.content is not None) and (len(response.content) > 0):
@@ -203,11 +191,11 @@ class ZeroconfConnect:
                     
                 if _logsi.IsOn(SILevel.Verbose):
                     if isinstance(responseData, dict):
-                        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, responseUrl), responseData)
+                        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, endpoint), responseData)
                     elif isinstance(responseData, list):
-                        _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, responseUrl), responseData)
+                        _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, endpoint), responseData)
                     else:
-                        _logsi.LogObject(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json object)" % (response.status_code, response.reason, responseUrl), responseData)
+                        _logsi.LogObject(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json object)" % (response.status_code, response.reason, endpoint), responseData)
                 pass
                 
             else:
@@ -225,7 +213,7 @@ class ZeroconfConnect:
             # if json conversion failed, then convert to utf-8 response.
             if response.content is not None:
                 responseUTF8 = response.content.decode('utf-8')
-                _logsi.LogText(SILevel.Error, "ZeroconfConnect http response [%s-%s]: '%s' (utf-8)" % (response.status_code, response.reason, responseUrl), responseUTF8)
+                _logsi.LogText(SILevel.Error, "ZeroconfConnect http response [%s-%s]: '%s' (utf-8)" % (response.status_code, response.reason, endpoint), responseUTF8)
             
             # at this point we don't know what Spotify Web Api returned, so let's 
             # just raise a new exception with the non-JSON response data.
@@ -234,21 +222,44 @@ class ZeroconfConnect:
         errCode:str = None
         errMessage:str = None
         
-        # if response is not in the 2xx range then it's an error, even
-        # though no json 'error' response body was returned!  this is
-        # usually due to a '405 - method not allowed' or '403-Forbidden',
-        # or '503 Server Error' response.
-        if response.status_code > 299:
-                
-            errCode = response.status_code
-            errMessage = response.reason
-                
-            if responseUTF8 is not None:
-                errMessage = responseUTF8
+        # at this point we know that the response contains JSON data, as
+        # we would have raised an exception before this if we could not
+        # convert the response to JSON!
 
-            raise SpotifyZeroconfApiError(errCode, errMessage, methodName, response.reason, _logsi)
+        # now it's a matter of interpreting the JSON `Status` response to determine
+        # if the request failed or not.  the following documents the Spotify
+        # Zeroconf API http status codes and JSON status codes.
+        
+        # taken from:  https://developer.spotify.com/documentation/commercial-hardware/implementation/guides/zeroconf
+        # HTTP Status codes
+        # The following table shows the different responses returned by the HTTP server to a client's request:
+
+        # Status name	    Status	HTTP Status Status string	        Response to	    Usage
+        # Ok	            101	    200	        OK or ERROR-OK          All	            Successful operation
+        # Bad	            102	    400	        ERROR-BAD-REQUEST	    All	            Web server problem or critically malformed request
+        # Unknown	        103	    500	        ERROR-UNKNOWN	        All	            Fallback when no other error applies
+        # NotImplemented	104	    501	        ERROR-NOT-IMPLEMENTED	All	            Server does not implement this feature
+        # LoginFailed	    202	    200	        ERROR-LOGIN-FAILED	    addUser	        Spotify returned error when trying to login
+        # MissingAction	    301	    400	        ERROR-MISSING-ACTION	All	            Web request has no action parameter
+        # InvalidAction	    302	    400	        ERROR-INVALID-ACTION	All	            Web request has unrecognized action parameter
+        # InvalidArguments	303	    400	        ERROR-INVALID-ARGUMENTS	All	            Incorrect or insufficient arguments supplied for requested action
+        # SpotifyError	    402	    200	        ERROR-SPOTIFY-ERROR	    All	            A Spotify API call returned an error not covered by other error messages
+
+        # process results.
+        result = ZeroconfResponse(root=responseData)
+        
+        # if result is ok, then just return the response data.
+        if (result.Status == 101) \
+        or (result.StatusString == 'OK') \
+        or (result.StatusString == 'ERROR-OK'):
+            return responseData
             
-        # no errors found - set message object response data.
+        # was an error status string returned?
+        # if so, then we will raise an exception.
+        if (result.StatusString.startswith('ERROR-')):
+            raise SpotifyZeroconfApiError(result.Status, result.ToString(), methodName, result.StatusString, _logsi)
+            
+        # otherwise, let the calling function process the returned status.
         return responseData
 
 
@@ -319,8 +330,9 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
             apiMethodParms.AppendKeyValue("username", username)
+            apiMethodParms.AppendKeyValue("password (with mask)", passwordMaskString(password))
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect using specified Username and Password", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect using specified Username and Password (ip=%s)" % self._HostIpAddress, apiMethodParms)
 
             # validations.
             if (username is None) or (not isinstance(username,str)):
@@ -337,25 +349,36 @@ class ZeroconfConnect:
             builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
             blob = builder.build()
         
+            # set request endpoint.
+            endpoint:str = self.GetEndpoint('addUser')
+            
+            # set request headers.
+            reqHeaders:dict = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Connection': 'close'
+            }
+            _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
+            
+            # set request parameters.
+            reqData={
+                'action': 'addUser',
+                'VERSION': self._Version,
+                'userName': credentials.username.decode('ascii'),
+                'clientKey': int_to_b64str(builder.dh_keys.public_key),
+                'blob': blob
+            }
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
+
             # execute spotify zeroconf api request.
             response = requests.post(
                 self._Uri,
                 timeout=10,
-                headers={
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Connection': 'close'
-                },
-                data={
-                    'action': 'addUser',
-                    'VERSION': self._Version,
-                    'userName': credentials.username.decode('ascii'),
-                    'clientKey': int_to_b64str(builder.dh_keys.public_key),
-                    'blob': blob
-                }
+                headers=reqHeaders,
+                data=reqData   # send data in POST request body
             )
         
             # check response for errors, and return json response.
-            responseData:dict = self._CheckResponseForErrors(response, apiMethodName)
+            responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
 
             # process results.
             result = ZeroconfResponse(root=responseData)
@@ -434,27 +457,38 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Disconnecting device from Spotify Connect", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Disconnecting device from Spotify Connect (ip=%s)" % self._HostIpAddress, apiMethodParms)
             
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            
+            # set request endpoint.
+            endpoint:str = self.GetEndpoint('resetUsers')
+            
+            # set request headers.
+            reqHeaders:dict = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Connection': 'close'
+            }
+            _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
+            
+            # set request parameters.
+            reqData={
+                'action': 'resetUsers',
+                'VERSION': self._Version,
+            }
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
 
             # execute spotify zeroconf api request.
             response = requests.post(
                 self._Uri,
                 timeout=10,
-                headers={
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Connection': 'close'
-                },
-                data={
-                    'action': 'resetUsers',
-                    'VERSION': self._Version,
-                }
+                headers=reqHeaders,
+                data=reqData   # send data in POST request body
             )
 
             # check response for errors, and return json response.
-            responseData:dict = self._CheckResponseForErrors(response, apiMethodName)
+            responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
 
             # process results.
             result = ZeroconfResponse(root=responseData)
@@ -506,6 +540,27 @@ class ZeroconfConnect:
             )
 
 
+    def GetEndpoint(
+            self,
+            action:str
+            ) -> str:
+        """
+        Gets a Spotify Zeroconf API endpoint uri.
+        
+        Args:
+            action (str):
+                Action parameter value (e.g. "getInfo", "addUser", "resetUsers", etc).
+        
+        Returns:
+            A string containing the endpoint.
+        """
+        return "{uri}?action={action}&version={version}".format(
+            uri=self._Uri,
+            action=action,
+            version=self._Version, 
+            )
+
+
     def GetInformation(self) -> ZeroconfGetInfo:
         """
         Calls the `getInfo` Spotify Zeroconf API endpoint to return information about the device.
@@ -539,23 +594,35 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get information from Spotify Connect for device", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get information from Spotify Connect Zeroconf API (ip=%s)" % self._HostIpAddress, apiMethodParms)
             
+            # set request endpoint.
+            endpoint:str = self.GetEndpoint('getInfo')
+            
+            # set request headers.
+            reqHeaders:dict = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Connection': 'close'
+            }
+            _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
+            
+            # set request parameters.
+            reqParams={
+                'action': 'getInfo',
+                'VERSION': self._Version,
+            }
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (params)" % (endpoint), reqParams)
+
             # execute spotify zeroconf api request.
             response = requests.get(
                 self._Uri, 
                 timeout=10,
-                headers={
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Connection': 'close'
-                },
-                params={
-                    'action': 'getInfo',
-                    'VERSION': self._Version,
-                })
+                headers=reqHeaders,
+                params=reqParams
+            )
         
             # check response for errors, and return json response.
-            responseData:dict = self._CheckResponseForErrors(response, apiMethodName)
+            responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
 
             # process results.
             result = ZeroconfGetInfo(root=responseData)

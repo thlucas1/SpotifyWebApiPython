@@ -7958,27 +7958,42 @@ class SpotifyClient:
                 discoverResult:ZeroconfDiscoveryResult
                 for discoverResult in discovery.DiscoveryResults:
 
-                    # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
-                    # returned in the zeroconf discovery result.
-                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
-                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
-                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
-                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                            discoverResult.HostIpPort, 
-                                                            discoverResult.SpotifyConnectCPath,
-                                                            useSSL=False)
-                    info:ZeroconfGetInfo = zconn.GetInformation()
+                    # have we already called zeroconf API getInfo endpoint for this device?
+                    # this can happen for devices that are part of a group.
+                    # for example, the "Bose-ST10-1" and "Bose-ST10-2" are grouped as a stereo pair;
+                    # there will be 2 zeroconf discovery result entries with different instance names,
+                    # but their zeroconf getInfo endpoint url will be the same.  when this happens, it
+                    # causes the values to show up as duplicates if we process both (or more) of them.
+                    urlGetInfo:str = discoverResult.ZeroconfApiEndpointGetInformation
+                    if result.ContainsZeroconfEndpointGetInformation(urlGetInfo):
+        
+                        # trace.
+                        _logsi.LogObject(SILevel.Verbose, 'Spotify Connect Zeroconf GetInformation call was already processed for Instance Name: "%s" (%s)' % (discoverResult.DeviceName, urlGetInfo), discoverResult)
                     
-                    # reset the `IsInDeviceList` indicator, as we will verify later in this method.
-                    info.IsInDeviceList = False
+                    else:
+                    
+                        # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
+                        # returned in the zeroconf discovery result.
+                        # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+                        # the "Server" property is an alias, which must be resolved via a DNS lookup under
+                        # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
+                                                                discoverResult.HostIpPort, 
+                                                                discoverResult.SpotifyConnectCPath,
+                                                                useSSL=False)
+                        info:ZeroconfGetInfo = zconn.GetInformation()
+                    
+                        # reset the `IsInDeviceList` indicator, as we will verify later in this method.
+                        info.IsInDeviceList = False
 
-                    # create new spotify connect device object.
-                    scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
-                    scDevice.DiscoveryResult = discoverResult
-                    scDevice.DeviceInfo = info
-                    result.Items.append(scDevice)
+                        # create new spotify connect device object.
+                        scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+                        scDevice.DiscoveryResult = discoverResult
+                        scDevice.DeviceInfo = info
+                        result.Items.append(scDevice)
                 
-                # we will also call the GetPlayerDevices method, in case we have any dynamic devices.
+                # at this point we have processed all zeroconf discovery results.
+                # we will now call the GetPlayerDevices method, in case we have any dynamic devices.
                 # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
                 # process, but exist in the player device list.  these are usually Spotify Connect
                 # web or mobile players with temporary device id's.

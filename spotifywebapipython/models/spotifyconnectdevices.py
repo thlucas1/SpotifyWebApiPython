@@ -188,6 +188,27 @@ class SpotifyConnectDevices():
         return result
     
 
+    def ContainsZeroconfEndpointGetInformation(self, value:str) -> bool:
+        """ 
+        Returns True if the `Items` collection contains the specified Zeroconf getInfo Endpoint url value;
+        otherwise, False.
+        """
+        result:bool = False
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.DiscoveryResult.ZeroconfApiEndpointGetInformation.lower() == value):
+                result = True
+                break
+        return result
+    
+
     def GetDeviceList(self) -> list[Device]:
         """
         Returns a list of `Device` objects that can be used to build a selection list
@@ -207,7 +228,8 @@ class SpotifyConnectDevices():
 
             # create new mock device.
             device = Device()
-            device.IsActive = info.HasActiveUser
+            #device.IsActive = info.HasActiveUser
+            device.IsActive = info.IsAvailable
             device.Type = info.DeviceType
                 
             # are aliases being used (RemoteName is null if so)?
@@ -224,7 +246,7 @@ class SpotifyConnectDevices():
                 # if no aliases then use the remote name and id.
                 device.Id = info.DeviceId
                 device.Name = info.RemoteName
-
+                
             # append device to results.
             result.append(device)
 
