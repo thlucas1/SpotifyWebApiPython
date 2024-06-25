@@ -187,7 +187,7 @@ class ZeroconfConnect:
                     
                 if _logsi.IsOn(SILevel.Verbose):
                     if isinstance(responseData, dict):
-                        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, endpoint), responseData)
+                        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json dict)" % (response.status_code, response.reason, endpoint), responseData, prettyPrint=True)
                     elif isinstance(responseData, list):
                         _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, endpoint), responseData)
                     else:

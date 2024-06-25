@@ -29,11 +29,14 @@ class ZeroconfResponse:
         
         else:
 
+            # some devices return the `status` and `spotifyError` values as string,
+            # while others return them as numeric; use the property setters to
+            # convert them to numeric if they are strings that contain a numeric value.
             self._ResponseSource = root.get('responseSource', None)
-            self._SpotifyError = root.get('spotifyError', None)
-            self._Status = root.get('status', None)
+            self.SpotifyError = root.get('spotifyError', None)
+            self.Status = root.get('status', None)
             self._StatusString = root.get('statusString', None)
-
+            
     
     def __repr__(self) -> str:
         return self.ToString()
@@ -65,6 +68,9 @@ class ZeroconfResponse:
         """
         if isinstance(value, int):
             self._SpotifyError = value
+        elif isinstance(value, str):
+            if value.isnumeric():
+                self._SpotifyError = int(value)
 
 
     @property
@@ -81,6 +87,9 @@ class ZeroconfResponse:
         """
         if isinstance(value, int):
             self._Status = value
+        elif isinstance(value, str):
+            if value.isnumeric():
+                self._Status = int(value)
 
 
     @property
