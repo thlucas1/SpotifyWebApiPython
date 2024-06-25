@@ -286,6 +286,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """
         return self._PublicKey
 
+    @PublicKey.setter
+    def PublicKey(self, value:str):
+        """ 
+        Sets the PublicKey property value.
+        """
+        if isinstance(value, str):
+            self._PublicKey = value
+
 
     @property
     def RemoteName(self) -> str:
@@ -343,7 +351,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def TokenType(self) -> str:
         """ 
-        Token type provided by the client (e.g. "accesstoken").
+        Token type provided by the client (e.g. "accesstoken", "authorization_code", etc).
         """
         return self._TokenType
 

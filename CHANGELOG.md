@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.65 ] - 2024/06/25
+
+  * Updated `ZeroconfConnect.Connect` method to account for "ERROR-INVALID-PUBLICKEY" statuses returned for some devices.  This will retry the connection request with the PublicKey value returned from the initial request.
+
 ###### [ 1.0.64 ] - 2024/06/24
 
   * Updated `SpotifyClient.GetSpotifyConnectDevices` method to correctly set the currently active device.
