@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.67 ] - 2024/06/25
+
+  * Updated `SpotifyClient.IsDeviceId` class to recognize UUID-formatted device id's (e.g. "48b677ca-ef9b-516f-b702-93bf2e8c67ba").
+  * Updated `ZeroconfConnect` class to not default the `version` value to `1.0`, in the event that newer devices may not support that version identifier.
+  * Updated `ZeroconfConnect.Connect` method to not pass the `loginId` parameter to the request.
+  * Updated `ZeroconfConnect.Connect` method to issue a Disconnect to reset the user context if the public key value is "INVALID".
+
 ###### [ 1.0.66 ] - 2024/06/25
 
   * Updated `ZeroconfResponse` class to convert the `status` and `spotifyError` values to numeric from string.  Some Spotify Connect devices return them as strings, while other return them as numerics.  

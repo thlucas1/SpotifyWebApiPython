@@ -6052,6 +6052,7 @@ class SpotifyClient:
                         zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
+                                                                discoverResult.SpotifyConnectVersion,
                                                                 useSSL=False)
                     
                         # if a different user context has control of the device then we need to disconnect 
@@ -7980,6 +7981,7 @@ class SpotifyClient:
                         zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
+                                                                discoverResult.SpotifyConnectVersion,
                                                                 useSSL=False)
                         info:ZeroconfGetInfo = zconn.GetInformation()
                     
@@ -9396,8 +9398,9 @@ class SpotifyClient:
         Args:
             value (str):
                 The id or name of a Spotify Connect device.
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
-                Example: `Web Player (Chrome)`  
+                Example id: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example id: `48b677ca-ef9b-516f-b702-93bf2e8c67ba`  
+                Example name: `Web Player (Chrome)`  
 
         Returns:
             True if the specified value is a device id format; 
@@ -9407,10 +9410,13 @@ class SpotifyClient:
         """
         result:bool = False
         try:
-            # if it is a hex string, then it is assumed to be a device id.
-            intValue:int = int(str(value), 16)
-            result = True
-        except Exception:
+            # if it is a hex string (or uuid format), then it is assumed to be a device id.
+            if value is not None:
+                value = str(value)
+                value = value.replace('-','')
+                intValue:int = int(str(value), 16)
+                result = True
+        except Exception as ex:
             # otherwise, assume it's a device name.
             result = False
             
@@ -10365,7 +10371,7 @@ class SpotifyClient:
                 verifyUserContext = True
 
             # determine if the device value specified is a name (e.g. "Bose-ST10-1") or 
-            # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
+            # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe", "48b677ca-ef9b-516f-b702-93bf2e8c67ba").
             isDeviceId:bool = SpotifyClient.IsDeviceId(deviceValue)
 
             deviceValueCompare:str = deviceValue.lower()
@@ -10455,6 +10461,7 @@ class SpotifyClient:
                     zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
+                                                            discoverResult.SpotifyConnectVersion,
                                                             useSSL=False)
 
                     # if a different user context has control of the device then we need to disconnect 
