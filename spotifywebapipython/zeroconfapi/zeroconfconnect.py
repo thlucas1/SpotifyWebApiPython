@@ -239,21 +239,21 @@ class ZeroconfConnect:
         # InvalidArguments	303	    400	        ERROR-INVALID-ARGUMENTS	All	            Incorrect or insufficient arguments supplied for requested action
         # SpotifyError	    402	    200	        ERROR-SPOTIFY-ERROR	    All	            A Spotify API call returned an error not covered by other error messages
 
-        # process results.
-        result = ZeroconfResponse(root=responseData)
+        # # process results.
+        # result = ZeroconfResponse(root=responseData)
         
-        # if result is ok, then just return the response data.
-        if (result.Status == 101) \
-        or (result.StatusString == 'OK') \
-        or (result.StatusString == 'ERROR-OK'):
-            return responseData
+        # # if result is ok, then just return the response data.
+        # if (result.Status == 101) \
+        # or (result.StatusString == 'OK') \
+        # or (result.StatusString == 'ERROR-OK'):
+        #     return responseData
             
-        # was an error status string returned?
-        # if so, then we will raise an exception.
-        if (result.StatusString.startswith('ERROR-')):
-            raise SpotifyZeroconfApiError(result.Status, result.ToString(), methodName, result.StatusString, _logsi)
+        # # was an error status string returned?
+        # # if so, then we will raise an exception.
+        # if (result.StatusString.startswith('ERROR-')):
+        #     raise SpotifyZeroconfApiError(result.Status, result.ToString(), methodName, result.StatusString, _logsi)
             
-        # otherwise, let the calling function process the returned status.
+        # let the calling function process the returned status.
         return responseData
 
 
@@ -302,7 +302,7 @@ class ZeroconfConnect:
         response.  This public key is then used to submit another `addUser` request to connect to the device with the
         newly returned public key.  When this happens, a `ZeroconfResponse` object is returned with the result of
         the final `addUser` request.  If only one `addUser` request is processed, then a `ZeroconfGetInfo` object is
-        returned with the result of the `addUser` request.  Note that `ZeroconfGetInfo' inherits from `ZeroconfResponse`,
+        returned with the result of the `addUser` request.  Note that `ZeroconfGetInfo` inherits from `ZeroconfResponse`,
         so you can always treat the result of this method as a `ZeroconfResponse` object.
           
         The login (on the device) is performed asynchronously, so the return result only indicates whether the library 
@@ -374,7 +374,7 @@ class ZeroconfConnect:
             # when this happens, the initial request will return a 203 status (ERROR-INVALID-PUBLICKEY), and
             # return a valid public key in the response.  we can then take this public key and try the 
             # `addUser` request again.
-            if (result.Status == 203) and (result.SpotifyError == 0):  # and (result.StatusString == "ERROR-INVALID-PUBLICKEY"):
+            if (result.Status == 203) and (result.StatusString == "ERROR-INVALID-PUBLICKEY"):
 
                 # trace.
                 _logsi.LogObject(SILevel.Verbose, '%s result (%s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)

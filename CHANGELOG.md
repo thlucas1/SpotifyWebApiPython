@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.68 ] - 2024/06/26
+
+  * Updated `ZeroconfConnect._CheckResponseForErrors` method to not process the Spotify Zeroconf API response, as each method calling the check response method will process the returned status.
+
 ###### [ 1.0.67 ] - 2024/06/25
 
   * Updated `SpotifyClient.IsDeviceId` class to recognize UUID-formatted device id's (e.g. "48b677ca-ef9b-516f-b702-93bf2e8c67ba").

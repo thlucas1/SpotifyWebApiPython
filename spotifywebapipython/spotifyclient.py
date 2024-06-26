@@ -10361,7 +10361,7 @@ class SpotifyClient:
 
             # if device value not specified then we are done.
             if (deviceValue is None) or (len(deviceValue.strip()) == 0):
-                _logsi.LogVerbose("deviceValue not specified; nothing to do")
+                _logsi.LogVerbose("device not specified; active Spotify Player will be used")
                 return None
             
             # validations.
