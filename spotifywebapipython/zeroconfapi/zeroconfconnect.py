@@ -132,9 +132,9 @@ class ZeroconfConnect:
     @property
     def Version(self) -> str:
         """ 
-        Spotify Connect Zeroconf API version number that the device supports (e.g. "2.10.0").
+        Spotify Connect Zeroconf API version number that the device supports (e.g. "", "1.0", "2.10.0", etc.).
         """
-        return self._Version
+        return self._Version or ''
 
 
     def _CheckResponseForErrors(self, response:Response, methodName:str, endpoint:str) -> None:
@@ -190,7 +190,6 @@ class ZeroconfConnect:
                         _logsi.LogArray(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json array)" % (response.status_code, response.reason, endpoint), responseData)
                     else:
                         _logsi.LogObject(SILevel.Verbose, "ZeroconfConnect http response [%s-%s]: '%s' (json object)" % (response.status_code, response.reason, endpoint), responseData)
-                pass
                 
             else:
                 
@@ -213,8 +212,6 @@ class ZeroconfConnect:
             # just raise a new exception with the non-JSON response data.
             raise SpotifyZeroconfApiError(response.status_code, responseUTF8, methodName, response.reason, _logsi)
             
-        errMessage:str = None
-        
         # at this point we know that the response contains JSON data, as
         # we would have raised an exception before this if we could not
         # convert the response to JSON!
@@ -239,20 +236,6 @@ class ZeroconfConnect:
         # InvalidArguments	303	    400	        ERROR-INVALID-ARGUMENTS	All	            Incorrect or insufficient arguments supplied for requested action
         # SpotifyError	    402	    200	        ERROR-SPOTIFY-ERROR	    All	            A Spotify API call returned an error not covered by other error messages
 
-        # # process results.
-        # result = ZeroconfResponse(root=responseData)
-        
-        # # if result is ok, then just return the response data.
-        # if (result.Status == 101) \
-        # or (result.StatusString == 'OK') \
-        # or (result.StatusString == 'ERROR-OK'):
-        #     return responseData
-            
-        # # was an error status string returned?
-        # # if so, then we will raise an exception.
-        # if (result.StatusString.startswith('ERROR-')):
-        #     raise SpotifyZeroconfApiError(result.Status, result.ToString(), methodName, result.StatusString, _logsi)
-            
         # let the calling function process the returned status.
         return responseData
 
@@ -352,10 +335,18 @@ class ZeroconfConnect:
             # get the current device id from the device via Spotify ZeroConf API `getInfo` endpoint.
             info:ZeroconfGetInfo = self.GetInformation()
 
-            # if the public key value is "INVALID" then issue a disconnect to reset the user context.
-            if (info.PublicKey == 'SU5WQUxJRA=='):  # base64 encoded "INVALID"
-                _logsi.LogVerbose("Spotify Connect publicKey value is 'INVALID' for Device id '%s'; calling Disconnect to reset the user context" % (info.DeviceId))
-                self.Disconnect(ignoreStatusResult=True)
+            # TODO - remove this comment when you get this working.
+            # following code did not help:
+            # # if the public key value is "INVALID" then issue a disconnect to reset the user context.
+            # if (info.PublicKey == 'SU5WQUxJRA=='):  # base64 encoded "INVALID"
+            #     _logsi.LogVerbose("Spotify Connect publicKey value is 'INVALID' for Device id '%s'; calling Disconnect to reset the user context" % (info.DeviceId))
+            #     self.Disconnect(ignoreStatusResult=True)
+
+            # are we including origin device information (e.g. deviceName, deviceId)?
+            # TODO - maybe tailor this to info.BrandDisplayName and info.ModelDisplayName instead?
+            includeOriginDeviceInfo:bool = False
+            if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
+                includeOriginDeviceInfo = True
 
             # execute the Spotify Zeroconf API addUser request.
             responseData:dict = self._ConnectAddUser(
@@ -363,7 +354,9 @@ class ZeroconfConnect:
                 username,
                 password,
                 loginId,
-                apiMethodName)
+                apiMethodName,
+                includeOriginDeviceInfo=includeOriginDeviceInfo
+                )
 
             # process results.
             # we will process the results with a `ZeroconfGetInfo` object, in case a publicKey was returned.
@@ -381,7 +374,7 @@ class ZeroconfConnect:
                 _logsi.LogVerbose("Spotify Connect addUser request returned an ERROR-INVALID-PUBLICKEY response for Device id '%s'; addUser will be retried with the returned publicKey" % (info.DeviceId))
 
                 # give the device a little time to wake up.
-                WAKEUP_DELAY:float = 0.25
+                WAKEUP_DELAY:float = 1.0
                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % WAKEUP_DELAY)
                 time.sleep(WAKEUP_DELAY)
 
@@ -393,7 +386,9 @@ class ZeroconfConnect:
                     username,
                     password,
                     loginId,
-                    apiMethodName)
+                    apiMethodName,
+                    includeOriginDeviceInfo=includeOriginDeviceInfo
+                    )
 
                 # process results.
                 result = ZeroconfResponse(root=responseData)
@@ -437,48 +432,87 @@ class ZeroconfConnect:
             password:str,
             loginId:str,
             apiMethodName:str,
+            includeOriginDeviceInfo:bool=False,
             ) -> dict:
         """
+        Execute the `addUser` request.
         """
-        # formulate the blob.
-        credentials:Credentials = Credentials(username, password)
-        builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
-        blob = builder.build()
+        apiMethodName:str = '_ConnectAddUser'
+        apiMethodParms:SIMethodParmListContext = None
         
-        # set request endpoint.
-        endpoint:str = self.GetEndpoint('addUser')
+        try:
             
-        # set request headers.
-        reqHeaders:dict = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Connection': 'close'
-        }
-        _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("includeOriginDeviceInfo", includeOriginDeviceInfo)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
+        
+            # validations.
+            if (includeOriginDeviceInfo is None):
+                includeOriginDeviceInfo = False
             
-        # set request parameters.
-        reqData={
-            'action': 'addUser',
-            'version': self._Version or '',
-            'userName': credentials.username.decode('ascii'),           # user name (e.g. "youremail@mail.com")
-            'clientKey': int_to_b64str(builder.dh_keys.public_key),
-            'blob': blob,
-            'tokenType': 'default',                                     # NOTE - not the same as info.TokenType!
-            # not sure if this is required or not, so commenting out for now.
-            #'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
-        }
-        _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
+            # formulate the blob.
+            credentials:Credentials = Credentials(username, password)
+            builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
+            blob = builder.build()
+        
+            # set request endpoint.
+            endpoint:str = self.GetEndpoint('addUser')
+            
+            # set request headers.
+            reqHeaders:dict = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Connection': 'close'
+            }
+            _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
+            
+            # set request parameters.
+            reqData={
+                'action': 'addUser',
+                'version': self.Version,
+                'tokenType': 'default',                                     # NOTE - not the same as info.TokenType!
+                'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
+                'userName': credentials.username.decode('ascii'),           # user name (e.g. "youremail@mail.com")
+                'clientKey': int_to_b64str(builder.dh_keys.public_key),
+                'blob': blob,
+            }
 
-        # execute spotify zeroconf api request.
-        response = requests.post(
-            self._Uri,
-            timeout=10,
-            headers=reqHeaders,
-            data=reqData   # send data in POST request body
-        )
+            # are we including origin device information (e.g. deviceName, deviceId)?
+            # the `deviceName` and `deviceId` keys are specified by some manufacturers for the
+            # `addUser` action.  I am not sure if they are required or not, as they are not part
+            # of the Spotify Zeroconf API specification for the `addUser` action.
+            if (includeOriginDeviceInfo):
+                _logsi.LogVerbose("Origin deviceName and deviceId will be included with the addUser request for deviceId '%s'" % (info.DeviceId))
+                reqData['deviceName'] = builder._OriginDeviceName
+                reqData['deviceId'] = builder._OriginDeviceId
         
-        # check response for initial errors, and return json response.
-        responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
-        return responseData
+            # if PublicKey="INVALID" and availability="NOT-LOADED" then adjust the addUser 
+            # request to remove the blob and clientKey values.  this will inform the device to
+            # send us back a PublicKey value, which can be used on a subsequent addUser request.
+            if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
+                _logsi.LogVerbose("Spotify Connect PublicKey='INVALID' and Availability='NOT-LOADED' detected for Device id '%s'; removing blob and clientKey values" % (info.DeviceId))
+                reqData['blob'] = ''
+                reqData['clientKey'] = ''
+
+            # trace.
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
+
+            # execute spotify zeroconf api request.
+            response = requests.post(
+                self._Uri,
+                timeout=10,
+                headers=reqHeaders,
+                data=reqData   # send data in POST request body
+            )
+        
+            # check response for initial errors, and return json response.
+            responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
+            return responseData
+        
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def Disconnect(
@@ -554,7 +588,7 @@ class ZeroconfConnect:
             # set request parameters.
             reqData={
                 'action': 'resetUsers',
-                'version': self._Version or '',
+                'version': self.Version,
             }
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
 
@@ -641,7 +675,7 @@ class ZeroconfConnect:
         return "{uri}?action={action}&version={version}".format(
             uri=self._Uri,
             action=action,
-            version=self._Version or '', 
+            version=self.Version, 
             )
 
 
@@ -693,7 +727,7 @@ class ZeroconfConnect:
             # set request parameters.
             reqParams={
                 'action': 'getInfo',
-                'version': self._Version or '',
+                'version': self.Version,
             }
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (params)" % (endpoint), reqParams)
 
@@ -752,5 +786,5 @@ class ZeroconfConnect:
         
         msg = '%s\n URI="%s"' % (msg, str(self._Uri))
         if self._CPath is not None: msg = '%s\n CPath="%s"' % (msg, str(self._CPath))
-        if self._Version is not None: msg = '%s\n Version="%s"' % (msg, str(self._Version))
+        if self._Version is not None: msg = '%s\n Version="%s"' % (msg, str(self.Version))
         return msg 

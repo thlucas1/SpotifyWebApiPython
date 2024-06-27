@@ -20,6 +20,9 @@ class BlobBuilder:
         self.dh_keys = CryptoDiffieHellman()
         self._blob = b''
         self._encrypted_blob = b''
+        # formulate origin device information.
+        self._OriginDeviceName = 'ha-spotifyplus'
+        self._OriginDeviceId = hashlib.sha1(bytes(self._OriginDeviceName, 'ascii')).digest().hex()
     
 
     def build(self):

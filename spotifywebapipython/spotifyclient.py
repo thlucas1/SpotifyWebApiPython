@@ -79,6 +79,7 @@ class SpotifyClient:
                  zeroconfClient:Zeroconf=None,
                  spotifyConnectUsername:str=None,
                  spotifyConnectPassword:str=None,
+                 spotifyConnectLoginId:str=None,
                  spotifyConnectDiscoveryTimeout:float=2.0
                  ) -> None:
         """
@@ -106,14 +107,18 @@ class SpotifyClient:
             spotifyConnectPassword (str):
                 Spotify Connect password used to login to a Spotify Connect device.
                 This value is required if a non-null value was specified for the `spotifyConnectUsername` argument.
+            spotifyConnectLoginId (str):
+                Spotify Connect login id to login with (e.g. "31l77fd87g8h9j00k89f07jf87ge").  
+                This is also known as the canonical user id value.  
+                This MUST be the value that relates to the `spotifyConnectUsername` argument.  
             spotifyConnectDiscoveryTimeout (float):
                 Maximum amount of time to wait (in seconds) for the Spotify Connect discovery to complete.  
                 Default is 2 seconds.
                 
-        The `spotifyConnectUsername` and `spotifyConnectPassword` arguments are only used when a
-        Spotify Connect account switch is performed on a selected player device.  Note that these credentials
-        are NOT used to access the Spotify Web API (the Spotify Web API token is used for that).
-        Please see the `PlayerResolveDeviceId` method for more details.
+        The `spotifyConnectUsername`, `spotifyConnectPassword` and `spotifyConnectLoginId` arguments are only used
+        when a Spotify Connect account switch is performed on a selected player device.  Note that these credentials
+        are NOT used to access the Spotify Web API (the Spotify Web API token is used for that).  
+        Please see the `PlayerResolveDeviceId` method for more details.  
         
         Note that if you don't have a password setup for your Spotify account (e.g. you utilize the "Continue with Google" 
         or other non-password methods for login), then you will need to define a "device password" in order to use the 
@@ -142,6 +147,7 @@ class SpotifyClient:
         self._Manager:PoolManager = manager
         self._SpotifyConnectUsername:str = spotifyConnectUsername
         self._SpotifyConnectPassword:str = spotifyConnectPassword
+        self._SpotifyConnectLoginId:str = spotifyConnectLoginId
         self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenUpdater:Callable = tokenUpdater
@@ -5947,7 +5953,7 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyZeroconfApiError:
                 If any Spotify Zeroconf API request failed.  
-                If the `spotifyConnectUsername` aregument was not specified for the class contructor.
+                If the `spotifyConnectUsername` argument was not specified for the class contructor.
             SpotifApiError: 
                 If the method fails for any other reason.
 
@@ -6065,7 +6071,7 @@ class SpotifyClient:
                         # connect the device to OUR Spotify Connect user context.
                         # note that the result here only indicates that the connect was submitted - NOT that it was successful!
                         _logsi.LogVerbose("Spotify Connect user context '%s' is being connected for Device id '%s'" % (self._SpotifyConnectUsername, deviceIdResult))
-                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, delay)
+                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId, delay=delay)
                         status = status + 'connected to user context "%s"' % self._SpotifyConnectUsername
 
                         # trace.
@@ -10473,7 +10479,7 @@ class SpotifyClient:
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
                     _logsi.LogVerbose("Spotify Connect user context '%s' is being connected for Device id '%s'" % (self._SpotifyConnectUsername, deviceIdResult))
-                    zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword)
+                    zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId)
 
                     # trace.
                     _logsi.LogVerbose("Spotify Connect user context switch from '%s' to '%s' was requested for Device id '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, deviceIdResult))

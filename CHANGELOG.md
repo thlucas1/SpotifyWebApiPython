@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.69 ] - 2024/06/26
+
+  * Added properties and arguments to support the Zeroconf API `loginId` argument for the `addUser` request.
+  * Updated `ZeroconfConnect.Connect` method to include the `deviceName` and `deviceId` keys for the `addUser` request for certain device manufacturer conditions.
+  * Updated `ZeroconfConnect.Connect` method to not issue a Disconnect to reset the user context if the public key value is "INVALID", as the logic did not work as expected.
+
 ###### [ 1.0.68 ] - 2024/06/26
 
   * Updated `ZeroconfConnect._CheckResponseForErrors` method to not process the Spotify Zeroconf API response, as each method calling the check response method will process the returned status.

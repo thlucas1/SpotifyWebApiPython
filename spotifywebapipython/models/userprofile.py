@@ -122,7 +122,7 @@ class UserProfile(UserProfileSimplified):
 
 
     @property
-    def IsProductPremium(self) -> str:
+    def IsProductPremium(self) -> bool:
         """ 
         Returns true if the user's Spotify subscription level is `premium`;
         otherwise, False.
@@ -134,7 +134,7 @@ class UserProfile(UserProfileSimplified):
 
 
     @property
-    def Product(self) -> str:
+    def Product(self) -> bool:
         """ 
         The user's Spotify subscription level: `premium`, `free`, etc. 
         

@@ -352,7 +352,7 @@ class ZeroconfDiscoveryResult:
     @property
     def SpotifyConnectVersion(self) -> str:
         """ 
-        Spotify Connect Version property value (e.g. "1.0").
+        Spotify Connect Version property value (e.g. null, "1.0").
 
         """
         return self._SpotifyConnectVersion
@@ -362,7 +362,7 @@ class ZeroconfDiscoveryResult:
         """ 
         Sets the SpotifyConnectVersion property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._SpotifyConnectVersion = value
 
 
@@ -406,7 +406,7 @@ class ZeroconfDiscoveryResult:
             port=self.HostIpPort, 
             cpath=self.SpotifyConnectCPath, 
             action=action, 
-            version=self.SpotifyConnectVersion
+            version=self.SpotifyConnectVersion or ''
             )
 
 

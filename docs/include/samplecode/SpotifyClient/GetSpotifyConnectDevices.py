@@ -15,8 +15,9 @@ try:
 
     # create new spotify client instance, passing the Spotify Connect user context and discovery timeout.
     spotify:SpotifyClient = SpotifyClient(
-        spotifyConnectUsername="yourSpotifyConnectDeviceUsername", 
-        spotifyConnectPassword="yourSpotifyConnectDevicePassword",
+        spotifyConnectUsername="yourSpotifyUsername", # (e.g. 'yourname@gmail.com', '1234567890', etc)
+        spotifyConnectPassword="yourSpotifyPassword",
+        spotifyConnectLoginId="yourSpotifyLoginId",   # (e.g. '31l77548798704mns987fdf0986e')
         spotifyConnectDiscoveryTimeout=1.5
     )
 
