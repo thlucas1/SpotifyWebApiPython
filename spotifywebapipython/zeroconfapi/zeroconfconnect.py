@@ -383,9 +383,9 @@ class ZeroconfConnect:
                     loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
                     # get device information; if availability status changes then we are done.
-                    info:ZeroconfGetInfo = self.GetInformation()
+                    info = self.GetInformation()
                     if info.Availability != "NOT-LOADED":
-                        _logsi.LogVerbose("Spotify Connect Device id '%s' availability status changed from '%s' to '%s' within %f seconds of initial addUser request" % (info.DeviceId, info.Availability, info.Availability, loopTotalDelay))
+                        _logsi.LogVerbose("Spotify Connect Device id '%s' availability status changed to '%s' within %f seconds of initial addUser request" % (info.DeviceId, info.Availability, loopTotalDelay))
                         break
                         
                     # only check so many times before we give up;
@@ -394,7 +394,7 @@ class ZeroconfConnect:
                         break
 
                 # now that the device is (hopefully) fully available, try the addUser request again.
-                self._ConnectAddUser(
+                responseData = self._ConnectAddUser(
                     info,
                     username,
                     password,
@@ -458,6 +458,8 @@ class ZeroconfConnect:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("includeOriginDeviceInfo", includeOriginDeviceInfo)
+            apiMethodParms.AppendKeyValue("info.Availability", info.Availability)
+            apiMethodParms.AppendKeyValue("info.PublicKey", info.PublicKey)
             _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
         
             # validations.

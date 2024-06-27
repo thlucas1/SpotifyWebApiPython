@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.71 ] - 2024/06/27
+
+  * Updated `ZeroconfConnect.Connect` method to properly return the response data from the `addUser` request and process the results.
+
 ###### [ 1.0.70 ] - 2024/06/27
 
   * Updated `ZeroconfConnect.Connect` method to properly wait for device to become fully availabile if need be.
