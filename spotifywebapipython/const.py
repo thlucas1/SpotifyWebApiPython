@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.69"
+VERSION:str = "1.0.70"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -74,9 +74,9 @@ TRACE_MSG_AUTHTOKEN_CREATE = "Creating a \"%s\" authorization access token"
 Creating a \"%s\" authorization access token
 """
 
-TRACE_MSG_DELAY_DEVICE:str = "Delaying for %s seconds to allow Spotify Web API to process the change"
+TRACE_MSG_DELAY_DEVICE:str = "Delaying for %s seconds to allow Spotify API to process the change"
 """
-Delaying for %s seconds to allow Spotify Web API to process the change
+Delaying for %s seconds to allow Spotify API to process the change
 """
 
 TRACE_MSG_USERPROFILE = 'User Profile Object: DisplayName="%s", EMail="%s"'

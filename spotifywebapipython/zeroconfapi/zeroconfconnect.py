@@ -335,13 +335,6 @@ class ZeroconfConnect:
             # get the current device id from the device via Spotify ZeroConf API `getInfo` endpoint.
             info:ZeroconfGetInfo = self.GetInformation()
 
-            # TODO - remove this comment when you get this working.
-            # following code did not help:
-            # # if the public key value is "INVALID" then issue a disconnect to reset the user context.
-            # if (info.PublicKey == 'SU5WQUxJRA=='):  # base64 encoded "INVALID"
-            #     _logsi.LogVerbose("Spotify Connect publicKey value is 'INVALID' for Device id '%s'; calling Disconnect to reset the user context" % (info.DeviceId))
-            #     self.Disconnect(ignoreStatusResult=True)
-
             # are we including origin device information (e.g. deviceName, deviceId)?
             # TODO - maybe tailor this to info.BrandDisplayName and info.ModelDisplayName instead?
             includeOriginDeviceInfo:bool = False
@@ -362,25 +355,45 @@ class ZeroconfConnect:
             # we will process the results with a `ZeroconfGetInfo` object, in case a publicKey was returned.
             result = ZeroconfGetInfo(root=responseData)
 
-            # does result contain a public key?
-            # some spotify connect devices need to be "woken up" with the initial `addUser` request.  
-            # when this happens, the initial request will return a 203 status (ERROR-INVALID-PUBLICKEY), and
-            # return a valid public key in the response.  we can then take this public key and try the 
-            # `addUser` request again.
+            # is the device fully available?  The info.Availability property can be used to determine this.
+            # if the device is fully available (Availability=""), then the addUser request should return
+            # immediately - hopefully with a 0 status (OK) to denote the request was successul.
+            # if the device is not fully available (Availability="NOT-LOADED"), then the addUser request will 
+            # probably return a 203 status (ERROR-INVALID-PUBLICKEY) along with a new PublicKey value.  
+            # when this happens, we need to wait for the device to become fully available before we retry the 
+            # addUser request again with the new public key.
+            
+            # did we get a new PublicKey value?
             if (result.Status == 203) and (result.StatusString == "ERROR-INVALID-PUBLICKEY"):
 
                 # trace.
                 _logsi.LogObject(SILevel.Verbose, '%s result (%s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
                 _logsi.LogVerbose("Spotify Connect addUser request returned an ERROR-INVALID-PUBLICKEY response for Device id '%s'; addUser will be retried with the returned publicKey" % (info.DeviceId))
 
-                # give the device a little time to wake up.
-                WAKEUP_DELAY:float = 1.0
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % WAKEUP_DELAY)
-                time.sleep(WAKEUP_DELAY)
+                # wait for the device to be fully loaded.
+                # once this happens, the device Availability state will change from "NOT-LOADED" to "".
+                loopTotalDelay:float = 0
+                LOOP_DELAY:float = 0.25
+                LOOP_TIMEOUT:float = 5.0
+                while True:
+                        
+                    # wait just a bit between device info queries.
+                    _logsi.LogVerbose("Delaying for %s seconds to allow Spotify Connect device id '%s' to become available (currently '%s')" % (LOOP_DELAY, info.DeviceId, info.Availability))
+                    time.sleep(LOOP_DELAY)
+                    loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
-                # move the newly returned public key to the getInfo results.
-                # try the addUser request again, this time with a (hopefully) valid public key.
-                info.PublicKey = result.PublicKey
+                    # get device information; if availability status changes then we are done.
+                    info:ZeroconfGetInfo = self.GetInformation()
+                    if info.Availability != "NOT-LOADED":
+                        _logsi.LogVerbose("Spotify Connect Device id '%s' availability status changed from '%s' to '%s' within %f seconds of initial addUser request" % (info.DeviceId, info.Availability, info.Availability, loopTotalDelay))
+                        break
+                        
+                    # only check so many times before we give up;
+                    if (loopTotalDelay > LOOP_TIMEOUT):
+                        _logsi.LogWarning("Timed out waiting for Spotify Connect device id '%s' availability to change from '%s'; gave up after %f seconds from initial addUser request" % (info.DeviceId, info.Availability, loopTotalDelay))
+                        break
+
+                # now that the device is (hopefully) fully available, try the addUser request again.
                 self._ConnectAddUser(
                     info,
                     username,
@@ -392,7 +405,7 @@ class ZeroconfConnect:
 
                 # process results.
                 result = ZeroconfResponse(root=responseData)
-                
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, '%s result (%s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
 
