@@ -340,6 +340,8 @@ class ZeroconfConnect:
             includeOriginDeviceInfo:bool = False
             if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
                 includeOriginDeviceInfo = True
+            elif info.TokenType == 'authorization_code':                
+                includeOriginDeviceInfo = True
 
             # execute the Spotify Zeroconf API addUser request.
             responseData:dict = self._ConnectAddUser(
@@ -481,14 +483,31 @@ class ZeroconfConnect:
             }
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
             
+            # set tokenType based on getInfo token type.
+            # if TokenType is 'athorization_code', then use it as-is;
+            # otherwise, use 'default'.
+            tokenType:str = 'default'
+            if info.TokenType == 'authorization_code':
+                tokenType = info.TokenType
+            
+            # set clientKey based on getInfo token type.
+            # if TokenType is 'athorization_code', then clientKey should be null.
+            # otherwise, clientKey should be the PublicKey (base64 encoded).
+            clientKey:str = int_to_b64str(builder.dh_keys.public_key)
+            if info.TokenType == 'authorization_code':
+                clientKey = ''
+            
             # set request parameters.
             reqData={
                 'action': 'addUser',
-                'version': self.Version,
-                'tokenType': 'default',                                     # NOTE - not the same as info.TokenType!
+                'version': info.Version,
+                'tokenType': tokenType,
+                #'version': self.Version,
+                #'tokenType': 'default',                                     # NOTE - not the same as info.TokenType!
+                #'clientKey': int_to_b64str(builder.dh_keys.public_key),
+                'clientKey': clientKey,
                 'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
                 'userName': credentials.username.decode('ascii'),           # user name (e.g. "youremail@mail.com")
-                'clientKey': int_to_b64str(builder.dh_keys.public_key),
                 'blob': blob,
             }
 

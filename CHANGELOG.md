@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.72 ] - 2024/06/28
+
+  * Updated `ZeroconfConnect.Connect` method to handle the `authorization_code` token type for Zeroconf API `addUser` requests.
+
 ###### [ 1.0.71 ] - 2024/06/27
 
   * Updated `ZeroconfConnect.Connect` method to properly return the response data from the `addUser` request and process the results.
