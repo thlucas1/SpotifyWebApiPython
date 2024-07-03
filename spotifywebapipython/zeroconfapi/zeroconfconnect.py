@@ -462,6 +462,8 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("includeOriginDeviceInfo", includeOriginDeviceInfo)
             apiMethodParms.AppendKeyValue("info.Availability", info.Availability)
             apiMethodParms.AppendKeyValue("info.PublicKey", info.PublicKey)
+            apiMethodParms.AppendKeyValue("info.DeviceId", info.DeviceId)
+            apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
             _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
         
             # validations.
@@ -485,6 +487,7 @@ class ZeroconfConnect:
             
             # set tokenType based on getInfo token type.
             # if TokenType is 'athorization_code', then use it as-is;
+            # if TokenType is 'accesstoken', then use `default`.
             # otherwise, use 'default'.
             tokenType:str = 'default'
             if info.TokenType == 'authorization_code':
@@ -493,7 +496,7 @@ class ZeroconfConnect:
             # set clientKey based on getInfo token type.
             # if TokenType is 'athorization_code', then clientKey should be null.
             # otherwise, clientKey should be the PublicKey (base64 encoded).
-            clientKey:str = int_to_b64str(builder.dh_keys.public_key)
+            clientKey:str = builder.dh_keys.PublicKeyBase64String
             if info.TokenType == 'authorization_code':
                 clientKey = ''
             
@@ -502,9 +505,6 @@ class ZeroconfConnect:
                 'action': 'addUser',
                 'version': info.Version,
                 'tokenType': tokenType,
-                #'version': self.Version,
-                #'tokenType': 'default',                                     # NOTE - not the same as info.TokenType!
-                #'clientKey': int_to_b64str(builder.dh_keys.public_key),
                 'clientKey': clientKey,
                 'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
                 'userName': credentials.username.decode('ascii'),           # user name (e.g. "youremail@mail.com")
@@ -643,9 +643,31 @@ class ZeroconfConnect:
             # trace.
             _logsi.LogObject(SILevel.Verbose, '%s result (%s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
 
-            # if result status is not ok, then raise an exception.
+            # was a status value returned?
+            # it's been found that some devices (Sonos, etc) do not return a proper JSON response.
+            # for these cases, we will rely on the http status code for the response code.
+            if (result.Status is None):
+
+                # was a good http status code returned?
+                if response.status_code == 200:
+                    # yes - default status results if they are not set.
+                    result.Status = 101
+                    if result.StatusString is None:
+                        result.StatusString = "OK"
+                    if result.SpotifyError is None:
+                        result.SpotifyError = 0
+
+            # are we processing result status?
             if (not ignoreStatusResult):
-                if (result.Status != 101):
+                
+                if (result.Status is None) and (response.status_code != 200):
+                    # if status value was not returned and http status is not 200, then 
+                    # raise an exception with http status details.
+                    raise SpotifyZeroconfApiError(response.status_code, responseData, apiMethodName, response.reason, _logsi)
+                        
+                elif (result.Status != 101):
+                    # if status was returned and it's not ok, then raise an exception
+                    # with JSON response details.
                     raise SpotifyZeroconfApiError(result.Status, result.ToString(), apiMethodName, result.StatusString, _logsi)
 
             # give spotify zeroconf api time to process the change.
@@ -724,6 +746,9 @@ class ZeroconfConnect:
         Raises:
             SpotifyWebApiError: 
                 If the Spotify Zeroconf API request response contains error information.
+                
+        The request will timeout after 5 seconds and an exception raised if the device cannot be reached 
+        or does not respond within that time frame.
 
         <details>
           <summary>Sample Code</summary>
@@ -768,7 +793,7 @@ class ZeroconfConnect:
             # execute spotify zeroconf api request.
             response = requests.get(
                 self._Uri, 
-                timeout=10,
+                timeout=5,
                 headers=reqHeaders,
                 params=reqParams
             )

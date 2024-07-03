@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
+import socket
 import time
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
@@ -7921,6 +7922,12 @@ class SpotifyClient:
         available Spotify Connect devices that are known to the local network (versus
         just the devices known to a specific user).
         
+        It first queries Zeroconf to retrieve a list of all known Spotify Connect devices on
+        the local network.  It will then query each one of the found device instances to obtain
+        information about the device.  It will try to reach the device by its direct HostIpAddress 
+        first; if that fails, then it will try to reach the device by its Server alias; if that 
+        fails, then it will log a warning that the device could not be reached and ignore it.
+                        
         It will also call the `GetPlayerDevices` method, in case we have any dynamic devices.
         Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
         process, but still exist in the player device list.  These are usually Spotify Connect
@@ -7929,7 +7936,7 @@ class SpotifyClient:
         The `ConfigurationCache` is updated with the results of this method.  Use the
         `refresh` argument (with False value) to retrieve the cached value and avoid
         the spotify web api request.  This results in better performance.
-                        
+
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -7978,27 +7985,65 @@ class SpotifyClient:
                         _logsi.LogObject(SILevel.Verbose, 'Spotify Connect Zeroconf GetInformation call was already processed for Instance Name: "%s" (%s)' % (discoverResult.DeviceName, urlGetInfo), discoverResult)
                     
                     else:
-                    
+                        
                         # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
                         # returned in the zeroconf discovery result.
-                        # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
-                        # the "Server" property is an alias, which must be resolved via a DNS lookup under
-                        # the covers and adds a significant delay (2-3 seconds!) to the activation time.
-                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                                discoverResult.HostIpPort, 
-                                                                discoverResult.SpotifyConnectCPath,
-                                                                discoverResult.SpotifyConnectVersion,
-                                                                useSSL=False)
-                        info:ZeroconfGetInfo = zconn.GetInformation()
+                        # we will try to reach the device by its direct HostIpAddress first;
+                        # if that fails, then we will try to reach the device by its Server alias;
+                        # if that fails, then we will log a warning that the device could not be reached and press on.
+                        # note that the "Server" property is an alias, which must be resolved via a DNS lookup 
+                        # adds a significant delay (2-3 seconds!) to the discovery time.
+                        zconn:ZeroconfConnect = None
+                        info:ZeroconfGetInfo = None
+                        
+                        try:
+                            
+                            # get device information from the direct ip address.
+                            # this is usually 1-3 seconds faster than using the alias, due to DNS resolution.
+                            zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
+                                                    discoverResult.HostIpPort, 
+                                                    discoverResult.SpotifyConnectCPath,
+                                                    discoverResult.SpotifyConnectVersion,
+                                                    useSSL=False)
+                            info = zconn.GetInformation()
                     
-                        # reset the `IsInDeviceList` indicator, as we will verify later in this method.
-                        info.IsInDeviceList = False
+                        except Exception as ex:
+                            
+                            # trace.
+                            _logsi.LogWarning('Spotify Connect Zeroconf GetInformation call failed for Instance Name "%s" (%s); retrying with Zeroconf DNS server alias "%s"' % (discoverResult.DeviceName, discoverResult.HostIpAddress, discoverResult.Server))
 
-                        # create new spotify connect device object.
-                        scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
-                        scDevice.DiscoveryResult = discoverResult
-                        scDevice.DeviceInfo = info
-                        result.Items.append(scDevice)
+                            try:
+                            
+                                # get device information using the server DNS alias.
+                                zconn = ZeroconfConnect(discoverResult.Server, 
+                                                        discoverResult.HostIpPort, 
+                                                        discoverResult.SpotifyConnectCPath,
+                                                        discoverResult.SpotifyConnectVersion,
+                                                        useSSL=False)
+                                info = zconn.GetInformation()
+                                
+                                # update HostIpAddress in discovery result so it knows to use the alias
+                                # instead of the ip address.
+                                _logsi.LogVerbose('Spotify Connect Zeroconf GetInformation call for Instance Name "%s" (%s) was resolved using the Server alias; the HostIpAddress will be updated with the resolved address' % (discoverResult.DeviceName, discoverResult.Server))
+                                resolvedIpAddress = socket.gethostbyname(discoverResult.Server)
+                                discoverResult.HostIpAddress = resolvedIpAddress
+                            
+                            except Exception as ex:
+                            
+                                # trace, and log warning message.
+                                _logsi.LogWarning('Spotify Connect Zeroconf GetInformation call failed for Instance Name "%s" (%s); instance will be ignored, as it is either powered off or not reachable via the local network' % (discoverResult.DeviceName, discoverResult.Server))
+                    
+                        # did we find device information?
+                        if info is not None:
+                            
+                            # reset the `IsInDeviceList` indicator, as we will verify later in this method.
+                            info.IsInDeviceList = False
+
+                            # create new spotify connect device object.
+                            scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+                            scDevice.DiscoveryResult = discoverResult
+                            scDevice.DeviceInfo = info
+                            result.Items.append(scDevice)
                 
                 # at this point we have processed all zeroconf discovery results.
                 # we will now call the GetPlayerDevices method, in case we have any dynamic devices.

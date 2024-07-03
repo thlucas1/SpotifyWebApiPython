@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.73 ] - 2024/07/02
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevices` to gracefully handle device unavailable scenarios.  It will try to reach the device by its direct HostIpAddress first; if that fails, then it will try to reach the device by its Server alias; if that fails, then it will log a warning that the device could not be reached and press on.
+  * Updated `ZeroconfConnect.Disconnect` to check for an invalid JSON response. It has been found that some devices (Sonos, etc) do not return a proper JSON response for the `resetUsers` action.  If a JSON response was not returned, then it will treat the http status code as the response code; if it's not a 200, then it will raise an exception.
+  * Updated `BlobBuilder` methods to add tracing of blob data contents.
+
 ###### [ 1.0.72 ] - 2024/06/28
 
   * Updated `ZeroconfConnect.Connect` method to handle the `authorization_code` token type for Zeroconf API `addUser` requests.

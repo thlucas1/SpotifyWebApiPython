@@ -97,6 +97,19 @@ class ZeroconfDiscoveryResult:
             
         return result
     
+    @HostIpAddress.setter
+    def HostIpAddress(self, value:str):
+        """ 
+        Sets the HostIpAddress property value.
+        """
+        if isinstance(value, str):
+            
+            # if ip addresses present, then update the first one that was detected
+            # as it is the address referenced by the `HostIpAddress` get method.
+            # note that addresses are in LIFO order as detected by zeroconf discovery.
+            if (len(self._HostIpAddresses) > 0):
+                self._HostIpAddresses[len(self._HostIpAddresses) - 1] = value
+
 
     @property
     def HostIpAddresses(self) -> list:
