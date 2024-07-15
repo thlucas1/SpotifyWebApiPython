@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_ZeroconfDecrypt.py</StartupFile>
+    <StartupFile>test\test_AuthToken_AuthorizationCodePKCE_SONOS.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -261,6 +261,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="spotifywebapipython\spotifyapimessage.py" />
     <Compile Include="spotifywebapipython\spotifyauthtoken.py" />
     <Compile Include="spotifywebapipython\spotifyclient.py" />
+    <Compile Include="spotifywebapipython\zeroconfapi\authenticationtypes.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\blobbuilder.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\credentials.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\cryptodiffiehellman.py" />
@@ -273,6 +274,8 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="spotifywebapipython\zeroconfapi\zeroconfresponse.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\__init__.py" />
     <Compile Include="spotifywebapipython\__init__.py" />
+    <Compile Include="test\testVS_Sonos_AvTransport.py" />
+    <Compile Include="test\testVS_Sonos_Base.py" />
     <Compile Include="test\testVS_SpotifyClient_Chapters.py" />
     <Compile Include="test\testVS_SpotifyClient_Miscellaneous.py" />
     <Compile Include="test\testVS_SpotifyClient_Categories.py" />
@@ -288,6 +291,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_ZeroconfConnect.py" />
     <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS.py" />
     <Compile Include="test\test_SSDP_Discovery2.py" />
     <Compile Include="test\test_SSDP_Discovery.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />

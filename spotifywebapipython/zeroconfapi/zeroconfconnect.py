@@ -6,7 +6,7 @@ import time
 
 # our package imports.
 from .blobbuilder import BlobBuilder
-from .credentials import Credentials
+from .credentials import Credentials, AuthenticationTypes
 from .helpers import int_to_b64str
 from .spotifyzeroconfapierror import SpotifyZeroconfApiError
 from .zeroconfresponse import ZeroconfResponse
@@ -42,6 +42,12 @@ class ZeroconfConnect:
     GitHub repository.
     """
     
+    SPOTIFY_CONNECT_CLIENT_VERSION_DEFAULT:str = '2.7.1'
+    """
+    Spotify Connect default version string ('2.7.1').
+    """
+    
+
     def __init__(self, 
                  hostIpAddress:str,
                  hostIpPort:int,
@@ -72,6 +78,8 @@ class ZeroconfConnect:
         # validations.
         if (useSSL is None) or (not isinstance(useSSL,bool)):
             useSSL = False
+        if (version is None) or (not isinstance(version,str)):
+            version = ZeroconfConnect.SPOTIFY_CONNECT_CLIENT_VERSION_DEFAULT
             
         # initialize storage.
         self._CPath:str = cpath
@@ -208,10 +216,15 @@ class ZeroconfConnect:
                 responseUTF8 = response.content.decode('utf-8')
                 _logsi.LogText(SILevel.Error, "ZeroconfConnect http response [%s-%s]: '%s' (utf-8)" % (response.status_code, response.reason, endpoint), responseUTF8)
             
-            # at this point we don't know what Spotify Web Api returned, so let's 
-            # just raise a new exception with the non-JSON response data.
-            raise SpotifyZeroconfApiError(response.status_code, responseUTF8, methodName, response.reason, _logsi)
-            
+            # at this point we don't know what Spotify Web Api returned!
+            # it's been found that some devices (Sonos, etc) do not return a proper JSON response.
+            # raise a new exception with the non-JSON response data if the http status is not 200 (OK).
+            if (response.status_code != 200):
+                raise SpotifyZeroconfApiError(response.status_code, responseUTF8, methodName, response.reason, _logsi)
+
+            # trace.
+            _logsi.LogVerbose("Spotify Connect Device (ip=%s) returned an invalid JSON response, but the http status code was 200 so we will ignore it" % (self._HostIpAddress))
+
         # at this point we know that the response contains JSON data, as
         # we would have raised an exception before this if we could not
         # convert the response to JSON!
@@ -335,14 +348,6 @@ class ZeroconfConnect:
             # get the current device id from the device via Spotify ZeroConf API `getInfo` endpoint.
             info:ZeroconfGetInfo = self.GetInformation()
 
-            # are we including origin device information (e.g. deviceName, deviceId)?
-            # TODO - maybe tailor this to info.BrandDisplayName and info.ModelDisplayName instead?
-            includeOriginDeviceInfo:bool = False
-            if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
-                includeOriginDeviceInfo = True
-            elif info.TokenType == 'authorization_code':                
-                includeOriginDeviceInfo = True
-
             # execute the Spotify Zeroconf API addUser request.
             responseData:dict = self._ConnectAddUser(
                 info,
@@ -350,7 +355,6 @@ class ZeroconfConnect:
                 password,
                 loginId,
                 apiMethodName,
-                includeOriginDeviceInfo=includeOriginDeviceInfo
                 )
 
             # process results.
@@ -402,7 +406,6 @@ class ZeroconfConnect:
                     password,
                     loginId,
                     apiMethodName,
-                    includeOriginDeviceInfo=includeOriginDeviceInfo
                     )
 
                 # process results.
@@ -447,7 +450,6 @@ class ZeroconfConnect:
             password:str,
             loginId:str,
             apiMethodName:str,
-            includeOriginDeviceInfo:bool=False,
             ) -> dict:
         """
         Execute the `addUser` request.
@@ -459,19 +461,14 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("includeOriginDeviceInfo", includeOriginDeviceInfo)
             apiMethodParms.AppendKeyValue("info.Availability", info.Availability)
             apiMethodParms.AppendKeyValue("info.PublicKey", info.PublicKey)
             apiMethodParms.AppendKeyValue("info.DeviceId", info.DeviceId)
             apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
             _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
         
-            # validations.
-            if (includeOriginDeviceInfo is None):
-                includeOriginDeviceInfo = False
-            
             # formulate the blob.
-            credentials:Credentials = Credentials(username, password)
+            credentials:Credentials = Credentials(username, password, AuthenticationTypes.USER_PASS)
             builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
             blob = builder.build()
         
@@ -484,22 +481,36 @@ class ZeroconfConnect:
                 'Connection': 'close'
             }
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
-            
-            # set tokenType based on getInfo token type.
-            # if TokenType is 'athorization_code', then use it as-is;
-            # if TokenType is 'accesstoken', then use `default`.
-            # otherwise, use 'default'.
-            tokenType:str = 'default'
-            if info.TokenType == 'authorization_code':
-                tokenType = info.TokenType
-            
-            # set clientKey based on getInfo token type.
-            # if TokenType is 'athorization_code', then clientKey should be null.
-            # otherwise, clientKey should be the PublicKey (base64 encoded).
+
+            # set defaults used by most manufacturers - we will tailor these in the
+            # logic below for specific manufacturers / devices as required:
+            # - clientKey should be the getInfo response PublicKey (base64 encoded).
+            # - exclude origin device information from the addUser request.
+            # - tokenType should be set to 'default'.
             clientKey:str = builder.dh_keys.PublicKeyBase64String
-            if info.TokenType == 'authorization_code':
-                clientKey = ''
+            includeOriginDeviceInfo:bool = False
+            tokenType:str = 'default'
             
+            # include the origin device information if PublicKey="INVALID" (base64 encoded) and availability="NOT-LOADED".
+            if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
+                includeOriginDeviceInfo = True
+
+            # special processing for tokenType "authorization_code":
+            # - include origin device information in the addUser request.
+            # - set the tokenType to 'authorization_code'.
+            # - set the clientKey value to null, as it is contained in the token.
+            if info.TokenType == 'authorization_code':                
+                clientKey = ''
+                includeOriginDeviceInfo = True
+                tokenType = info.TokenType
+                
+                # TODO - not sure of the blob credentials layout for AuthenticationTypes.SPOTIFY_TOKEN requests.
+                # get a Spotify WebServices API auth token that the Sonos device can use.
+                #credentials:Credentials = Credentials(username, authToken, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
+                #credentials:Credentials = Credentials('', authToken, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
+                #builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
+                #blob = builder.build()
+
             # set request parameters.
             reqData={
                 'action': 'addUser',
@@ -650,6 +661,7 @@ class ZeroconfConnect:
 
                 # was a good http status code returned?
                 if response.status_code == 200:
+                    
                     # yes - default status results if they are not set.
                     result.Status = 101
                     if result.StatusString is None:

@@ -20,6 +20,12 @@ if (_logsi == None):
 
 
 class BlobBuilder:
+    """
+    Builds a Spotify Connect Zeroconf Blob object.
+    
+    Maximum length of the zeroconf blob (SP_MAX_ZEROCONF_BLOB_LENGTH)
+    is 2047 characters (not counting terminating NULL).
+    """
     
     AES_KEY_SIZE:int = 16               # 16 byte / 128 bit key size for AES encryption
     AES_BLOCK_SIZE:int = 16             # 16 byte / 128 bit block size for AES encryption

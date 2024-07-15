@@ -133,7 +133,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
         Device aliases will show up as separate devices in the Spotify app.  
         
-        Note
+        A maximum of 8 aliases are supported (SP_MAX_DEVICE_ALIASES).
         
         Please refer to the `RemoteName` property for more information.       
         """
@@ -146,9 +146,12 @@ class ZeroconfGetInfo(ZeroconfResponse):
         The SpZeroConfVars availability field returned by SpZeroConfGetVars.  
         
         The following are values that I have encountered thus far:  
-        - "" = Device is available and ready for use.
+        - ""            - Device is available and ready for use.
         - "UNAVAILABLE" - Device is unavailable, and should probably be rebooted.
-        - "NOT-LOADED" - Spotify SDK / API is not loaded.
+        - "NOT-LOADED"  - Spotify SDK / API is not loaded.
+        
+        The maximum length of the availability string (SP_MAX_AVAILABILITY_LENGTH) 
+        is 15 characters (not counting terminating NULL).       
         """
         return self._Availability
 
@@ -157,6 +160,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def BrandDisplayName(self) -> str:
         """ 
         A UTF-8-encoded brand name of the hardware device, for hardware integrations (e.g. "Bose", "Onkyo", etc).
+        
+        The maximum length of the brand display name (SP_MAX_BRAND_NAME_LENGTH) 
+        is 32 characters (not counting terminating NULL).       
         """
         return self._BrandDisplayName
 
@@ -165,6 +171,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def ClientId(self) -> str:
         """ 
         Client id of the application (e.g. "79ebcb219e8e4e123456789000123456").
+        
+        The maximum length of the client ID value (SP_MAX_CLIENT_ID_LENGTH) 
+        is 32 characters (not counting terminating NULL).
         """
         return self._ClientId
 
@@ -173,6 +182,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def DeviceId(self) -> str:
         """ 
         Unique device ID used for ZeroConf logins (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
+
+        The maximum length of the device ID value used for ZeroConf logins (SP_MAX_DEVICE_ID_LENGTH) 
+        is 64 characters (not counting terminating NULL).
         """
         return self._DeviceId
     
@@ -191,20 +203,23 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Type of the device (e.g. "SPEAKER", "AVR", etc).
         
         Can be any of the following `SpDeviceType` devices:
-        - kSpDeviceTypeComputer	    Laptop or desktop computer device.
-        - kSpDeviceTypeTablet	    Tablet PC device.
-        - kSpDeviceTypeSmartphone	Smartphone device.
-        - kSpDeviceTypeSpeaker	    Speaker device.
-        - kSpDeviceTypeTV	        Television device.
-        - kSpDeviceTypeAVR	        Audio/Video receiver device.
-        - kSpDeviceTypeSTB	        Set-Top Box device.
-        - kSpDeviceTypeAudioDongle	Audio dongle device.
-        - kSpDeviceTypeGameConsole	Game console device.
-        - kSpDeviceTypeCastVideo	Chromecast Video.
-        - kSpDeviceTypeCastAudio	Chromecast Audio.
-        - kSpDeviceTypeAutomobile	Automobile.
-        - kSpDeviceTypeSmartwatch	Smartwatch.
-        - kSpDeviceTypeChromebook	Chromebook.        
+        - Computer	    Laptop or desktop computer device.
+        - Tablet	    Tablet PC device.
+        - Smartphone	Smartphone device.
+        - Speaker	    Speaker device.
+        - TV	        Television device.
+        - AVR	        Audio/Video receiver device.
+        - STB	        Set-Top Box device.
+        - AudioDongle	Audio dongle device.
+        - GameConsole	Game console device.
+        - CastVideo	    Chromecast Video.
+        - CastAudio	    Chromecast Audio.
+        - Automobile	Automobile.
+        - Smartwatch	Smartwatch.
+        - Chromebook	Chromebook.        
+        
+        The maximum length of the device type string (SP_MAX_DEVICE_TYPE_LENGTH) 
+        is 15 characters (not counting terminating NULL).
         """
         return self._DeviceType
     
@@ -221,6 +236,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def GroupStatus(self) -> str:
         """ 
         The SpZeroConfVars group_status field returned by SpZeroConfGetVars (e.g. "NONE").
+
+        The maximum length of the group status string (SP_MAX_GROUP_STATUS_LENGTH) 
+        is 15 characters (not counting terminating NULL).
         """
         return self._GroupStatus
 
@@ -256,6 +274,19 @@ class ZeroconfGetInfo(ZeroconfResponse):
     
 
     @property
+    def IsBrandSonos(self) -> bool:
+        """ 
+        Returns True if the device is a 'Sonos' branded device; otherwise, False.
+        
+        Determination is made based upon the `BrandDisplayName` property value.
+        """
+        result:bool = False
+        if (isinstance(self._BrandDisplayName, str)) and (self._BrandDisplayName.lower().strip() == 'sonos'):
+            result = True
+        return result
+    
+
+    @property
     def LibraryVersion(self) -> str:
         """ 
         Client library version that processed the Zeroconf action (e.g. "3.88.29-gc4d4bb01").
@@ -267,6 +298,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def ModelDisplayName(self) -> str:
         """ 
         A UTF-8-encoded model name of the hardware device, for hardware integrations (e.g. "Soundtouch").
+        
+        The maximum length of the model display name (SP_MAX_MODEL_NAME_LENGTH) 
+        is 30 characters (not counting terminating NULL).
         """
         return self._ModelDisplayName
 
@@ -283,6 +317,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def PublicKey(self) -> str:
         """ 
         Public key used in ZeroConf logins (e.g. "G+ZM4irhc...").
+        
+        The maximum length of the public key used in ZeroConf logins (SP_MAX_PUBLIC_KEY_LENGTH) 
+        is 149 characters (not counting terminating NULL).
         """
         return self._PublicKey
 
@@ -328,6 +365,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def Scope(self) -> str:
         """ 
         OAuth scope requested when authenticating with the Spotify backend (e.g. "streaming").
+        
+        The maximum length of the token type string (SP_MAX_SCOPE_LENGTH) 
+        is 64 characters (not counting terminating NULL).
         """
         return self._Scope
 
@@ -344,6 +384,8 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def SupportedDrmMediaFormats(self) -> list:
         """ 
         The SpZeroConfVars supported_drm_media_formats field returned by SpZeroConfGetVars (e.g. []).
+        
+        A maximum of 8 formats are supported (SP_MAX_SUPPORTED_FORMATS).
         """
         return self._SupportedDrmMediaFormats
 
@@ -351,7 +393,13 @@ class ZeroconfGetInfo(ZeroconfResponse):
     @property
     def TokenType(self) -> str:
         """ 
-        Token type provided by the client (e.g. "accesstoken", "authorization_code", etc).
+        Token type provided by the client:
+        - "accesstoken"         Access token.
+        - "authorization_code"  OAuth Authorization Code token.
+        - "default"             Default access token.
+        
+        The maximum length of the token type string (SP_MAX_TOKEN_TYPE_LENGTH) 
+        is 30 characters (not counting terminating NULL).
         """
         return self._TokenType
 
@@ -360,6 +408,9 @@ class ZeroconfGetInfo(ZeroconfResponse):
     def Version(self) -> str:
         """ 
         ZeroConf API version number (e.g. "2.10.0").
+        
+        The maximum length of the library version string (SP_MAX_VERSION_LENGTH) 
+        is 30 characters (not counting terminating NULL).
         """
         return self._Version
 

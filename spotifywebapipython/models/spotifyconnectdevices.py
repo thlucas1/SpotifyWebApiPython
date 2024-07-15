@@ -131,30 +131,11 @@ class SpotifyConnectDevices():
         
         Alias entries (if any) are also compared.
         """
-        result:bool = False
-        if value is None:
-            return result
-        
-        # convert case for comparison.
-        value = value.lower()
-        
-        # process all discovered devices.
-        scDevice:SpotifyConnectDevice
-        for scDevice in self._Items:
-            if (scDevice.DeviceInfo.HasAliases):
-                scAlias:ZeroconfGetInfoAlias
-                for scAlias in scDevice.DeviceInfo.Aliases:
-                    if (scAlias.Id.lower() == value):
-                        result = True
-                        break
-                if result:
-                    break
-            else:
-                if (scDevice.DeviceInfo.DeviceId.lower() == value):
-                    result = True
-                    break
-        return result
-    
+        scDevice:SpotifyConnectDevice = self.GetDeviceById(value)
+        if scDevice is not None:
+            return True
+        return False
+
 
     def ContainsDeviceName(self, value:str) -> bool:
         """ 
@@ -163,30 +144,11 @@ class SpotifyConnectDevices():
         
         Alias entries (if any) are also compared.
         """
-        result:bool = False
-        if value is None:
-            return result
+        scDevice:SpotifyConnectDevice = self.GetDeviceByName(value)
+        if scDevice is not None:
+            return True
+        return False
         
-        # convert case for comparison.
-        value = value.lower()
-        
-        # process all discovered devices.
-        scDevice:SpotifyConnectDevice
-        for scDevice in self._Items:
-            if (scDevice.DeviceInfo.HasAliases):
-                scAlias:ZeroconfGetInfoAlias
-                for scAlias in scDevice.DeviceInfo.Aliases:
-                    if (scAlias.Name.lower() == value):
-                        result = True
-                        break
-                if result:
-                    break
-            else:
-                if (scDevice.DeviceInfo.RemoteName.lower() == value):
-                    result = True
-                    break
-        return result
-    
 
     def ContainsZeroconfEndpointGetInformation(self, value:str) -> bool:
         """ 
@@ -206,6 +168,70 @@ class SpotifyConnectDevices():
             if (scDevice.DiscoveryResult.ZeroconfApiEndpointGetInformation.lower() == value):
                 result = True
                 break
+        return result
+    
+
+    def GetDeviceById(self, value:str) -> bool:
+        """ 
+        Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
+        device id value; otherwise, None.
+        
+        Alias entries (if any) are also compared.
+        """
+        result:SpotifyConnectDevice = None
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.DeviceInfo.HasAliases):
+                scAlias:ZeroconfGetInfoAlias
+                for scAlias in scDevice.DeviceInfo.Aliases:
+                    if (scAlias.Id.lower() == value):
+                        result = scDevice
+                        break
+                if result:
+                    break
+            else:
+                if (scDevice.DeviceInfo.DeviceId.lower() == value):
+                    result = scDevice
+                    break
+        return result
+    
+
+    def GetDeviceByName(self, value:str) -> bool:
+        """ 
+        Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
+        device name value; otherwise, None.
+        
+        Alias entries (if any) are also compared.
+        """
+        result:SpotifyConnectDevice = None
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.DeviceInfo.HasAliases):
+                scAlias:ZeroconfGetInfoAlias
+                for scAlias in scDevice.DeviceInfo.Aliases:
+                    if (scAlias.Name.lower() == value):
+                        result = scDevice
+                        break
+                if result is not None:
+                    break
+            else:
+                if (scDevice.DeviceInfo.RemoteName.lower() == value):
+                    result = scDevice
+                    break
         return result
     
 

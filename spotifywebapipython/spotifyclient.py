@@ -6059,7 +6059,6 @@ class SpotifyClient:
                         zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
-                                                                discoverResult.SpotifyConnectVersion,
                                                                 useSSL=False)
                     
                         # if a different user context has control of the device then we need to disconnect 
@@ -8003,7 +8002,6 @@ class SpotifyClient:
                             zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                     discoverResult.HostIpPort, 
                                                     discoverResult.SpotifyConnectCPath,
-                                                    discoverResult.SpotifyConnectVersion,
                                                     useSSL=False)
                             info = zconn.GetInformation()
                     
@@ -8018,7 +8016,6 @@ class SpotifyClient:
                                 zconn = ZeroconfConnect(discoverResult.Server, 
                                                         discoverResult.HostIpPort, 
                                                         discoverResult.SpotifyConnectCPath,
-                                                        discoverResult.SpotifyConnectVersion,
                                                         useSSL=False)
                                 info = zconn.GetInformation()
                                 
@@ -10503,6 +10500,13 @@ class SpotifyClient:
                         _logsi.LogVerbose("Spotify Connect user context '%s' was verified for Device id '%s'; switch not necessary" % (deviceActiveUser, deviceIdResult))
                         break
                     
+                    # is this a Sonos device with no active user? 
+                    # if so, then don't bother trying to switch the user context as the Sonos
+                    # device is a "restricted" type and cannot be controlled via Spotify WebServices API.
+                    if (info.IsBrandSonos) and (not info.HasActiveUser):
+                        _logsi.LogVerbose("Spotify Connect Device id '%s' is a Sonos device; user account switching is not supported" % (deviceIdResult))
+                        break
+                    
                     zcfResult:ZeroconfResponse
                     
                     # create a ZeroconfConnect object to access the device.
@@ -10512,7 +10516,6 @@ class SpotifyClient:
                     zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
-                                                            discoverResult.SpotifyConnectVersion,
                                                             useSSL=False)
 
                     # if a different user context has control of the device then we need to disconnect 

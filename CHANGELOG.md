@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.74 ] - 2024/07/15
+
+  * Added `SpotifyConnectDevices.GetDeviceById` method to return a `SpotifyConnectDevice` instance if the collection contains the specified device id value; otherwise, None.
+  * Added `SpotifyConnectDevices.GetDeviceByName` method to return a `SpotifyConnectDevice` instance if the collection contains the specified device name value; otherwise, None.
+  * Updated `ZeroconfConnect` class to use a '2.7.1' version indicator if no version argument was specified on the class contructor.
+  * Updated `ZeroconfConnect.Disconnect` to check for an invalid JSON response. It has been found that some devices (Sonos, etc) do not return a proper JSON response for the `resetUsers` action.  If a JSON response was not returned, then it will treat the http status code as the response code; if it's not a 200, then it will raise an exception.
+  * Updated `SpotifyClient.PlayerResolveDeviceId` method to not switch the active user context for Sonos devices.  Sonos devices are restricted, and (currently) cannot be controlled by the Spotify Web-Services API player methods.
+
 ###### [ 1.0.73 ] - 2024/07/02
 
   * Updated `SpotifyClient.GetSpotifyConnectDevices` to gracefully handle device unavailable scenarios.  It will try to reach the device by its direct HostIpAddress first; if that fails, then it will try to reach the device by its Server alias; if that fails, then it will log a warning that the device could not be reached and press on.
