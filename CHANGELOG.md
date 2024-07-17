@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.75 ] - 2024/07/17
+
+  * Updated `PlayerPlayState.ShuffleState` method to return a boolean True or False value to account for changes to underlying Spotify Web API.
+  * Updated `PlayerPlayState.SmartShuffle` method to return a boolean True or False value to account for changes to underlying Spotify Web API.
+  
 ###### [ 1.0.74 ] - 2024/07/15
 
   * Added `SpotifyConnectDevices.GetDeviceById` method to return a `SpotifyConnectDevice` instance if the collection contains the specified device id value; otherwise, None.

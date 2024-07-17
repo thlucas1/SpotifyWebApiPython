@@ -30,7 +30,12 @@ class BlobBuilder:
     AES_KEY_SIZE:int = 16               # 16 byte / 128 bit key size for AES encryption
     AES_BLOCK_SIZE:int = 16             # 16 byte / 128 bit block size for AES encryption
 
-    def __init__(self, credentials:Credentials, device_id:str, remotePublicKeyBase64String:str):
+    def __init__(self, 
+                 credentials:Credentials, 
+                 device_id:str, 
+                 remotePublicKeyBase64String:str,
+                 originDeviceName:str=None,
+                 ) -> None:
         """
         Initializes a new instance of the class.
         
@@ -39,8 +44,12 @@ class BlobBuilder:
             deviceId (str):
             remotePublicKeyBase64String (str):
                 Remote public key value in a base64-encoded string format.
+            originDeviceName (str):
         """
-
+        # validation.
+        if (originDeviceName is None) or (not isinstance(originDeviceName,str)):
+            originDeviceName:str = 'ha-spotifyplus'
+            
         # initialize storage.
         self._EncryptedBlob:bytes = b''
         self._EncryptedBlobSigned:bytes = b''
@@ -49,7 +58,7 @@ class BlobBuilder:
         self._RemotePublicKey:int = b64_to_int(remotePublicKeyBase64String)
 
         # formulate origin device information.
-        self._OriginDeviceName:str = 'ha-spotifyplus'
+        self._OriginDeviceName:str = originDeviceName
         self._OriginDeviceId:str = hashlib.sha1(bytes(self._OriginDeviceName, 'ascii')).digest().hex()
 
         self.credentials:Credentials = credentials

@@ -34,8 +34,8 @@ class PlayerPlayState:
         self._IsPlaying:bool = None
         self._ProgressMS:int = None
         self._RepeatState:str = None
-        self._ShuffleState:str = None
-        self._SmartShuffle:str = None
+        self._ShuffleState:bool = None
+        self._SmartShuffle:bool = None
         self._Timestamp:int = None
         
         if (root is None):
@@ -88,9 +88,9 @@ class PlayerPlayState:
         if self._RepeatState is None:
             self._RepeatState = 'off'
         if self._ShuffleState is None:
-            self._ShuffleState = 'off'
+            self._ShuffleState = False
         if self._SmartShuffle is None:
-            self._SmartShuffle = 'off'
+            self._SmartShuffle = False
         if self._Timestamp is None:
             self._Timestamp = 0
 
@@ -203,7 +203,7 @@ class PlayerPlayState:
         """ 
         True if shuffle play is enabled; otherwise, False. 
         """
-        if self.ShuffleState == 'on':
+        if (self.ShuffleState == 'on') or (self.ShuffleState == True):
             return True
         return False
 
@@ -213,7 +213,7 @@ class PlayerPlayState:
         """ 
         True if smart shuffle play is enabled; otherwise, False. 
         """
-        if self.SmartShuffle == 'on':
+        if (self.SmartShuffle == 'on' or self.SmartShuffle == True):
             return True
         return False
 
@@ -243,17 +243,17 @@ class PlayerPlayState:
 
 
     @property
-    def ShuffleState(self) -> str:
+    def ShuffleState(self) -> bool:
         """ 
-        If shuffle is `on` or `off`.
+        If shuffle is enabled, True or False.
         """
         return self._ShuffleState
 
 
     @property
-    def SmartShuffle(self) -> str:
+    def SmartShuffle(self) -> bool:
         """ 
-        If smart shuffle is `on` or `off`.
+        If smart shuffle is enabled, True or False.
         """
         return self._SmartShuffle
 

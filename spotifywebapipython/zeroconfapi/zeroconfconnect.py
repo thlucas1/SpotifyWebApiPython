@@ -21,7 +21,7 @@ from ..const import (
 from ..sautils import passwordMaskString
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -499,22 +499,58 @@ class ZeroconfConnect:
             # - include origin device information in the addUser request.
             # - set the tokenType to 'authorization_code'.
             # - set the clientKey value to null, as it is contained in the token.
-            if info.TokenType == 'authorization_code':                
+            if info.TokenType == 'authorization_code':
                 clientKey = ''
                 includeOriginDeviceInfo = True
                 tokenType = info.TokenType
                 
-                # TODO - not sure of the blob credentials layout for AuthenticationTypes.SPOTIFY_TOKEN requests.
+                # TODO - not sure of the blob credentials layout for TokenType == 'authorization_code'
+                # it seems like the `blob=` value is a serialized token, and NOT an encrypted blob like AuthenticationTypes.USER_PASS!
+                # the `loginid=` value seems to change with every request from the Spotify Desktop App.
+
                 # get a Spotify WebServices API auth token that the Sonos device can use.
-                #credentials:Credentials = Credentials(username, authToken, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
+                #refreshToken = 'AQD8pYMsggRYaRHfCz-Zgp0finaPGSKgwn-P_YocybKicrvOhdrZMzbUVDTXNGA7l-7oYxxN9-zgg3F-SYvazl0SbOXPB5MybIr7mI2LihrmDdWPW7LQvlbAod3RCeIP6wE'
+                #accessToken = 'BQBU9ZBSQ4Zax6_maNqzy-Ux2ovCDorJ0CqZMi6NbCMog4y71i4OO9cby_YxPyP3BAS2wrVnsfln7qG8XbdlD1jfegKO7Ko-DzNr4X8uckqazkNDxmLrc4HlW74c5sEG5Kj8b1TqfzOEp2Cu2b7XSpLhkmP2ODaqAUNc-8_PxLowb3KYF1kyf2RdLGTkE7aylvAfbJWnADInudcAjkUxTX1Q313a-wMr0pX2MpQcYc6fSLRAFI1E_DC_uuGsrZJZ3V9GTDQTcGK893DYUilvvhj5FdZKJyXl5RlPvCo5fyde673l7RfsRqk054ggh0mjIf-6G7-h-_ah_ZvcMtqcvg'
+                #credentials:Credentials = Credentials(username, password, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
+                #credentials:Credentials = Credentials(username, accessToken, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
                 #credentials:Credentials = Credentials('', authToken, AuthenticationTypes.SPOTIFY_TOKEN)  # authToken is the password
                 #builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
                 #blob = builder.build()
+                #blob = 'AQCM8WtUeLfADIVlADjApWtb6uggIM10uhKbH28PbE3362pHXKFcvak1QgO_szZAGgtY5UEuHjNKKfpygkK_cbJRuQXkmuMNoTNFwCoQM7Wa2CZriPmqPExEls3Q4GN_rJeYPgF5JtfGgGgrLQ'
+                #builder._OriginDeviceName = 'THLUCASI9'
+                #builder._OriginDeviceId = '80da4987232671a83397682373f7ce21ea92f2e4'
+                #loginId = 'bc5ac8ea51ec48477ff2303d3934db9f'
+                # the following is a refresh_token value:
+                blob = 'AQAOzwQB9mAQZcHiqaJgXuaDF88hW3Nt9UDXldqpQfZ6GJPmoSZ2eSN5HC3TQg08r9kZlNch6cJg4kQYysyRzs_S3TTMWHBohpvBLEnoR6_UePhzJVKbjP9exb8MAvUDdjE'
+                
+          
+## Spotify Desktop Client addUser request:
+## ** Note that blob appears to be a serialized token, and NOT an encrypted blob like AuthenticationTypes.USER_PASS!
+## action=addUser
+## userName=31l77y2al5lnn7mxfrmd4bpfhqke
+## blob=AQDuR1P4eFA39-f-C6M9LP1hUbmXmiXXLLcPx9uKxyJXOqIBY26U51167uATS4dtGdB93w5P7gfSQhWX9Aw3lyvRFisLgjj0TiXT8ynQpNtXQEtWyRkZNmbggDG1E2lhD4vaBohOy0v6ml_Hnw
+## clientKey=
+## tokenType=authorization_code
+## loginId=2d64ca6c336932a6f7e64bd2fd5ff549
+## deviceName=THLUCASI9
+## deviceId=80da4987232671a83397682373f7ce21ea92f2e4
+## version=2.7.1
+
+# action=addUser
+# userName=31l77y2al5lnn7mxfrmd4bpfhqke
+# blob=AQCM8WtUeLfADIVlADjApWtb6uggIM10uhKbH28PbE3362pHXKFcvak1QgO_szZAGgtY5UEuHjNKKfpygkK_cbJRuQXkmuMNoTNFwCoQM7Wa2CZriPmqPExEls3Q4GN_rJeYPgF5JtfGgGgrLQ
+# clientKey=
+# tokenType=authorization_code
+# loginId=bc5ac8ea51ec48477ff2303d3934db9f
+# deviceName=THLUCASI9
+# deviceId=80da4987232671a83397682373f7ce21ea92f2e4
+# version=2.7.1                
+
 
             # set request parameters.
             reqData={
                 'action': 'addUser',
-                'version': info.Version,
+                'version': self.Version, # info.Version,
                 'tokenType': tokenType,
                 'clientKey': clientKey,
                 'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
