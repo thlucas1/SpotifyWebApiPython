@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.76 ] - 2024/07/18
+
+  * Updated `ZeroconfConnect` class to remove some test code that was accidentally left in place for tokentype `authorization_code` research.
+
 ###### [ 1.0.75 ] - 2024/07/17
 
   * Updated `PlayerPlayState.ShuffleState` method to return a boolean True or False value to account for changes to underlying Spotify Web API.

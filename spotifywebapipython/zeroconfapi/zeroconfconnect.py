@@ -521,32 +521,8 @@ class ZeroconfConnect:
                 #builder._OriginDeviceId = '80da4987232671a83397682373f7ce21ea92f2e4'
                 #loginId = 'bc5ac8ea51ec48477ff2303d3934db9f'
                 # the following is a refresh_token value:
-                blob = 'AQAOzwQB9mAQZcHiqaJgXuaDF88hW3Nt9UDXldqpQfZ6GJPmoSZ2eSN5HC3TQg08r9kZlNch6cJg4kQYysyRzs_S3TTMWHBohpvBLEnoR6_UePhzJVKbjP9exb8MAvUDdjE'
-                
+                #blob = 'AQAOzwQB9mAQZcHiqaJgXuaDF88hW3Nt9UDXldqpQfZ6GJPmoSZ2eSN5HC3TQg08r9kZlNch6cJg4kQYysyRzs_S3TTMWHBohpvBLEnoR6_UePhzJVKbjP9exb8MAvUDdjE'
           
-## Spotify Desktop Client addUser request:
-## ** Note that blob appears to be a serialized token, and NOT an encrypted blob like AuthenticationTypes.USER_PASS!
-## action=addUser
-## userName=31l77y2al5lnn7mxfrmd4bpfhqke
-## blob=AQDuR1P4eFA39-f-C6M9LP1hUbmXmiXXLLcPx9uKxyJXOqIBY26U51167uATS4dtGdB93w5P7gfSQhWX9Aw3lyvRFisLgjj0TiXT8ynQpNtXQEtWyRkZNmbggDG1E2lhD4vaBohOy0v6ml_Hnw
-## clientKey=
-## tokenType=authorization_code
-## loginId=2d64ca6c336932a6f7e64bd2fd5ff549
-## deviceName=THLUCASI9
-## deviceId=80da4987232671a83397682373f7ce21ea92f2e4
-## version=2.7.1
-
-# action=addUser
-# userName=31l77y2al5lnn7mxfrmd4bpfhqke
-# blob=AQCM8WtUeLfADIVlADjApWtb6uggIM10uhKbH28PbE3362pHXKFcvak1QgO_szZAGgtY5UEuHjNKKfpygkK_cbJRuQXkmuMNoTNFwCoQM7Wa2CZriPmqPExEls3Q4GN_rJeYPgF5JtfGgGgrLQ
-# clientKey=
-# tokenType=authorization_code
-# loginId=bc5ac8ea51ec48477ff2303d3934db9f
-# deviceName=THLUCASI9
-# deviceId=80da4987232671a83397682373f7ce21ea92f2e4
-# version=2.7.1                
-
-
             # set request parameters.
             reqData={
                 'action': 'addUser',
