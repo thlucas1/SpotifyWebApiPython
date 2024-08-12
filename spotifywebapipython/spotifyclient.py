@@ -6122,7 +6122,8 @@ class SpotifyClient:
                         zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
-                                                                useSSL=False)
+                                                                useSSL=False,
+                                                                tokenStorageDir=self.TokenStorageDir)
                     
                         # if a different user context has control of the device then we need to disconnect 
                         # the current user context before connecting a different user.
@@ -8095,7 +8096,8 @@ class SpotifyClient:
                             zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                     discoverResult.HostIpPort, 
                                                     discoverResult.SpotifyConnectCPath,
-                                                    useSSL=False)
+                                                    useSSL=False,
+                                                    tokenStorageDir=self.TokenStorageDir)
                             info = zconn.GetInformation()
                     
                         except Exception as ex:
@@ -8109,7 +8111,8 @@ class SpotifyClient:
                                 zconn = ZeroconfConnect(discoverResult.Server, 
                                                         discoverResult.HostIpPort, 
                                                         discoverResult.SpotifyConnectCPath,
-                                                        useSSL=False)
+                                                        useSSL=False,
+                                                        tokenStorageDir=self.TokenStorageDir)
                                 info = zconn.GetInformation()
                                 
                                 # update HostIpAddress in discovery result so it knows to use the alias
@@ -10636,7 +10639,8 @@ class SpotifyClient:
                     zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
-                                                            useSSL=False)
+                                                            useSSL=False,
+                                                            tokenStorageDir=self.TokenStorageDir)
 
                     # if a different user context has control of the device then we need to disconnect 
                     # the current user context before connecting a different user.

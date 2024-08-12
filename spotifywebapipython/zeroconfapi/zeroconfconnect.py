@@ -58,7 +58,8 @@ class ZeroconfConnect:
                  hostIpPort:int,
                  cpath:str,
                  version:str=None,
-                 useSSL:bool=False
+                 useSSL:bool=False,
+                 tokenStorageDir:str=None,
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -79,6 +80,11 @@ class ZeroconfConnect:
                 True if the host device utilizes HTTPS Secure Sockets Layer (SSL) support; 
                 otherwise, False to utilize HTTP.  
                 Default is False (HTTP).
+            tokenStorageDir (str):
+                The directory path that will contain the `tokens.json` cache file.  
+                This is used for Spotify Connect devices that utilize the `authorization_code` token type.
+                A null value will default to the platform specific storage location:  
+                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
         """
         # validations.
         if (useSSL is None) or (not isinstance(useSSL,bool)):
@@ -90,6 +96,7 @@ class ZeroconfConnect:
         self._CPath:str = cpath
         self._HostIpPort:int = hostIpPort
         self._HostIpAddress:str = hostIpAddress
+        self._TokenStorageDir:str = tokenStorageDir
         self._UseSSL:bool = useSSL
         self._Version:str = version
 
@@ -121,6 +128,14 @@ class ZeroconfConnect:
         on the Spotify Connect device (e.g. "8200").
         """
         return self._HostIpPort
+    
+
+    @property
+    def TokenStorageDir(self) -> str:
+        """ 
+        The directory path that will contain the authorization token cache file.  
+        """
+        return self._TokenStorageDir
     
 
     @property
@@ -614,7 +629,6 @@ class ZeroconfConnect:
             redirectUriPort:str = 4381
             redirectUriPath:str = '/login'
             authorizationType:str = 'Authorization Code PKCE'
-            tokenStorageDir:str = './test/testdata'
             tokenProfileId:str = 'SpotifyDesktopApp_Scopes_Streaming'       # 'SpotifyDesktopApp_Scopes_Streaming', 'SpotifyDesktopApp_Scopes_All', 'SpotifyDesktopApp_Scopes_NoExtras'
             SPOTIFY_DESKTOP_APP_CLIENT_ID:str = '65b708073fc0480ea92a077233ca87bd'      # Spotify Desktop App client id
             
@@ -659,7 +673,7 @@ class ZeroconfConnect:
                 tokenUrl=SPOTIFY_API_TOKEN_URL,
                 scope=SPOTIFY_SCOPES,
                 clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
-                tokenStorageDir=tokenStorageDir,
+                tokenStorageDir=self.TokenStorageDir,
                 tokenProviderId='SpotifyWebApiAuthCodePkce',
                 tokenProfileId=tokenProfileId,
             )

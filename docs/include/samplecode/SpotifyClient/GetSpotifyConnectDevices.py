@@ -1,6 +1,5 @@
 from spotifywebapipython import *
 from spotifywebapipython.models import *
-from spotifywebapipython.zeroconfapi import ZeroconfConnect, ZeroconfResponse
 
 try:
 
@@ -18,7 +17,8 @@ try:
         spotifyConnectUsername="yourSpotifyUsername", # (e.g. 'yourname@gmail.com', '1234567890', etc)
         spotifyConnectPassword="yourSpotifyPassword",
         spotifyConnectLoginId="yourSpotifyLoginId",   # (e.g. '31l77548798704mns987fdf0986e')
-        spotifyConnectDiscoveryTimeout=1.5
+        spotifyConnectDiscoveryTimeout=1.5,
+        tokenStorageDir='./yourTokenStorageDir',
     )
 
     # generate a spotify authorization code with PKCE access token (with scope, private and public data use).

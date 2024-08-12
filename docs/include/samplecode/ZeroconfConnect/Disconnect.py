@@ -4,7 +4,7 @@ from spotifywebapipython.zeroconfapi import *
 try:
 
     # create Spotify Zeroconf API connection object for the device.
-    zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.81', 8200, '/zc', useSSL=False)
+    zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.81', 8200, '/zc', useSSL=False, tokenStorageDir='./test/testdata')
             
     # disconnect the device from Spotify Connect.
     print('\nDisconnecting device:%s' % zconn.ToString())

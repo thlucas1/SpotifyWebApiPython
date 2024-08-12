@@ -18,7 +18,8 @@ try:
         spotifyConnectUsername="yourSpotifyUsername", # (e.g. 'yourname@gmail.com', '1234567890', etc)
         spotifyConnectPassword="yourSpotifyPassword",
         spotifyConnectLoginId="yourSpotifyLoginId",   # (e.g. '31l77548798704mns987fdf0986e')
-        spotifyConnectDiscoveryTimeout=1.5
+        spotifyConnectDiscoveryTimeout=1.5,
+        tokenStorageDir='./yourTokenStorageDir',
     )
 
     # generate a spotify authorization code with PKCE access token (with scope, private and public data use).
@@ -39,7 +40,7 @@ try:
     print('  result "%s"' % deviceResult)
     
     # resolve Spotify Connect player device by it's Name value, using a Disconnected device.
-    zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.82', 8200, '/zc', useSSL=False)
+    zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.82', 8200, '/zc', useSSL=False, tokenStorageDir=spotify.TokenStorageDir)
     result:ZeroconfResponse = zconn.Disconnect()            
     deviceName:str = 'Bose-ST10-2'
     print('\nResolving Spotify Connect player disconnected device: \n- Name = "%s" ...' % deviceName)

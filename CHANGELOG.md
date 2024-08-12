@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.78 ] - 2024/08/12
+
+  * Updated `ZeroconfConnect` class constructor to include the `tokenStorageDir` argument that specified the directory path that will contain the `tokens.json` cache file.  This is used for Spotify Connect devices that utilize the `authorization_code` token type.
+
 ###### [ 1.0.77 ] - 2024/08/12
 
   * Updated `AuthClient.AuthorizeWithServer` method to specify a redirect uri with host, port, and path values.  Prior code was only allowing a redirect uri with host and port values.
