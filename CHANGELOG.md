@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.77 ] - 2024/08/12
+
+  * Updated `AuthClient.AuthorizeWithServer` method to specify a redirect uri with host, port, and path values.  Prior code was only allowing a redirect uri with host and port values.
+  * Added `SpotifyClient.SetAuthTokenAuthorizationCode` method argument `redirectUriPath` to allow a redirect_uri path value to be specified for OAuth authorization requests.
+  * Added `SpotifyClient.SetAuthTokenAuthorizationCodePKCE` method argument `redirectUriPath` to allow a redirect_uri path value to be specified for OAuth authorization requests.
+  * Updated `ZeronconfConnect` class to correctly process Spotify Connect requests for token type `authorization_code` devices.
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to add the `limitTotal` argument that limits the number of tracks retrieved from favorites.
+  * Added `sortResult` argument to the following `SpotifyClient` methods: `GetAlbumFavorites`, `GetAlbumNewReleases`, `GetArtistAlbums`, `GetArtistsFollowed`, `GetAudiobookFavorites`, `GetBrowseCategorys`, `GetCategoryPlaylists`, `GetEpisodeFavorites`, `GetFeaturedPlaylists`, `GetPlayerDevices`, `GetPlaylistFavorites`, `GetPlaylistsForUser`, `GetShowFavorites`, `GetTrackFavorites`, `GetUsersTopArtists`, `GetUsersTopTracks`.  If True (default), result items are sorted by name prior to returning to the caller; otherwise, results are left in the order that the Spotify Web API returned them.
+
 ###### [ 1.0.76 ] - 2024/07/18
 
   * Updated `ZeroconfConnect` class to remove some test code that was accidentally left in place for tokentype `authorization_code` research.

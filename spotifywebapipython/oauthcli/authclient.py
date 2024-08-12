@@ -35,13 +35,12 @@ class AuthClient:
     Enter the authorization code: 
     """
 
-    _DEFAULT_AUTH_PROMPT_MESSAGE = ("Please visit this URL to authorize this application: {url}")
+    _DEFAULT_AUTH_PROMPT_MESSAGE = "Please visit this URL to authorize this application: {url}"
     """
     Please visit this URL to authorize this application: {url}
     """
 
-    _DEFAULT_WEB_SUCCESS_MESSAGE = ("The authentication flow has completed; you may close this window (or tab)."
-    )
+    _DEFAULT_WEB_SUCCESS_MESSAGE = "The authentication flow has completed; you may close this window (or tab)." #</br>Auth Token:</br>%s"
     """
     The authentication flow has completed; you may close this window (or tab).
     """
@@ -776,7 +775,7 @@ class AuthClient:
         authorization_prompt_message: Optional[str] = _DEFAULT_AUTH_PROMPT_MESSAGE,
         success_message: str = _DEFAULT_WEB_SUCCESS_MESSAGE,
         open_browser: bool = True,
-        redirect_uri_trailing_slash: bool = True,
+        redirect_uri_path: str = '/',
         timeout_seconds: Optional[int] = 120,
         token_audience: Optional[str] = None,
         force: bool = False,
@@ -819,10 +818,10 @@ class AuthClient:
             open_browser (bool):  
                 True to open the authorization URL in the user's browser; otherwise, False
                 to not open a browser.
-            redirect_uri_trailing_slash (bool):  
-                True to add trailing slash when constructing the redirect_uri; otherwise,
-                False to not add a trailing slash.  
-                Default value is True.
+            redirect_uri_path (str):  
+                Path value to add when constructing the redirect_uri; otherwise,
+                None to not add a path value.  
+                Default value is '/'.
             timeout_seconds (int):  
                 If set, an error will be raised after the timeout value if the user did not
                 respond to the authorization request.  The value is in seconds.  
@@ -860,7 +859,7 @@ class AuthClient:
             apiMethodParms.AppendKeyValue("authorization_prompt_message", authorization_prompt_message)
             apiMethodParms.AppendKeyValue("success_message", success_message)
             apiMethodParms.AppendKeyValue("open_browser", open_browser)
-            apiMethodParms.AppendKeyValue("redirect_uri_trailing_slash", redirect_uri_trailing_slash)
+            apiMethodParms.AppendKeyValue("redirect_uri_path", redirect_uri_path)
             apiMethodParms.AppendKeyValue("timeout_seconds", timeout_seconds)
             apiMethodParms.AppendKeyValue("token_audience", token_audience)
             apiMethodParms.AppendKeyValue("force", force)
@@ -894,8 +893,8 @@ class AuthClient:
             # construct the redirect uri, which is where the user is redirected after 
             # authentication success or failure.
             redirectUri:str = 'http://{}:{}'.format(host, wsgiServer.server_port)
-            if redirect_uri_trailing_slash:
-                redirectUri = redirectUri + '/'
+            if redirect_uri_path is not None:
+                redirectUri = redirectUri + redirect_uri_path
             self._Session.redirect_uri = redirectUri
         
             # construct the authorization url and state values.

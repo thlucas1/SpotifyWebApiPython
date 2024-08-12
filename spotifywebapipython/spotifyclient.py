@@ -2478,12 +2478,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAlbumFavorites(self, 
-                          limit:int=20, 
-                          offset:int=0,
-                          market:str=None,
-                          limitTotal:int=None
-                          ) -> AlbumPageSaved:
+    def GetAlbumFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> AlbumPageSaved:
         """
         Get a list of the albums saved in the current Spotify user's 'Your Library'.
         
@@ -2491,7 +2493,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -2511,6 +2513,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `AlbumPageSaved` object that contains saved album information.
@@ -2547,6 +2553,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the user's album favorites", apiMethodParms)
                 
             # validations.
@@ -2616,7 +2623,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Album.Name or "").lower(), reverse=False)
 
             # trace.
@@ -2636,19 +2643,21 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAlbumNewReleases(self, 
-                            limit:int=20, 
-                            offset:int=0,
-                            country:str=None,
-                            limitTotal:int=None
-                            ) -> AlbumPageSimplified:
+    def GetAlbumNewReleases(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            country:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> AlbumPageSimplified:
         """
         Get a list of new album releases featured in Spotify (shown, for example, on a 
         Spotify player's "Browse" tab).
         
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -2665,6 +2674,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `AlbumPageSimplified` object that contains simplified album information.
@@ -2701,6 +2714,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of new album releases", apiMethodParms)
                 
             # validations.
@@ -2769,7 +2783,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
@@ -2896,7 +2910,7 @@ class SpotifyClient:
                 The Spotify ID of the album.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE`
             limit (int):  
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -3103,14 +3117,16 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetArtistAlbums(self, 
-                        artistId:str, 
-                        include_groups:str='album', 
-                        limit:int=20, 
-                        offset:int=0,
-                        market:str=None,
-                        limitTotal:int=None
-                        ) -> AlbumPageSimplified:
+    def GetArtistAlbums(
+            self, 
+            artistId:str, 
+            include_groups:str='album', 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> AlbumPageSimplified:
         """
         Get Spotify catalog information about an artist's albums.
         
@@ -3124,7 +3140,7 @@ class SpotifyClient:
                 Valid values are: `album`, `single`, `appears_on`, `compilation`  
                 Example: `single,appears_on`
             limit (int):  
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -3143,6 +3159,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `AlbumPageSimplified` object of matching results.
@@ -3181,6 +3201,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's albums", apiMethodParms)
                 
             # validations.
@@ -3251,7 +3272,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
@@ -3662,11 +3683,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetArtistsFollowed(self, 
-                           after:str=None,
-                           limit:int=20, 
-                           limitTotal:int=None
-                           ) -> ArtistPage:
+    def GetArtistsFollowed(
+            self, 
+            after:str=None,
+            limit:int=20, 
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> ArtistPage:
         """
         Get the current user's followed artists.
         
@@ -3676,7 +3699,7 @@ class SpotifyClient:
                 the first request.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`  
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             limitTotal (int):
                 The maximum number of items to return for the request.  
@@ -3684,6 +3707,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -3719,6 +3746,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("after", after)
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's followed artists", apiMethodParms)
                 
             # validations.
@@ -3792,7 +3820,7 @@ class SpotifyClient:
             result.CursorAfter = pageObj.CursorAfter
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
@@ -4005,7 +4033,7 @@ class SpotifyClient:
                 The Spotify ID for the audiobook.
                 Example: `74aydHJKgYz3AIq3jjBSv1`
             limit (int):  
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -4148,11 +4176,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAudiobookFavorites(self, 
-                              limit:int=20, 
-                              offset:int=0,
-                              limitTotal:int=None
-                              ) -> AudiobookPageSimplified:
+    def GetAudiobookFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> AudiobookPageSimplified:
         """
         Get a list of the audiobooks saved in the current Spotify user's 'Your Library'.
         
@@ -4160,7 +4190,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -4172,6 +4202,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `AudiobookPageSimplified` object that contains saved audiobook information.
@@ -4207,6 +4241,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users audiobook favorites", apiMethodParms)
                 
             # validations.
@@ -4271,7 +4306,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
@@ -4504,19 +4539,21 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetBrowseCategorys(self, 
-                           limit:int=20,
-                           offset:int=0,
-                           country:str=None,
-                           locale:str=None,
-                           limitTotal:int=None
-                           ) -> CategoryPage:
+    def GetBrowseCategorys(
+            self, 
+            limit:int=20,
+            offset:int=0,
+            country:str=None,
+            locale:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> CategoryPage:
         """
         Get a page of categories used to tag items in Spotify.
         
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -4543,6 +4580,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             A `CategoryPage` object that contains a page of category details.
@@ -4580,6 +4621,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("locale", locale)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a page of categories used to tag items in Spotify", apiMethodParms)
                 
             # validations.
@@ -4650,7 +4692,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
@@ -4769,13 +4811,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetCategoryPlaylists(self, 
-                             categoryId:str,
-                             limit:int=20, 
-                             offset:int=0,
-                             country:str=None,
-                             limitTotal:int=None
-                             ) -> Tuple[PlaylistPageSimplified, str]:
+    def GetCategoryPlaylists(
+            self, 
+            categoryId:str,
+            limit:int=20, 
+            offset:int=0,
+            country:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> Tuple[PlaylistPageSimplified, str]:
         """
         Get a list of Spotify playlists tagged with a particular category.
         
@@ -4784,7 +4828,7 @@ class SpotifyClient:
                 The Spotify category ID for the category.  
                 Example: `dinner`
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -4801,6 +4845,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             A tuple of 2 objects:  
@@ -4850,6 +4898,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify playlists tagged with a particular category", apiMethodParms)
                 
             # validations.
@@ -4922,7 +4971,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
@@ -5217,11 +5266,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetEpisodeFavorites(self, 
-                            limit:int=20, 
-                            offset:int=0,
-                            limitTotal:int=None
-                            ) -> EpisodePageSaved:
+    def GetEpisodeFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> EpisodePageSaved:
         """
         Get a list of the episodes saved in the current Spotify user's 'Your Library'.
         
@@ -5229,7 +5280,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -5241,6 +5292,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `EpisodePageSaved` object that contains saved episode information.
@@ -5276,6 +5331,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users episode favorites", apiMethodParms)
                 
             # validations.
@@ -5340,7 +5396,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Episode.Name or "").lower(), reverse=False)
             
             # trace.
@@ -5455,20 +5511,22 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetFeaturedPlaylists(self, 
-                             limit:int=20, 
-                             offset:int=0,
-                             country:str=None,
-                             locale:str=None,
-                             timestamp:str=None,
-                             limitTotal:int=None
-                             ) -> Tuple[PlaylistPageSimplified, str]:
+    def GetFeaturedPlaylists(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            country:str=None,
+            locale:str=None,
+            timestamp:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> Tuple[PlaylistPageSimplified, str]:
         """
         Get a list of Spotify featured playlists (shown, for example, on a Spotify player's 'Browse' tab).
         
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -5503,6 +5561,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             A tuple of 2 objects:  
@@ -5544,6 +5606,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             apiMethodParms.AppendKeyValue("timestamp", timestamp)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify featured playlists", apiMethodParms)
                 
             # validations.
@@ -5617,7 +5680,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
@@ -6206,9 +6269,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlayerDevices(self, 
-                         refresh:bool=True
-                         ) -> list[Device]:
+    def GetPlayerDevices(
+            self, 
+            refresh:bool=True,
+            sortResult:bool=True,
+            ) -> list[Device]:
         """
         Get information about a user's available Spotify Connect player devices. 
         
@@ -6220,6 +6285,10 @@ class SpotifyClient:
             refresh (bool):
                 True (default) to return real-time information from the spotify web api and
                 update the cache; otherwise, False to just return the cached value.
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
         
         Returns:
             A list of `Device` objects that contain the device details, sorted by name.
@@ -6248,15 +6317,18 @@ class SpotifyClient:
         </details>
         """
         apiMethodName:str = 'GetPlayerDevices'
+        apiMethodParms:SIMethodParmListContext = None
         result:list[Device] = []
         cacheDesc:str = CACHE_SOURCE_CURRENT
         
         try:
             
             # trace.
-            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
-            _logsi.LogVerbose("Get user's available Spotify Connect player devices")
-                
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("refresh", refresh)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get user's available Spotify Connect player devices", apiMethodParms)
+
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -6277,7 +6349,7 @@ class SpotifyClient:
                         result.append(Device(root=item))
 
                 # sort items on Name property, ascending order.
-                if len(result) > 0:
+                if (len(result) > 0) and (sortResult is True):
                     result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
        
                 # update cache.
@@ -6554,8 +6626,8 @@ class SpotifyClient:
         
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
-                Default: `20`, Range: `1` to `50`.  
+                The maximum number of items to return in a page of items when manual paging is used.  
+                Default: 20, Range: 1 to 50.  
             after (int):
                 Returns all items after (but not including) this cursor position, which is 
                 a Unix timestamp in milliseconds.  
@@ -6942,7 +7014,7 @@ class SpotifyClient:
                 The Spotify ID of the playlist.  
                 Example: `5v5ETK9WFXAnGQ3MRubKuE`
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 50, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -7112,11 +7184,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlaylistFavorites(self, 
-                             limit:int=20, 
-                             offset:int=0,
-                             limitTotal:int=None
-                             ) -> PlaylistPageSimplified:
+    def GetPlaylistFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by the current Spotify user.
         
@@ -7124,7 +7198,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -7136,6 +7210,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `PlaylistPageSimplified` object that contains playlist information.
@@ -7171,6 +7249,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users playlist favorites", apiMethodParms)
                 
             # validations.
@@ -7235,7 +7314,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
@@ -7255,12 +7334,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlaylistsForUser(self, 
-                            userId:str,
-                            limit:int=20, 
-                            offset:int=0,
-                            limitTotal:int=None
-                            ) -> PlaylistPageSimplified:
+    def GetPlaylistsForUser(
+            self, 
+            userId:str,
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by a Spotify user.
         
@@ -7271,7 +7352,7 @@ class SpotifyClient:
                 The user's Spotify user ID.  
                 Example: `smedjan`
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -7283,6 +7364,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `PlaylistPageSimplified` object that contains playlist information.
@@ -7319,6 +7404,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the playlists owned or followed by a Spotify user", apiMethodParms)
                 
             # validations.
@@ -7384,7 +7470,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
@@ -7509,7 +7595,7 @@ class SpotifyClient:
                 The Spotify ID for the show.
                 Example: `6kAsbP8pxwaU2kPibKTuHE`
             limit (int):  
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -7652,11 +7738,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetShowFavorites(self, 
-                         limit:int=20, 
-                         offset:int=0,
-                         limitTotal:int=None
-                         ) -> ShowPageSaved:
+    def GetShowFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> ShowPageSaved:
         """
         Get a list of the shows saved in the current Spotify user's 'Your Library'.
         
@@ -7664,7 +7752,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -7676,6 +7764,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `ShowPageSaved` object that contains saved show information.
@@ -7711,6 +7803,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users show favorites", apiMethodParms)
                 
             # validations.
@@ -7775,7 +7868,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Show.Name or "").lower(), reverse=False)
             
             # trace.
@@ -8217,12 +8310,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTrackFavorites(self, 
-                          limit:int=20, 
-                          offset:int=0,
-                          market:str=None,
-                          limitTotal:int=None
-                          ) -> TrackPageSaved:
+    def GetTrackFavorites(
+            self, 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> TrackPageSaved:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'.
         
@@ -8230,7 +8325,7 @@ class SpotifyClient:
 
         Args:
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -8250,6 +8345,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `TrackPageSaved` object that contains saved track information.
@@ -8286,6 +8385,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users track favorites", apiMethodParms)
                 
             # validations.
@@ -8355,7 +8455,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Track.Name or "").lower(), reverse=False)
 
             # trace.
@@ -9130,12 +9230,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetUsersTopArtists(self, 
-                           timeRange:str='medium_term',
-                           limit:int=20, 
-                           offset:int=0,
-                           limitTotal:int=None
-                           ) -> ArtistPage:
+    def GetUsersTopArtists(
+            self, 
+            timeRange:str='medium_term',
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> ArtistPage:
         """
         Get the current user's top artists based on calculated affinity.
         
@@ -9149,7 +9251,7 @@ class SpotifyClient:
                 Default: `medium_term`  
                 Example: `long_term`
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -9161,6 +9263,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -9197,6 +9303,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top artists", apiMethodParms)
                 
             # validations.
@@ -9264,7 +9371,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
@@ -9284,12 +9391,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetUsersTopTracks(self, 
-                          timeRange:str='medium_term',
-                          limit:int=20, 
-                          offset:int=0,
-                          limitTotal:int=None
-                          ) -> TrackPage:
+    def GetUsersTopTracks(
+            self, 
+            timeRange:str='medium_term',
+            limit:int=20, 
+            offset:int=0,
+            limitTotal:int=None,
+            sortResult:bool=True,
+            ) -> TrackPage:
         """
         Get the current user's top tracks based on calculated affinity.
         
@@ -9303,7 +9412,7 @@ class SpotifyClient:
                 Default: `medium_term`  
                 Example: `long_term`
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -9315,6 +9424,10 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             An `TrackPage` object of matching results.
@@ -9351,6 +9464,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top tracks", apiMethodParms)
                 
             # validations.
@@ -9418,7 +9532,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
 
             # sort items on Name property, ascending order.
-            if len(result.Items) > 0:
+            if (len(result.Items) > 0) and (sortResult is True):
                 result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
@@ -9722,6 +9836,7 @@ class SpotifyClient:
             shuffle:bool=True,
             delay:float=0.50,
             resolveDeviceId:bool=True,
+            limitTotal:int=200,
             ) -> None:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'
@@ -9743,6 +9858,9 @@ class SpotifyClient:
             resolveDeviceId (bool):
                 True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
                 value as it has already been resolved.
+            limitTotal (int):
+                The maximum number of items to retrieve from favorites.  
+                Default: 200
                 
         Raises:
             SpotifyWebApiError: 
@@ -9774,13 +9892,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("shuffle", shuffle)
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
             # get current users favorite tracks.
-            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=200)
+            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal)
             if (tracks.ItemsCount == 0):
                 _logsi.LogVerbose("Current user has no favorite tracks; nothing to do")
                 return
@@ -9799,7 +9918,8 @@ class SpotifyClient:
                 deviceId = self.PlayerResolveDeviceId(deviceId, verifyUserContext=True)
 
             # set desired shuffle mode.
-            self.PlayerSetShuffleMode(shuffle, deviceId, delay)
+            if shuffle is not None:    
+                self.PlayerSetShuffleMode(shuffle, deviceId, delay)
 
             # play the tracks.
             # indicate device id has already been resolved.
@@ -12489,7 +12609,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -12679,7 +12799,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -12869,7 +12989,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -13061,7 +13181,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -13251,7 +13371,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -13441,7 +13561,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -13631,7 +13751,7 @@ class SpotifyClient:
                 The tag:new filter will return albums released in the past two weeks and tag:hipster 
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
-                The maximum number of items to return in a page of items.  
+                The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -13802,7 +13922,8 @@ class SpotifyClient:
                                       tokenProfileId:str=None,
                                       forceAuthorize:bool=False,
                                       redirectUriHost:str='localhost', 
-                                      redirectUriPort:int=8080
+                                      redirectUriPort:int=8080,
+                                      redirectUriPath:str='/',
                                       ) -> None:
         """
         Generates a new Authorization Code type of authorization token used to access 
@@ -13836,6 +13957,10 @@ class SpotifyClient:
                 port range is specified, then the logic will loop through the port range looking
                 for an available port to use.  
                 Default is 8080.
+            redirectUriPath (str):  
+                Path value to add when constructing the redirect_uri; otherwise,
+                None to not add a path value.  
+                Default value is '/'.
                 
         Raises:
             SpotifApiError: 
@@ -13866,8 +13991,8 @@ class SpotifyClient:
         Note that you must have 'http://localhost:8080/' in the Redirect URI allowlist that you 
         specified when you registered your application in the Spotify Developer Portal.  The
         redirect URI is case-sensitive, and must contain the trailing slash.  You will need to
-        adjust the redirect URI value if you specify custom values using the `redirectUriHost`
-        and `redirectUriPort` arguments.
+        adjust the redirect URI value if you specify custom values using the `redirectUriHost`,
+        `redirectUriPort`, and `redirectUriPath` arguments.
         """
         apiMethodName:str = 'SetAuthTokenAuthorizationCode'
         apiMethodParms:SIMethodParmListContext = None
@@ -13884,6 +14009,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("forceAuthorize", forceAuthorize)
             apiMethodParms.AppendKeyValue("redirectUriHost", redirectUriHost)
             apiMethodParms.AppendKeyValue("redirectUriPort", redirectUriPort)
+            apiMethodParms.AppendKeyValue("redirectUriPath", redirectUriPath)
             _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
                         
             # validation.
@@ -13923,8 +14049,8 @@ class SpotifyClient:
                 self._AuthClient.AuthorizeWithServer(
                     host=redirectUriHost, 
                     port=redirectUriPort, 
+                    redirect_uri_path=redirectUriPath,
                     open_browser=True, 
-                    redirect_uri_trailing_slash=True, 
                     force=forceAuthorize,
                     timeout_seconds=120
                 )
@@ -13983,6 +14109,7 @@ class SpotifyClient:
                                           forceAuthorize:bool=False,
                                           redirectUriHost:str='localhost', 
                                           redirectUriPort:int=8080, 
+                                          redirectUriPath:str='/'
                                           ) -> None:
         """
         Generates a new Authorization Code PKCE type of authorization token used to access 
@@ -14014,6 +14141,10 @@ class SpotifyClient:
                 port range is specified, then the logic will loop through the port range looking
                 for an available port to use.  
                 Default is 8080.
+            redirectUriPath (str):  
+                Path value to add when constructing the redirect_uri; otherwise,
+                None to not add a path value.  
+                Default value is '/'.
                 
         Raises:
             SpotifApiError: 
@@ -14043,8 +14174,8 @@ class SpotifyClient:
         Note that you must have 'http://localhost:8080/' in the Redirect URI allowlist that you 
         specified when you registered your application in the Spotify Developer Portal.  The
         redirect URI is case-sensitive, and must contain the trailing slash.  You will need to
-        adjust the redirect URI value if you specify custom values using the `redirectUriHost`
-        and `redirectUriPort` arguments.
+        adjust the redirect URI value if you specify custom values using the `redirectUriHost`,
+        `redirectUriPort`, and `redirectUriPath` arguments.
         """
         apiMethodName:str = 'SetAuthTokenAuthorizationCodePKCE'
         apiMethodParms:SIMethodParmListContext = None
@@ -14060,6 +14191,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("forceAuthorize", forceAuthorize)
             apiMethodParms.AppendKeyValue("redirectUriHost", redirectUriHost)
             apiMethodParms.AppendKeyValue("redirectUriPort", redirectUriPort)
+            apiMethodParms.AppendKeyValue("redirectUriPath", redirectUriPath)
             _logsi.LogMethodParmList(SILevel.Verbose, TRACE_MSG_AUTHTOKEN_CREATE % authorizationType, apiMethodParms)
                 
             # validation.
@@ -14099,8 +14231,8 @@ class SpotifyClient:
                 self._AuthClient.AuthorizeWithServer(
                     host=redirectUriHost, 
                     port=redirectUriPort, 
+                    redirect_uri_path=redirectUriPath,
                     open_browser=True, 
-                    redirect_uri_trailing_slash=True, 
                     force=forceAuthorize,
                     timeout_seconds=120
                 )

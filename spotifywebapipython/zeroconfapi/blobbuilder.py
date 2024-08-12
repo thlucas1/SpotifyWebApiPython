@@ -131,19 +131,14 @@ class BlobBuilder:
 
             # create the blob data that will be sent to the device.
             blob = bytearray()
-            # 'I'
-            write_int(0x49, blob)
-            # username
-            write_bytes(self.credentials.username, blob)
-            # 'P'
-            write_int(0x50, blob)
-            # auth_type
-            write_int(self.credentials.auth_type, blob)
-            # 'Q'
-            write_int(0x51, blob)
-            # password
-            write_bytes(self.credentials.password, blob)
+            write_int(0x49, blob)                           # 'I' (eye-catcher)
+            write_bytes(self.credentials.username, blob)    # username data (length + value)
+            write_int(0x50, blob)                           # 'P' (eye-catcher)
+            write_int(self.credentials.auth_type, blob)     # auth_type
+            write_int(0x51, blob)                           # 'Q' (eye-catcher)
+            write_bytes(self.credentials.password, blob)    # password data (length + value)
             _logsi.LogBinary(SILevel.Verbose, "Blob Data, Unencrypted Bytes", blob)
+            
             # padding
             n_zeros = BlobBuilder.AES_BLOCK_SIZE - (len(blob) % BlobBuilder.AES_BLOCK_SIZE) - 1
             blob.extend([0] * n_zeros)

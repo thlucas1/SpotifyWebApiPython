@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_AuthToken_AuthorizationCodePKCE.py</StartupFile>
+    <StartupFile>test\test_AuthToken_AuthorizationCodePKCE_SpotifyDesktop.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -288,10 +288,14 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="test\testVS_SpotifyClient_Base.py" />
     <Compile Include="test\testVS_SpotifyClient_Artists.py" />
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
+    <Compile Include="test\testVS_AuthTokens.py" />
     <Compile Include="test\testVS_ZeroconfConnect.py" />
     <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SpotifyDesktop.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS_Test02.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />
     <Compile Include="test\test_SSDP_Discovery2.py" />
     <Compile Include="test\test_SSDP_Discovery.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />
@@ -362,6 +366,8 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Content Include="readthedocs.yaml" />
     <Content Include="requirements.txt" />
     <Content Include="research\developer_notes.txt" />
+    <Content Include="research\spotify_connect_flow_tokenType_authorization_code.txt" />
+    <Content Include="research\spotify_connect_results_getinfo.txt" />
     <Content Include="test\smartinspect.cfg" />
     <Content Include="test\testdata\PlaylistCoverImage.jpg" />
     <Content Include="test\testdata\PlaylistCoverImage_TooLarge.jpg" />
