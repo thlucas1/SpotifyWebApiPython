@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.78"
+VERSION:str = "1.0.79"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -47,6 +47,11 @@ Default country code to use if a country code was not supplied on a request and 
 UserProfile.Country value is not set (e.g. public access token in effect. 
 
 Default value is "US".
+"""
+
+SPOTIFY_DESKTOP_APP_CLIENT_ID:str = '65b708073fc0480ea92a077233ca87bd'
+"""
+Spotify Desktop Application client id.
 """
 
 TRACE_METHOD_RESULT = "%s result"

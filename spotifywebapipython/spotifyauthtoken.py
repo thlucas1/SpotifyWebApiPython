@@ -1,5 +1,6 @@
 # external package imports.
 from datetime import datetime, timedelta
+from pprint import pformat
 import time
 
 # our package imports.
@@ -220,6 +221,31 @@ class SpotifyAuthToken:
         """
         return self._TokenType
     
+
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'access_token': self._AccessToken,
+            'expires_at': self._ExpiresAt,
+            'expires_in': self._ExpiresIn,
+            'refresh_token': self._RefreshToken,
+            'scope': self.Scopes,
+            'token_type': self._TokenType,
+        }
+        return result
+        
+
+    def ToDictionaryString(self) -> dict:
+        """
+        Returns a dictionary string representation of the class.
+        """
+        oDict:dict = self.ToDictionary()
+        result:str = pformat(oDict,indent=2,width=132,sort_dicts=False)
+        return result
+        
 
     def ToString(self) -> str:
         """

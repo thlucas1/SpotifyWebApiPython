@@ -20,6 +20,7 @@ from ..oauthcli.authclient import AuthClient
 from ..const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DESKTOP_APP_CLIENT_ID,
     TRACE_METHOD_RESULT,
     TRACE_MSG_DELAY_DEVICE,
 )
@@ -60,6 +61,7 @@ class ZeroconfConnect:
                  version:str=None,
                  useSSL:bool=False,
                  tokenStorageDir:str=None,
+                 tokenAuthInBrowser:bool=False,
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -85,6 +87,15 @@ class ZeroconfConnect:
                 This is used for Spotify Connect devices that utilize the `authorization_code` token type.
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenAuthInBrowser (bool):
+                True to allow authorization access token to be authorized if necessary via an
+                interactive browser; otherwise, False.  
+                Default is False.
+                
+        Set the `tokenAuthInBrowser` argument to False if your process does not allow user interaction
+        with the local default browser to approve authorization requests (e.g. if your process runs on
+        a server for instance).  Set to True if you have a desktop / console application that allows
+        interactive access to the local default browser.
         """
         # validations.
         if (useSSL is None) or (not isinstance(useSSL,bool)):
@@ -97,6 +108,7 @@ class ZeroconfConnect:
         self._HostIpPort:int = hostIpPort
         self._HostIpAddress:str = hostIpAddress
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenAuthInBrowser:str = tokenAuthInBrowser
         self._UseSSL:bool = useSSL
         self._Version:str = version
 
@@ -128,6 +140,15 @@ class ZeroconfConnect:
         on the Spotify Connect device (e.g. "8200").
         """
         return self._HostIpPort
+    
+
+    @property
+    def TokenAuthInBrowser(self) -> bool:
+        """ 
+        True to allow authorization access token to be authorized if necessary via an
+        interactive browser; otherwise, False.  
+        """
+        return self._TokenAuthInBrowser
     
 
     @property
@@ -621,6 +642,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
             apiMethodParms.AppendKeyValue("info.BrandDisplayName", info.BrandDisplayName)
             apiMethodParms.AppendKeyValue("info.ModelDisplayName", info.ModelDisplayName)
+            apiMethodParms.AppendKeyValue("self.TokenAuthInBrowser", self.TokenAuthInBrowser)
             _logsi.LogMethodParmList(SILevel.Verbose, "Preparing to generate a new authorization_code access token for Spotify Connect device: '%s' (%s)" % (info.RemoteName, info.DeviceId), apiMethodParms)
         
             # set variables for spotify authorization_code token generation.
@@ -629,40 +651,12 @@ class ZeroconfConnect:
             redirectUriPort:str = 4381
             redirectUriPath:str = '/login'
             authorizationType:str = 'Authorization Code PKCE'
-            tokenProfileId:str = 'SpotifyDesktopApp_Scopes_Streaming'       # 'SpotifyDesktopApp_Scopes_Streaming', 'SpotifyDesktopApp_Scopes_All', 'SpotifyDesktopApp_Scopes_NoExtras'
-            SPOTIFY_DESKTOP_APP_CLIENT_ID:str = '65b708073fc0480ea92a077233ca87bd'      # Spotify Desktop App client id
+            tokenProfileId:str = 'SpotifyDesktopApp_Scopes_Streaming'
             
-            # Spotify Desktop App scopes requested for Spotify Connect
+            # Spotify Desktop App scopes requested for Spotify Connect (streaming only as of 2024/08/13)
             SPOTIFY_SCOPES:list = \
             [
-                # 'playlist-modify-private',
-                # 'playlist-modify-public',
-                # 'playlist-read-collaborative',
-                # 'playlist-read-private',
-                # 'ugc-image-upload',
-                # 'user-follow-modify',
-                # 'user-follow-read',
-                # 'user-library-modify',
-                # 'user-library-read',
-                # 'user-modify-playback-state',
-                # 'user-read-currently-playing',
-                # 'user-read-email',
-                # 'user-read-playback-position',
-                # 'user-read-playback-state',
-                # 'user-read-private',
-                # 'user-read-recently-played',
-                # 'user-top-read',
-                # *** streaming scope
                 'streaming',
-                # *** extra scopes used by spotify desktop player
-                # 'app-remote-control',
-                # 'playlist-modify',
-                # 'playlist-read',
-                # 'user-modify',
-                # 'user-modify-private',
-                # 'user-personalized',
-                # 'user-read-birthdate',
-                # 'user-read-play-history',
             ]
                 
             # create oauth provider for spotify authentication code with pkce.
@@ -678,26 +672,36 @@ class ZeroconfConnect:
                 tokenProfileId=tokenProfileId,
             )
            
-            # force the user to logon to spotify to authorize the application access if we 
-            # do not have an authorized access token, or if the calling application requested 
-            # us (by force) to re-authorize, or if the scope has changed.
+            # raise an exception if the authorization token is not present, or the scope has changed.
+            # the user must create the authorization token outside of this process, as the Spotify
+            # authorization token is driven by responding to a web request for access using OAuth.
+            # as this process is running on a server, there is no way for the user to respond to the
+            # request (e.g. via browser nor command-line).
             isAuthorized = authClient.IsAuthorized
             _logsi.LogVerbose('Checking OAuth2 authorization status: IsAuthorized=%s' % isAuthorized)
 
             if (isAuthorized == False):
+
+                # can the user interact with a local default browser to authorize the request?
+                if self.TokenAuthInBrowser:
+                    
+                    # at this point, we need a new authorization token.
+                    # the user has up to 2 minutes to respond to the request by copying / pasting the 
+                    # message / auth approval url from the system log into a browser window that is
+                    # running on the local machine.
+                    _logsi.LogVerbose('Preparing to retrieve a new OAuth2 authorization access token')
+                    authClient.AuthorizeWithServer(
+                        host=redirectUriHost, 
+                        port=redirectUriPort, 
+                        redirect_uri_path=redirectUriPath,
+                        open_browser=True, 
+                        timeout_seconds=120
+                    )
                 
-                # at this point, we need a new authorization token.
-                # the user has up to 2 minutes to respond to the request by copying / pasting the 
-                # message / auth approval url from the system log into a browser window that is
-                # running on the local machine.
-                _logsi.LogVerbose('Preparing to retrieve a new OAuth2 authorization access token')
-                authClient.AuthorizeWithServer(
-                    host=redirectUriHost, 
-                    port=redirectUriPort, 
-                    redirect_uri_path=redirectUriPath,
-                    open_browser=False, 
-                    timeout_seconds=120
-                )
+                else:
+                
+                    # user cannot approve the request - raise an exception.
+                    raise SpotifyZeroconfApiError(401, 'Spotify Desktop Client Application access token was not authorized', apiMethodName, 'Token Not Authorized', _logsi)
                 
             else:
                 

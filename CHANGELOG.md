@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.79 ] - 2024/08/13
+
+  * Updated `ZeroconfConnect._GetSpotifyConnectAuthorizationCodeToken` method to raise an exception if the Spotify Client Application authorization access token could not be found.  Prior logic was causing the process to wait for a user response to a token authorization request, which would never happen since the process was running on a server.
+
 ###### [ 1.0.78 ] - 2024/08/12
 
   * Updated `ZeroconfConnect` class constructor to include the `tokenStorageDir` argument that specified the directory path that will contain the `tokens.json` cache file.  This is used for Spotify Connect devices that utilize the `authorization_code` token type.
