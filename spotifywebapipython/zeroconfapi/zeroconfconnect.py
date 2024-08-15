@@ -551,7 +551,7 @@ class ZeroconfConnect:
                 tokenType = info.TokenType
 
                 # get authorization_code access token.
-                blob:str = self._GetSpotifyConnectAuthorizationCodeToken(info)
+                blob:str = self._GetSpotifyConnectAuthorizationCodeToken(info, loginId=loginId)
                 
             else:
                 
@@ -619,6 +619,7 @@ class ZeroconfConnect:
     def _GetSpotifyConnectAuthorizationCodeToken(
             self,    
             info:ZeroconfGetInfo,
+            loginId:str,
             ) -> str:
         """
         Exchange a Spotify access token for an authorization_code access token.
@@ -638,6 +639,7 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("loginId", loginId)
             apiMethodParms.AppendKeyValue("info.DeviceId", info.DeviceId)
             apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
             apiMethodParms.AppendKeyValue("info.BrandDisplayName", info.BrandDisplayName)
@@ -651,7 +653,7 @@ class ZeroconfConnect:
             redirectUriPort:str = 4381
             redirectUriPath:str = '/login'
             authorizationType:str = 'Authorization Code PKCE'
-            tokenProfileId:str = 'SpotifyDesktopApp_Scopes_Streaming'
+            tokenProfileId:str =  loginId
             
             # Spotify Desktop App scopes requested for Spotify Connect (streaming only as of 2024/08/13)
             SPOTIFY_SCOPES:list = \

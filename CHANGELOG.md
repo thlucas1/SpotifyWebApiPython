@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.80 ] - 2024/08/15
+
+  * Added `SpotifyClient.GetSpotifyConnectDevice` method that will get information about a specific Spotify Connect player device, and (optionally) activate the device if it requires it.
+  * Marked the `SpotifyClient.PlayerResolveDeviceId` method as deprecated, and it will be removed in a future release; use the `GetSpotifyConnectDevice` instead.
+  * Removed `SpotifyClient.PlayerTransferPlayback` method argument `resolveDeviceId` as it is no longer used.
+  * Added `SpotifyClient.PlayerTransferPlayback` method argument `refreshDeviceList` to refresh the Spotify Connect device list (True) or use the Spotify Connect device list cache (False) when resolving a Spotify Connect device value.
+
 ###### [ 1.0.79 ] - 2024/08/13
 
   * Updated `ZeroconfConnect._GetSpotifyConnectAuthorizationCodeToken` method to raise an exception if the Spotify Client Application authorization access token could not be found.  Prior logic was causing the process to wait for a user response to a token authorization request, which would never happen since the process was running on a server.
@@ -21,7 +28,7 @@ Change are listed in reverse chronological order (newest to oldest).
   * Added `SpotifyClient.SetAuthTokenAuthorizationCodePKCE` method argument `redirectUriPath` to allow a redirect_uri path value to be specified for OAuth authorization requests.
   * Updated `ZeronconfConnect` class to correctly process Spotify Connect requests for token type `authorization_code` devices.
   * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to add the `limitTotal` argument that limits the number of tracks retrieved from favorites.
-  * Added `sortResult` argument to the following `SpotifyClient` methods: `GetAlbumFavorites`, `GetAlbumNewReleases`, `GetArtistAlbums`, `GetArtistsFollowed`, `GetAudiobookFavorites`, `GetBrowseCategorys`, `GetCategoryPlaylists`, `GetEpisodeFavorites`, `GetFeaturedPlaylists`, `GetPlayerDevices`, `GetPlaylistFavorites`, `GetPlaylistsForUser`, `GetShowFavorites`, `GetTrackFavorites`, `GetUsersTopArtists`, `GetUsersTopTracks`.  If True (default), result items are sorted by name prior to returning to the caller; otherwise, results are left in the order that the Spotify Web API returned them.
+  * Added `sortResult` argument to the following `SpotifyClient` methods: `GetAlbumFavorites`, `GetAlbumNewReleases`, `GetArtistAlbums`, `GetArtistsFollowed`, `GetAudiobookFavorites`, `GetBrowseCategorys`, `GetCategoryPlaylists`, `GetEpisodeFavorites`, `GetFeaturedPlaylists`, `GetPlayerDevices`, `GetPlaylistFavorites`, `GetPlaylistsForUser`, `GetShowFavorites`, `GetSpotifyConnectDevices`, `GetTrackFavorites`, `GetUsersTopArtists`, `GetUsersTopTracks`.  If True (default), result items are sorted by name prior to returning to the caller; otherwise, results are left in the order that the Spotify Web API returned them.
 
 ###### [ 1.0.76 ] - 2024/07/18
 

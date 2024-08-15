@@ -119,6 +119,8 @@ class SpotifyConnectDevices():
         
         # add the device.
         scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
+        scDevice.Id = info.DeviceId
+        scDevice.Name = info.RemoteName
         scDevice.DeviceInfo = info
         scDevice.DiscoveryResult = discoverResult
         self._Items.append(scDevice)

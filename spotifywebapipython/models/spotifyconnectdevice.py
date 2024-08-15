@@ -21,6 +21,9 @@ class SpotifyConnectDevice():
         """
         self._DiscoveryResult:ZeroconfDiscoveryResult = None
         self._DeviceInfo:ZeroconfGetInfo = None
+        self._Id:str = None
+        self._Name:str = None
+        self._WasReConnected:bool = False
 
 
     def __repr__(self) -> str:
@@ -63,12 +66,68 @@ class SpotifyConnectDevice():
             self._DeviceInfo = value
 
 
+    @property
+    def Id(self) -> str:
+        """ 
+        Spotify Connect device id value (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe").
+        """
+        return self._Id
+    
+    @Id.setter
+    def Id(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        self._Id = value
+    
+
+    @property
+    def Name(self) -> str:
+        """ 
+        Spotify Connect device name value (e.g. "Bose-ST10-1").
+        """
+        return self._Name
+    
+    @Name.setter
+    def Name(self, value:str):
+        """ 
+        Sets the Name property value.
+        """
+        self._Name = value
+    
+
+    @property
+    def Title(self) -> str:
+        """ 
+        Spotify Connect device name and id value (e.g. '"Bose-ST10-1" (30fbc80e35598f3c242f2120413c943dfd9715fe)').
+        """
+        return '%s (%s)' % (self._Name, self._Id)
+    
+
+    @property
+    def WasReConnected(self) -> bool:
+        """ 
+        True if the device was re-connected, after being inactive or disconnected.
+        """
+        return self._WasReConnected
+    
+    @WasReConnected.setter
+    def WasReConnected(self, value:bool):
+        """ 
+        Sets the WasReConnected property value.
+        """
+        self._WasReConnected = value
+    
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
         """
         result:dict = \
         {
+            'Id': self._Id,
+            'Name': self._Name,
+            'WasReConnected': self._WasReConnected,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),
         }
@@ -85,7 +144,7 @@ class SpotifyConnectDevice():
         """
         msg:str = ''
         if includeTitle: 
-            msg = 'Device: "%s" (%s)' % (self._DiscoveryResult.DeviceName, self._DeviceInfo.DeviceId)
+            msg = 'Device: "%s" (%s)' % (self._Name, self._Id)
            
         # build result.
         msg = '%s\n %s\n' % (msg, str(self._DeviceInfo.ToString(True)))

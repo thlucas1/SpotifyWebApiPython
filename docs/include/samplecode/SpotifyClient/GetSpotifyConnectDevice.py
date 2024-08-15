@@ -4,7 +4,7 @@ from spotifywebapipython.zeroconfapi import ZeroconfConnect, ZeroconfResponse
 
 try:
 
-    # this sample requires an authorization token, as it requires security scope to accesses user data.
+    # this sample requires an authorization token, as it accesses protected data.
 
     CLIENT_ID:str = 'your_client_id'
     SPOTIFY_SCOPES:list = \
@@ -22,30 +22,38 @@ try:
         tokenStorageDir='./yourTokenStorageDir',
     )
 
-    # generate a spotify authorization code with PKCE access token (with scope, private and public data use).
+    # generate a spotify authorization code with PKCE access token.
     spotify.SetAuthTokenAuthorizationCodePKCE(CLIENT_ID, SPOTIFY_SCOPES)
-    print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
+
+    # log user profile info.
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
+
+    device:SpotifyConnectDevice = None
 
     # resolve Spotify Connect player device by it's Id value.
     deviceId:str = '30fbc80e35598f3c242f2120413c943dfd9715fe'
-    print('\nResolving Spotify Connect player device: \n- ID = "%s" ...' % deviceId)
-    deviceResult:str = spotify.PlayerResolveDeviceId(deviceId)
-    print('result "%s"' % deviceResult)
+    print('\nResolving Spotify Connect player device: \n- ID = "%s" ...\n' % deviceId)
+    device = spotify.GetSpotifyConnectDevice(deviceId)
+    if device is not None:
+        print(str(device))
 
     # resolve Spotify Connect player device by it's Name value.
     deviceName:str = 'Bose-ST10-2'
-    print('\nResolving Spotify Connect player device: \n- Name = "%s" ...' % deviceName)
-    deviceResult:str = spotify.PlayerResolveDeviceId(deviceName)
-    print('  result "%s"' % deviceResult)
+    print('\nResolving Spotify Connect player device: \n- Name = "%s" ...\n' % deviceName)
+    device = spotify.GetSpotifyConnectDevice(deviceName)
+    if device is not None:
+        print(str(device))
     
     # resolve Spotify Connect player device by it's Name value, using a Disconnected device.
+    deviceName:str = 'Bose-ST10-2'
+    print('\nForcing disconnect of Spotify Connect device: \n- Name = "%s" ...\n' % deviceName)
     zconn:ZeroconfConnect = ZeroconfConnect('192.168.1.82', 8200, '/zc', useSSL=False, tokenStorageDir=spotify.TokenStorageDir)
     result:ZeroconfResponse = zconn.Disconnect()            
-    deviceName:str = 'Bose-ST10-2'
-    print('\nResolving Spotify Connect player disconnected device: \n- Name = "%s" ...' % deviceName)
-    deviceResult:str = spotify.PlayerResolveDeviceId(deviceName)
-    print('  result "%s"' % deviceResult)
+
+    print('\nResolving Spotify Connect player disconnected device: \n- Name = "%s" ...\n' % deviceName)
+    device = spotify.GetSpotifyConnectDevice(deviceName)
+    if device is not None:
+        print(str(device))
 
 except Exception as ex:
 
