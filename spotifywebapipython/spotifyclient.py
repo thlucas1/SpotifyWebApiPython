@@ -8047,7 +8047,7 @@ class SpotifyClient:
                 Default is 0.25; value range is 0 - 10.
                 
         Returns:
-            A `Device` object for the deviceValue if one could be resolved; 
+            A `SpotifyConnectDevice` object for the deviceValue if one could be resolved; 
             otherwise, a null value with the understanding that subsequent operations will probably 
             fail since it's not in the Spotify Connect discovery list.  
                 
@@ -8130,9 +8130,6 @@ class SpotifyClient:
                 discoverResult = scDevice.DiscoveryResult
                 info = scDevice.DeviceInfo
 
-                # store the currently active user of the device, in case we need to switch users later on.
-                deviceActiveUser = info.ActiveUser.lower()
-
                 # are aliases being used (RemoteName is null if so)?
                 if info.HasAliases:
                     
@@ -8175,7 +8172,26 @@ class SpotifyClient:
                     
                     # reset device reconnected flag.
                     scDevice.WasReConnected = False
+
+                    # create a ZeroconfConnect object to access the device.
+                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
+                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
+                                                            discoverResult.HostIpPort, 
+                                                            discoverResult.SpotifyConnectCPath,
+                                                            useSSL=False,
+                                                            tokenStorageDir=self.TokenStorageDir)
+
+                    # if we did not refresh the device list, then query the device for real-time status; just in
+                    # case the device was disconnected after the last cache refresh.
+                    if not refreshDeviceList:
+                        _logsi.LogVerbose("Getting real-time status information for Spotify Connect device: '%s'" % (deviceResult.Title))
+                        info = zconn.GetInformation()
                     
+                    # store the currently active user of the device, in case we need to switch users later on.
+                    deviceActiveUser = info.ActiveUser.lower()
+
                     # was device activation requested?  if not, then we are done.
                     if activateDevice == False:
                         _logsi.LogVerbose("Activation not requested for Spotify Connect device: '%s'" % (deviceResult.Title))
@@ -8198,27 +8214,8 @@ class SpotifyClient:
                         _logsi.LogVerbose("User context '%s' will be used for Spotify Connect device '%s', as a SpotifyConnectUsername parameter was not supplied" % (deviceActiveUser, deviceResult.Title))
                         break
                     
-                    # does our Spotify Connect user account need to take control of the device?
-                    # if not, then we are done.
-                    # this takes into account if the device is in the available device list, as well
-                    # as if the active user is not our user context.
-                    if (info.IsInDeviceList == True) \
-                    and ((deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower())):
-                        _logsi.LogVerbose("User context '%s' was verified for Spotify Connect device '%s'; switch not necessary" % (deviceActiveUser, deviceResult.Title))
-                        break
-                    
                     zcfResult:ZeroconfResponse
                     
-                    # create a ZeroconfConnect object to access the device.
-                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
-                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
-                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
-                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                            discoverResult.HostIpPort, 
-                                                            discoverResult.SpotifyConnectCPath,
-                                                            useSSL=False,
-                                                            tokenStorageDir=self.TokenStorageDir)
-
                     # if a different user context has control of the device then we need to disconnect 
                     # the current user context before connecting a different user.
                     if (info.HasActiveUser):

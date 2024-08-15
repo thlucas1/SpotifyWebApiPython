@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.81 ] - 2024/08/15
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` method to get real-time information for some portions of the device info, even when using the cache.  Prior to this, stale information was being used that had been updated since the last cache update.
+
 ###### [ 1.0.80 ] - 2024/08/15
 
   * Added `SpotifyClient.GetSpotifyConnectDevice` method that will get information about a specific Spotify Connect player device, and (optionally) activate the device if it requires it.
