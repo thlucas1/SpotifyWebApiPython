@@ -4,7 +4,14 @@ from spotifywebapipython.const import SPOTIFY_DESKTOP_APP_CLIENT_ID
 
 try:
 
-    # set user-specific input parameters:
+    # more information on how to run Python scripts can be found at:
+    # https://www.theknowledgeacademy.com/blog/how-to-run-python-scripts/
+    
+    # you will need to install the SpotifyWebApiPython requirement in order to run this
+    # script.  Use the following PIP command to do so:
+    # -> pip install spotifywebapiPython
+    
+    # set the following user-specific input parameters prior to running this script.
     
     # Parameter: "tokenStorageDir"
     # Contains the fully-qualified directory path to the location of the Home Assistant
