@@ -8184,10 +8184,12 @@ class SpotifyClient:
                                                             tokenStorageDir=self.TokenStorageDir)
 
                     # if we did not refresh the device list, then query the device for real-time status; just in
-                    # case the device was disconnected after the last cache refresh.
+                    # case the device was disconnected after the last cache refresh.  note that we only do this
+                    # if this is NOT a dynamic device - dynamic devices cannot be queried (no zeroconf info).
                     if not refreshDeviceList:
-                        _logsi.LogVerbose("Getting real-time status information for Spotify Connect device: '%s'" % (deviceResult.Title))
-                        info = zconn.GetInformation()
+                        if not discoverResult.IsDynamicDevice:
+                            _logsi.LogVerbose("Getting real-time status information for Spotify Connect device: '%s'" % (deviceResult.Title))
+                            info = zconn.GetInformation()
                     
                     # store the currently active user of the device, in case we need to switch users later on.
                     deviceActiveUser = info.ActiveUser.lower()

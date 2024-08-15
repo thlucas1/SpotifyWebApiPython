@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.82 ] - 2024/08/15
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` method to get real-time information for some portions of the device info for devices detected by zeroconf discovery (non-dynamic), even when using the cache.  Prior to this fix, transfer of playback failed for dynamic devices (web player, mobile app player, etc).
+
 ###### [ 1.0.81 ] - 2024/08/15
 
   * Updated `SpotifyClient.GetSpotifyConnectDevice` method to get real-time information for some portions of the device info, even when using the cache.  Prior to this, stale information was being used that had been updated since the last cache update.
