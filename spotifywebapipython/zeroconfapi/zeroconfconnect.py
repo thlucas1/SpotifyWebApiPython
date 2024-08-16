@@ -653,7 +653,6 @@ class ZeroconfConnect:
             redirectUriPort:str = 4381
             redirectUriPath:str = '/login'
             authorizationType:str = 'Authorization Code PKCE'
-            tokenProfileId:str =  loginId
             
             # Spotify Desktop App scopes requested for Spotify Connect (streaming only as of 2024/08/13)
             SPOTIFY_SCOPES:list = \
@@ -671,7 +670,7 @@ class ZeroconfConnect:
                 clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
                 tokenStorageDir=self.TokenStorageDir,
                 tokenProviderId='SpotifyWebApiAuthCodePkce',
-                tokenProfileId=tokenProfileId,
+                tokenProfileId=loginId,
             )
            
             # raise an exception if the authorization token is not present, or the scope has changed.

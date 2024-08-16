@@ -380,6 +380,90 @@ class AuthClient:
         raise ConnectionError('Could not find an open port on localhost address "%s", in the range of "%s" to "%s"' % (localhostIp, portStart, portStop))
         
 
+    @staticmethod
+    def HasTokenForKey(
+        clientId:str=None,
+        tokenProfileId:str=None,
+        tokenStorageDir:str=None,
+        tokenProviderId:str=None,
+        ) -> bool:
+        """
+        Checks if a token exists in the token storage file for the ProviderId \ ClientId key.
+        
+        Args:
+            clientId (str):
+                The unique identifier of the application.
+            tokenProviderId (str):
+                Provider identifier used when storing the token to disk.
+            tokenProfileId (str):
+                Profile identifier used when storing the token to disk.  
+            tokenStorageDir (str):
+                The directory path that will contain the `tokens.json` file.  
+                A null value will default to the platform specific storage location:  
+                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+        
+        Returns:
+            True if the token was found in the token storage file for the
+            specified ProviderId and ClientId key; otherwise, null.
+        """
+        apiMethodName:str = 'HasTokenForKey'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Checking if token exists in token storage file", apiMethodParms)
+            
+            # verify token storage directory exists.
+            if tokenStorageDir is None:
+                tokenStorageDir = platformdirs.site_config_dir('SpotifyWebApiPython', ensure_exists=True, appauthor=False)
+
+            # if token providerId not set, then default to shared.
+            if tokenProviderId is None:
+                tokenProviderId = 'Shared'
+
+            # if token profileId not set, then default to shared.
+            if tokenProfileId is None:
+                tokenProfileId = 'Shared'
+
+            # formulate token storage path.
+            tokenStoragePath:str = os.path.join(tokenStorageDir, 'tokens.json')
+            
+            # formulate token storage key.
+            tokenKey:str = f'{tokenProviderId}/{clientId}/{tokenProfileId}'
+            _logsi.LogVerbose('Token storage key: "%s"' % (tokenKey))           
+            _logsi.LogVerbose('Token storage file path: "%s"' % (tokenStoragePath))
+            
+            # does the token storage file exist?
+            if os.path.exists(tokenStoragePath):
+
+                # open the token storage file, and load it's contents.
+                _logsi.LogVerbose('Opening token storage file')
+                with open(tokenStoragePath, 'r') as f:
+                    
+                    tokens = json.load(f)
+
+                    # return if token key exists or not.
+                    if tokenKey in tokens:
+                        _logsi.LogDictionary(SILevel.Verbose, 'Token was found in token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
+                        return True
+        
+            # indicate token was not found.
+            return False
+        
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Could not verify OAuth2 Token from token storage file: "%s"' % (tokenStoragePath), ex)
+            raise
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def _LoadToken(self) -> dict:
         """
         Loads a token from the token storage file for the ProviderId \ ClientId key.

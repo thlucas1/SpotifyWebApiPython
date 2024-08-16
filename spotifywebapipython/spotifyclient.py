@@ -29,6 +29,7 @@ from .zeroconfapi.zeroconfgetinfoalias import ZeroconfGetInfoAlias
 from .const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DESKTOP_APP_CLIENT_ID,
     SPOTIFY_DEFAULT_MARKET,
     SPOTIFY_WEBAPI_URL_BASE,
     TRACE_METHOD_RESULT,
@@ -8191,6 +8192,23 @@ class SpotifyClient:
                             _logsi.LogVerbose("Getting real-time status information for Spotify Connect device: '%s'" % (deviceResult.Title))
                             info = zconn.GetInformation()
                     
+                    # if this is a Sonos device and there is no Spotify Client Application token then don't bother.
+                    # in this case, we will exit and let the calling method switch to the Sonos device and play 
+                    # using the Sonos local queue.
+                    if info.IsBrandSonos:
+                        
+                        # check if the Spotify Desktop Application Client oauth2 token is defined.
+                        hasToken:bool = AuthClient.HasTokenForKey(
+                            clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
+                            tokenStorageDir=self.TokenStorageDir,
+                            tokenProviderId='SpotifyWebApiAuthCodePkce',
+                            tokenProfileId=self._SpotifyConnectLoginId,
+                        )
+                        
+                        if not hasToken:
+                            _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LogiId: '%s'" % (self._SpotifyConnectLoginId))
+                            break
+
                     # store the currently active user of the device, in case we need to switch users later on.
                     deviceActiveUser = info.ActiveUser.lower()
 
@@ -11256,7 +11274,8 @@ class SpotifyClient:
                 Default is 0.50; value range is 0 - 10.
             refreshDeviceList (bool):
                 True to refresh the Spotify Connect device list; otherwise, False to use the 
-                Spotify Connect device list cache.
+                Spotify Connect device list cache.  
+                Default is False.  
                 
         Raises:
             SpotifyWebApiError: 

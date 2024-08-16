@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.83 ] - 2024/08/15
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` method to check if a Spotify Desktop Client Application OAuth2 token exists when a PlayerTransfer targets a Sonos device.  If not found, then control will be transferred to the Sonos device using it's local queue; if found, then Spotify Connect will reconnect to the device and control will be transferred to the Sonos device using Spotify Connect.
+
 ###### [ 1.0.82 ] - 2024/08/15
 
   * Updated `SpotifyClient.GetSpotifyConnectDevice` method to get real-time information for some portions of the device info for devices detected by zeroconf discovery (non-dynamic), even when using the cache.  Prior to this fix, transfer of playback failed for dynamic devices (web player, mobile app player, etc).
