@@ -380,7 +380,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("username", username)
             apiMethodParms.AppendKeyValue("password (with mask)", passwordMaskString(password))
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect using specified Username and Password (ip=%s)" % self._HostIpAddress, apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect (ip=%s)" % self._HostIpAddress, apiMethodParms)
 
             # validations.
             if (username is None) or (not isinstance(username,str)):
@@ -505,11 +505,16 @@ class ZeroconfConnect:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("username", username)
+            apiMethodParms.AppendKeyValue("password (with mask)", passwordMaskString(password))
+            apiMethodParms.AppendKeyValue("loginId", loginId)
             apiMethodParms.AppendKeyValue("info.Availability", info.Availability)
             apiMethodParms.AppendKeyValue("info.PublicKey", info.PublicKey)
             apiMethodParms.AppendKeyValue("info.DeviceId", info.DeviceId)
             apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
             apiMethodParms.AppendKeyValue("info.TokenType", info.TokenType)
+            apiMethodParms.AppendKeyValue("info.BrandDisplayName", info.BrandDisplayName)
+            apiMethodParms.AppendKeyValue("info.ModelDisplayName", info.ModelDisplayName)
             _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
         
             # set request endpoint.
@@ -518,10 +523,7 @@ class ZeroconfConnect:
             # set request headers.
             reqHeaders:dict = {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                #'Connection': 'close',
-                'Connection': 'keep-alive',               
-                'Keep-Alive': '0',
-                'Accept-Encoding': 'gzip',
+                'Connection': 'close'
             }
 
             # create credentials and builder objects.
@@ -542,6 +544,9 @@ class ZeroconfConnect:
             # special processing for tokenType "authorization_code":
             if info.TokenType == 'authorization_code':
 
+                # trace.
+                _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify Desktop Client OAuth2 token to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
+
                 # set defaults used by token type "authorization_code".
                 # - set the clientKey value to null, as it is not used to encrypt / decrypt anything.
                 # - include origin device information in the addUser request.
@@ -555,6 +560,9 @@ class ZeroconfConnect:
                 
             else:
                 
+                # trace.
+                _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify username and password to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
+
                 # set defaults used by this token type:
                 # - clientKey should be the getInfo response PublicKey (base64 encoded).
                 # - exclude origin device information from the addUser request.

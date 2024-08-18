@@ -8099,7 +8099,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("refreshDeviceList", refreshDeviceList)
             apiMethodParms.AppendKeyValue("activateDevice", activateDevice)
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Resolving Spotify Connect Device", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Retrieving Spotify Connect Device", apiMethodParms)
 
             # if device value not specified then we are done.
             if (deviceValue is None) or (len(deviceValue.strip()) == 0):
@@ -11250,7 +11250,7 @@ class SpotifyClient:
             deviceId:str=None,
             play:bool=True,
             delay:float=0.50,
-            refreshDeviceList:bool=False,
+            refreshDeviceList:bool=True,
             ) -> None:
         """
         Transfer playback to a new Spotify Connect device and optionally begin playback.
@@ -11275,7 +11275,7 @@ class SpotifyClient:
             refreshDeviceList (bool):
                 True to refresh the Spotify Connect device list; otherwise, False to use the 
                 Spotify Connect device list cache.  
-                Default is False.  
+                Default is True.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -11351,7 +11351,7 @@ class SpotifyClient:
             if delay > 0:
                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                 time.sleep(delay)
-
+                
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -11444,7 +11444,7 @@ class SpotifyClient:
                 _logsi.LogVerbose('No active Spotify Connect device was found - activating device "%s"' % defaultDeviceId)
                 
                 # no - transfer control to the default device.
-                self.PlayerTransferPlayback(defaultDeviceId, play, delay)
+                self.PlayerTransferPlayback(defaultDeviceId, play, delay, refreshDeviceList=False)
                 
                 # get current Spotify Connect player state.
                 result = self.GetPlayerPlaybackState()
