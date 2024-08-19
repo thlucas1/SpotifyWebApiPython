@@ -32,6 +32,7 @@ from .const import (
     SPOTIFY_DESKTOP_APP_CLIENT_ID,
     SPOTIFY_DEFAULT_MARKET,
     SPOTIFY_WEBAPI_URL_BASE,
+    SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE,
     TRACE_METHOD_RESULT,
     TRACE_METHOD_RESULT_TYPE,
     TRACE_METHOD_RESULT_TYPE_CACHED,
@@ -77,6 +78,7 @@ class SpotifyClient:
     def __init__(self, 
                  manager:PoolManager=None,
                  tokenStorageDir:str=None,
+                 tokenStorageFile:str=None,
                  tokenUpdater:Callable=None,
                  zeroconfClient:Zeroconf=None,
                  spotifyConnectUsername:str=None,
@@ -91,9 +93,12 @@ class SpotifyClient:
             manager (urllib3.PoolManager):
                 The manager for HTTP requests to the device.
             tokenStorageDir (str):
-                The directory path that will contain the `tokens.json` file.  
+                The directory path that will contain the authorization Token Cache file.  
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenStorageFile (str):
+                The filename and extension of the authorization Token Cache file.  
+                Default is `SpotifyWebApiPython_tokens.json`.
             tokenUpdater (Callable):
                 A method to call when a token needs to be refreshed by an external provider.  
                 The defined method is called with no parameters, and should return a token dictionary.  
@@ -143,6 +148,11 @@ class SpotifyClient:
             if (spotifyConnectPassword is None) or (not isinstance(spotifyConnectPassword,str)):
                 raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % ("__init__", 'spotifyConnectPassword'), logsi=_logsi)
 
+        # verify token storage filename was specified.
+        if tokenStorageFile is None:
+            tokenStorageFile = SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE
+
+        # initialize storage.
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
@@ -152,6 +162,7 @@ class SpotifyClient:
         self._SpotifyConnectLoginId:str = spotifyConnectLoginId
         self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenStorageFile:str = tokenStorageFile
         self._TokenUpdater:Callable = tokenUpdater
         self._UserProfile:UserProfile = None
         self._ZeroconfClient = zeroconfClient
@@ -292,6 +303,14 @@ class SpotifyClient:
         The directory path that will contain the authorization token cache file.  
         """
         return self._TokenStorageDir
+    
+
+    @property
+    def TokenStorageFile(self) -> str:
+        """ 
+        The filename and extension of the authorization token cache file.  
+        """
+        return self._TokenStorageFile
     
 
     @property
@@ -6192,7 +6211,8 @@ class SpotifyClient:
                                                                 discoverResult.HostIpPort, 
                                                                 discoverResult.SpotifyConnectCPath,
                                                                 useSSL=False,
-                                                                tokenStorageDir=self.TokenStorageDir)
+                                                                tokenStorageDir=self.TokenStorageDir,
+                                                                tokenStorageFile=self.TokenStorageFile)
                     
                         # if a different user context has control of the device then we need to disconnect 
                         # the current user context before connecting a different user.
@@ -8252,7 +8272,8 @@ class SpotifyClient:
                                                             discoverResult.HostIpPort, 
                                                             discoverResult.SpotifyConnectCPath,
                                                             useSSL=False,
-                                                            tokenStorageDir=self.TokenStorageDir)
+                                                            tokenStorageDir=self.TokenStorageDir,
+                                                            tokenStorageFile=self.TokenStorageFile)
 
                     # if we did not refresh the device list, then query the device for real-time status; just in
                     # case the device was disconnected after the last cache refresh.  note that we only do this
@@ -8270,9 +8291,10 @@ class SpotifyClient:
                         # check if the Spotify Desktop Application Client oauth2 token is defined.
                         hasToken:bool = AuthClient.HasTokenForKey(
                             clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
-                            tokenStorageDir=self.TokenStorageDir,
                             tokenProviderId='SpotifyWebApiAuthCodePkce',
                             tokenProfileId=self._SpotifyConnectLoginId,
+                            tokenStorageDir=self.TokenStorageDir,
+                            tokenStorageFile=self.TokenStorageFile,
                         )
                         
                         if not hasToken:
@@ -8501,7 +8523,8 @@ class SpotifyClient:
                                                     discoverResult.HostIpPort, 
                                                     discoverResult.SpotifyConnectCPath,
                                                     useSSL=False,
-                                                    tokenStorageDir=self.TokenStorageDir)
+                                                    tokenStorageDir=self.TokenStorageDir,
+                                                    tokenStorageFile=self.TokenStorageFile)
                             info = zconn.GetInformation()
                     
                         except Exception as ex:
@@ -8516,7 +8539,8 @@ class SpotifyClient:
                                                         discoverResult.HostIpPort, 
                                                         discoverResult.SpotifyConnectCPath,
                                                         useSSL=False,
-                                                        tokenStorageDir=self.TokenStorageDir)
+                                                        tokenStorageDir=self.TokenStorageDir,
+                                                        tokenStorageFile=self.TokenStorageFile)
                                 info = zconn.GetInformation()
                                 
                                 # update HostIpAddress in discovery result so it knows to use the alias
@@ -14438,6 +14462,7 @@ class SpotifyClient:
                 clientSecret=clientSecret,
                 oauth2Client=WebApplicationClient(client_id=clientId),  # required for grant_type = authorization_code
                 tokenStorageDir=self._TokenStorageDir,
+                tokenStorageFile=self._TokenStorageFile,
                 tokenProviderId='SpotifyWebApiAuthCode',
                 tokenProfileId=tokenProfileId,
                 tokenUpdater=self._TokenUpdater
@@ -14620,6 +14645,7 @@ class SpotifyClient:
                 clientSecret=None,  # client_secret not used for authorization code with pkce type
                 oauth2Client=WebApplicationClient(client_id=clientId),  # required for grant_type = authorization_code
                 tokenStorageDir=self._TokenStorageDir,
+                tokenStorageFile=self._TokenStorageFile,
                 tokenProviderId='SpotifyWebApiAuthCodePkce',
                 tokenProfileId=tokenProfileId,
                 tokenUpdater=self._TokenUpdater
@@ -14737,6 +14763,7 @@ class SpotifyClient:
                 clientSecret=clientSecret,
                 oauth2Client=BackendApplicationClient(client_id=clientId),  # required for grant_type = client_credentials
                 tokenStorageDir=self._TokenStorageDir,
+                tokenStorageFile=self._TokenStorageFile,
                 tokenProviderId='SpotifyWebApiClientCredentials',
                 tokenProfileId=tokenProfileId,
                 tokenUpdater=self._TokenUpdater
@@ -14835,6 +14862,7 @@ class SpotifyClient:
                 scope=token.get('scope'),
                 clientId=clientId,
                 tokenStorageDir=self._TokenStorageDir,
+                tokenStorageFile=self._TokenStorageFile,
                 tokenProviderId='SpotifyWebApiOAuth2Token',
                 tokenProfileId=tokenProfileId,
                 tokenUpdater=self._TokenUpdater
@@ -14894,6 +14922,7 @@ class SpotifyClient:
         msg:str = 'SpotifyClient:'
         msg = "%s\n ConfigurationCache key count=%d" % (msg, len(self._ConfigurationCache))
         msg = "%s\n TokenStorageDir='%s'" % (msg, self._TokenStorageDir)
+        msg = "%s\n TokenStorageFile='%s'" % (msg, self._TokenStorageFile)
         if self._UserProfile is not None:
             msg = "%s\n User DisplayName='%s' (%s)" % (msg, self._UserProfile.DisplayName, self._UserProfile.Id)
         return msg

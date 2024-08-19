@@ -21,6 +21,7 @@ from ..const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
     SPOTIFY_DESKTOP_APP_CLIENT_ID,
+    SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE,
     TRACE_METHOD_RESULT,
     TRACE_MSG_DELAY_DEVICE,
 )
@@ -61,6 +62,7 @@ class ZeroconfConnect:
                  version:str=None,
                  useSSL:bool=False,
                  tokenStorageDir:str=None,
+                 tokenStorageFile:str=None,
                  tokenAuthInBrowser:bool=False,
                  ) -> None:
         """
@@ -83,10 +85,13 @@ class ZeroconfConnect:
                 otherwise, False to utilize HTTP.  
                 Default is False (HTTP).
             tokenStorageDir (str):
-                The directory path that will contain the `tokens.json` cache file.  
+                The directory path that will contain the Token Cache file.  
                 This is used for Spotify Connect devices that utilize the `authorization_code` token type.
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenStorageFile (str):
+                The filename and extension of the Token Cache file.  
+                Default is `SpotifyWebApiPython_tokens.json`.
             tokenAuthInBrowser (bool):
                 True to allow authorization access token to be authorized if necessary via an
                 interactive browser; otherwise, False.  
@@ -103,11 +108,16 @@ class ZeroconfConnect:
         if (version is None) or (not isinstance(version,str)):
             version = ZeroconfConnect.SPOTIFY_CONNECT_CLIENT_VERSION_DEFAULT
             
+        # verify token storage filename was specified.
+        if tokenStorageFile is None:
+            tokenStorageFile = SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE
+
         # initialize storage.
         self._CPath:str = cpath
         self._HostIpPort:int = hostIpPort
         self._HostIpAddress:str = hostIpAddress
         self._TokenStorageDir:str = tokenStorageDir
+        self._TokenStorageFile:str = tokenStorageFile
         self._TokenAuthInBrowser:str = tokenAuthInBrowser
         self._UseSSL:bool = useSSL
         self._Version:str = version
@@ -157,6 +167,14 @@ class ZeroconfConnect:
         The directory path that will contain the authorization token cache file.  
         """
         return self._TokenStorageDir
+    
+
+    @property
+    def TokenStorageFile(self) -> str:
+        """ 
+        The filename and extension of the authorization token cache file.  
+        """
+        return self._TokenStorageFile
     
 
     @property
@@ -677,6 +695,7 @@ class ZeroconfConnect:
                 scope=SPOTIFY_SCOPES,
                 clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
                 tokenStorageDir=self.TokenStorageDir,
+                tokenStorageFile=self.TokenStorageFile,
                 tokenProviderId='SpotifyWebApiAuthCodePkce',
                 tokenProfileId=loginId,
             )

@@ -371,10 +371,11 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Content Include="research\spotify_connect_flow_tokenType_authorization_code.txt" />
     <Content Include="research\spotify_connect_results_getinfo.txt" />
     <Content Include="test\smartinspect.cfg" />
-    <Content Include="test\testdata\haconfig\tokens.json" />
+    <Content Include="test\testdata\haconfig\SpotifyWebApiPython_tokens.json" />
     <Content Include="test\testdata\PlaylistCoverImage.jpg" />
     <Content Include="test\testdata\PlaylistCoverImage_TooLarge.jpg" />
-    <Content Include="test\testdata\tokens.json" />
+    <Content Include="test\testdata\RollingTheDice [454 x 625].jpg" />
+    <Content Include="test\testdata\SpotifyWebApiPython_tokens.json" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">

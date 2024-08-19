@@ -57,7 +57,8 @@ class AuthClient:
                  tokenProviderId:str=None,
                  tokenProfileId:str=None,
                  tokenStorageDir:str=None,
-                 tokenUpdater:Callable=None
+                 tokenStorageFile:str=None,
+                 tokenUpdater:Callable=None,
                  ) -> None:
         """
         Initializes a new instance of the class.
@@ -93,9 +94,12 @@ class AuthClient:
                 A null value will default to `Shared`.  
                 Default: `Shared`
             tokenStorageDir (str):
-                The directory path that will contain the `tokens.json` file.  
+                The directory path that will contain the Token Cache file.  
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenStorageFile (str):
+                The filename and extension of the Token Cache file.  
+                Default is `tokens.json`.
             tokenUpdater (Callable):
                 A method to call when a token needs to be refreshed by an external provider.  
                 The defined method is called with no parameters, and should return a token dictionary.  
@@ -109,6 +113,10 @@ class AuthClient:
         if tokenStorageDir is None:
             tokenStorageDir = platformdirs.site_config_dir('SpotifyWebApiPython', ensure_exists=True, appauthor=False)
         os.makedirs(tokenStorageDir, exist_ok=True)  # succeeds even if directory exists.
+
+        # verify token storage filename was specified.
+        if tokenStorageFile is None:
+            tokenStorageFile = 'tokens.json'
 
         # if token providerId not set, then default to shared.
         if tokenProviderId is None:
@@ -128,7 +136,8 @@ class AuthClient:
         self._Session:OAuth2Session = oauth2Session
         self._TokenProviderId:str = tokenProviderId
         self._TokenStorageDir:str = tokenStorageDir
-        self._TokenStoragePath:str = os.path.join(tokenStorageDir, 'tokens.json')
+        self._TokenStorageFile:str = tokenStorageFile
+        self._TokenStoragePath:str = os.path.join(tokenStorageDir, tokenStorageFile)
         self._TokenUpdater:Callable = tokenUpdater
         self._TokenUrl:str = tokenUrl
         self._TokenProfileId:str = tokenProfileId
@@ -383,9 +392,10 @@ class AuthClient:
     @staticmethod
     def HasTokenForKey(
         clientId:str=None,
+        tokenProviderId:str=None,
         tokenProfileId:str=None,
         tokenStorageDir:str=None,
-        tokenProviderId:str=None,
+        tokenStorageFile:str=None,
         ) -> bool:
         """
         Checks if a token exists in the token storage file for the ProviderId \ ClientId key.
@@ -401,6 +411,9 @@ class AuthClient:
                 The directory path that will contain the `tokens.json` file.  
                 A null value will default to the platform specific storage location:  
                 Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+            tokenStorageFile (str):
+                The filename and extension of the Token Cache file.  
+                Default is `tokens.json`.
         
         Returns:
             True if the token was found in the token storage file for the
@@ -419,6 +432,10 @@ class AuthClient:
             if tokenStorageDir is None:
                 tokenStorageDir = platformdirs.site_config_dir('SpotifyWebApiPython', ensure_exists=True, appauthor=False)
 
+            # verify token storage filename was specified.
+            if tokenStorageFile is None:
+                tokenStorageFile = 'tokens.json'
+
             # if token providerId not set, then default to shared.
             if tokenProviderId is None:
                 tokenProviderId = 'Shared'
@@ -428,7 +445,7 @@ class AuthClient:
                 tokenProfileId = 'Shared'
 
             # formulate token storage path.
-            tokenStoragePath:str = os.path.join(tokenStorageDir, 'tokens.json')
+            tokenStoragePath:str = os.path.join(tokenStorageDir, tokenStorageFile)
             
             # formulate token storage key.
             tokenKey:str = f'{tokenProviderId}/{clientId}/{tokenProfileId}'

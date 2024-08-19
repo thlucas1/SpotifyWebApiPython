@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.86 ] - 2024/08/19
+
+  * Updated `SpotifyClient`, `ZeroconfConnect`, and `AuthClient` class constructors to include the `tokenStorageFile` argument that specifies the filename and extension of the authorization Token Cache file.  This is used for Spotify Connect devices that utilize the `authorization_code` token type.
+
 ###### [ 1.0.85 ] - 2024/08/19
 
   * Updated `SpotifyClient.RemoveAudiobookFavorites` method to make the `ids` argument optional; if not supplied, the currently playing audiobook id value is used instead.
