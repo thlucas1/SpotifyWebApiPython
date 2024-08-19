@@ -27,6 +27,12 @@ try:
             
     print('\nSuccess - show(s) were removed')
 
+    # remove nowplaying show from the current user's 'Your Library'.
+    print('\nRemoving nowplaying show from the current users profile')
+    spotify.RemoveShowFavorites()
+
+    print('\nSuccess - show(s) were removed')
+    
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

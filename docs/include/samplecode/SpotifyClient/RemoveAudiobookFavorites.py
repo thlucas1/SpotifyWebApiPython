@@ -26,7 +26,13 @@ try:
     spotify.RemoveAudiobookFavorites(audiobookIds)
             
     print('\nSuccess - audiobook(s) were removed')
+    
+    # remove nowplaying audiobook from the current user's 'Your Library'.
+    print('\nRemoving nowplaying audiobook from the current users profile')
+    spotify.RemoveAudiobookFavorites()
 
+    print('\nSuccess - audiobook(s) were removed')
+    
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

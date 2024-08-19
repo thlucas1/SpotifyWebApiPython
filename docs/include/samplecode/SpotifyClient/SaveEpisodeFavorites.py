@@ -27,6 +27,12 @@ try:
             
     print('\nSuccess - episode(s) were added')
 
+    # save nowplaying episode to the current user's 'Your Library'.
+    print('\nAdding nowplaying episode to the current users profile')
+    spotify.SaveEpisodeFavorites()
+            
+    print('\nSuccess - episode(s) were added')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

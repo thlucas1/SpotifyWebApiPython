@@ -27,6 +27,12 @@ try:
             
     print('\nSuccess - audiobook(s) were added')
 
+    # save nowplaying audiobook to the current user's 'Your Library'.
+    print('\nAdding nowplaying audiobook to the current users profile')
+    spotify.SaveAudiobookFavorites()
+            
+    print('\nSuccess - audiobook(s) were added')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.85 ] - 2024/08/19
+
+  * Updated `SpotifyClient.RemoveAudiobookFavorites` method to make the `ids` argument optional; if not supplied, the currently playing audiobook id value is used instead.
+  * Updated `SpotifyClient.RemoveEpisodeFavorites` method to make the `ids` argument optional; if not supplied, the currently playing episode id value is used instead.
+  * Updated `SpotifyClient.RemoveShowFavorites` method to make the `ids` argument optional; if not supplied, the currently playing show id value is used instead.
+  * Updated `SpotifyClient.SaveAudiobookFavorites` method to make the `ids` argument optional; if not supplied, the currently playing audiobook id value is used instead.
+  * Updated `SpotifyClient.SaveEpisodeFavorites` method to make the `ids` argument optional; if not supplied, the currently playing episode id value is used instead.
+  * Updated `SpotifyClient.SaveShowFavorites` method to make the `ids` argument optional; if not supplied, the currently playing show id value is used instead.
+
 ###### [ 1.0.84 ] - 2024/08/18
 
   * Updated `SpotifyClient.PlayerTransferPlayback` method to default the `refreshDeviceList` argument to True so that the Spotify Connect device list is refreshed by default before transferring playback.

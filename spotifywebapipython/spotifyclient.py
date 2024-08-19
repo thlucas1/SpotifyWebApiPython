@@ -619,16 +619,69 @@ class SpotifyClient:
         return result
     
 
-    def _GetPlayerNowPlayingUri(self) -> str:
+    def _GetPlayerNowPlayingAudiobookUri(self) -> str:
         """
-        Returns the uri value of the currently playing media if something is
+        Returns the audiobook uri value of the currently playing media if something is
         playing; otherwise, null is returned.
         """
         result:str = None
         
         # get nowplaying status.
         _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        
+        # is an chapter playing?  if so, return the parent show uri value.
+        if nowPlaying is not None:
+            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
+            if nowPlaying.CurrentlyPlayingType in ['episode']:
+                playingItem:Chapter = nowPlaying.Item
+                if (playingItem is not None):
+                    chapter:Chapter = self.GetChapter(playingItem.Id)
+                    result = chapter.Audiobook.Uri
+            else:
+                raise SpotifyApiError("Currently playing item is not a Audiobook Chapter", logsi=_logsi)
+                
+        return result
+    
+
+    def _GetPlayerNowPlayingShowUri(self) -> str:
+        """
+        Returns the show uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        
+        # is an episode playing?  if so, return the parent show uri value.
+        if nowPlaying is not None:
+            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
+            if nowPlaying.CurrentlyPlayingType in ['episode']:
+                playingItem:Episode = nowPlaying.Item
+                if (playingItem is not None):
+                    episode:Episode = self.GetEpisode(playingItem.Id)
+                    result = episode.Show.Uri
+            else:
+                raise SpotifyApiError("Currently playing item is not a Show Episode", logsi=_logsi)
+                
+        return result
+    
+
+    def _GetPlayerNowPlayingUri(
+            self,
+            additionalTypes:str=None,
+            ) -> str:
+        """
+        Returns the uri value of the currently playing media type if something is
+        playing; otherwise, null is returned.
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=additionalTypes)
         
         # is anything playing?  if so, return the uri value.
         if nowPlaying is not None:
@@ -2496,6 +2549,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -2660,6 +2714,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -2913,6 +2968,7 @@ class SpotifyClient:
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
                 Default: 0 (the first item).  
@@ -3143,6 +3199,7 @@ class SpotifyClient:
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
                 Default: 0 (the first item).  
@@ -3702,6 +3759,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             limitTotal (int):
                 The maximum number of items to return for the request.  
                 If specified, this argument overrides the limit and offset argument values
@@ -4036,6 +4094,7 @@ class SpotifyClient:
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
                 Default: 0 (the first item).  
@@ -4193,6 +4252,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -4556,6 +4616,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -4831,6 +4892,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -5283,6 +5345,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -5529,6 +5592,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -6649,6 +6713,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             after (int):
                 Returns all items after (but not including) this cursor position, which is 
                 a Unix timestamp in milliseconds.  
@@ -7037,6 +7102,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 50, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -7221,6 +7287,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -7375,6 +7442,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -7618,6 +7686,7 @@ class SpotifyClient:
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
                 Default: 0 (the first item).  
@@ -7775,6 +7844,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -8687,6 +8757,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -9613,6 +9684,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -9774,6 +9846,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -11554,9 +11627,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemoveAudiobookFavorites(self, 
-                                 ids:str
-                                 ) -> None:
+    def RemoveAudiobookFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Remove one or more audiobooks from the current user's 'Your Library'.
         
@@ -11567,6 +11641,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
+                If null, the currently playing track album uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -11598,6 +11673,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove audiobook(s) from user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAudiobookUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -11633,9 +11716,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemoveEpisodeFavorites(self, 
-                               ids:str
-                               ) -> None:
+    def RemoveEpisodeFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Remove one or more episodes from the current user's 'Your Library'.
         
@@ -11646,6 +11730,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -11677,6 +11762,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove episode(s) from user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingUri('episode')
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -11891,9 +11984,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemoveShowFavorites(self, 
-                            ids:str
-                            ) -> None:
+    def RemoveShowFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Remove one or more shows from the current user's 'Your Library'.
         
@@ -11904,6 +11998,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -11935,6 +12030,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove show(s) from user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingShowUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -12348,9 +12451,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SaveAudiobookFavorites(self, 
-                               ids:str
-                               ) -> None:
+    def SaveAudiobookFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Save one or more audiobooks to the current user's 'Your Library'.
         
@@ -12392,6 +12496,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save audiobook(s) to user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAudiobookUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -12427,9 +12539,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SaveEpisodeFavorites(self, 
-                             ids:str
-                             ) -> None:
+    def SaveEpisodeFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Save one or more episodes to the current user's 'Your Library'.
         
@@ -12440,6 +12553,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12471,6 +12585,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save episode(s) to user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingUri('episode')
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -12506,9 +12628,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SaveShowFavorites(self, 
-                          ids:str
-                          ) -> None:
+    def SaveShowFavorites(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Save one or more shows to the current user's 'Your Library'.
         
@@ -12519,6 +12642,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
+                If null, the currently playing context uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12550,6 +12674,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save show(s) to user favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingShowUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrIds:list[str] = ids.split(',')
@@ -12709,6 +12841,7 @@ class SpotifyClient:
     #         limit (int):
     #             The maximum number of items to return in a page of items.  
     #             Default: 20, Range: 1 to 50.  
+    #             See the `limitTotal` argument for automatic paging option.  
     #         offset (int):
     #             The page index offset of the first item to return.  
     #             Use with limit to get the next set of items.  
@@ -12878,6 +13011,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -13068,6 +13202,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -13258,6 +13393,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -13450,6 +13586,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -13640,6 +13777,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -13830,6 +13968,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
@@ -14020,6 +14159,7 @@ class SpotifyClient:
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
+                See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
                 Use with limit to get the next set of items.  
