@@ -289,7 +289,12 @@ class SpotifyClient:
         """ 
         Sets the DefaultDeviceId property value.
         """
-        if (value is None) or (isinstance(value,str)):
+        if (value is None):
+            
+            self._DefaultDeviceId = value
+            
+        elif (isinstance(value,str)):
+            
             if value.strip() == '':
                 self._DefaultDeviceId = None
             else:

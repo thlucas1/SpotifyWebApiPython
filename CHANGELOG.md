@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.88 ] - 2024/08/20
+
+  * Updated `SpotifyClient.DefaultDeviceId` property to setter to account for empty string values.
+
 ###### [ 1.0.87 ] - 2024/08/20
 
   * Added `SpotifyClient.DefaultDeviceId` property to get / set the default device id (or name) to use for player transport methods (e.g. play, pause, skip, etc) that do not specify a device id and there is no active Spotify player detected (e.g. "Office", "5d4931f9d0684b625d702eaa24137b2c1d99539c", etc).  This should avoid the `No Active Device` exceptions returned from the Spotify Web API when playback transport methods are called after long pauses of inactivity.
