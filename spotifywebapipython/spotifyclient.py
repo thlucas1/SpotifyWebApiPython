@@ -156,6 +156,7 @@ class SpotifyClient:
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
+        self._DefaultDeviceId:str = None
         self._Manager:PoolManager = manager
         self._SpotifyConnectUsername:str = spotifyConnectUsername
         self._SpotifyConnectPassword:str = spotifyConnectPassword
@@ -271,6 +272,28 @@ class SpotifyClient:
         if self._AuthClient is not None:
             return self._AuthClient.ClientId
         return None
+
+
+    @property
+    def DefaultDeviceId(self):
+        """
+        Default device id (or name) to use for player transport methods that do not specify a device id and 
+        there is no active player detected (e.g. "Office", "5d4931f9d0684b625d702eaa24137b2c1d99539c", etc).  
+        
+        Set this value to null to use the Spotify player active device.
+        """
+        return self._DefaultDeviceId
+
+    @DefaultDeviceId.setter
+    def DefaultDeviceId(self, value:str):
+        """ 
+        Sets the DefaultDeviceId property value.
+        """
+        if (value is None) or (isinstance(value,str)):
+            if value.strip() == '':
+                self._DefaultDeviceId = None
+            else:
+                self._DefaultDeviceId = value
 
 
     @property
@@ -968,6 +991,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add item to playback queue", apiMethodParms)
                 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -5982,6 +6009,56 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def VerifyPlayerActiveDeviceId(self) -> str:
+        """
+        Verifies that there is an active Spotify player device id, and returns the `DefaultDeviceId` 
+        value if there is not; otherwise, a null is returned to indicate that the currently active
+        Spotify player will be used.
+
+        Note that if there is no active player and there was no `DefaultDeviceId` defined, then 
+        subsequent calls to the Spotify Web API player endpoints will probably fail with a 
+        "No Active Device" exception.
+    
+        Returns:
+            A device id or null value.
+        """
+        apiMethodName:str = 'VerifyPlayerActiveDeviceId'
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Verifying active Spotify player device id")
+
+            # get current playback state.
+            playState:PlayerPlayState = self.GetPlayerPlaybackState()
+        
+            # is there an active device?
+            if (playState.Device.Id is None):
+            
+                # no - use the `DefaultDeviceId` property value so the Spotify Web API can 
+                # re-activate it prior to playing.
+                if self._DefaultDeviceId is not None:
+                    _logsi.LogVerbose("Active Spotify player device was not found - using DefaultDeviceId value: '%s'" % self._DefaultDeviceId)
+                    return self._DefaultDeviceId
+                
+            # otherwise return null, which will use the active Spotify player device for 
+            # subsequent calls to the Spotify Web API player endpoints.
+            return None
+    
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def GetPlayerDevice(self, 
                         deviceId:str, 
                         refresh:bool=True
@@ -10095,6 +10172,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -10617,6 +10698,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -10714,6 +10799,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -10806,6 +10895,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -10894,6 +10987,10 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
@@ -11106,6 +11203,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -11205,6 +11306,10 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
+
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
 
@@ -11302,6 +11407,10 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+
+            # if deviceId was not specified, then verify that there is an active player device.
+            if deviceId is None:
+                deviceId:str = self.VerifyPlayerActiveDeviceId()
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
