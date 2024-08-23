@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.90 ] - 2024/08/22
+
+  * Updated various methods to not log handled exception data as unhandled exceptions.
+
 ###### [ 1.0.89 ] - 2024/08/22
 
   * Updated `SpotifyClient.CheckAlbumFavorites` method to make the `ids` argument optional; if not supplied, the currently playing album id value is used instead.

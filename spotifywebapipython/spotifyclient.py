@@ -1432,6 +1432,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1530,6 +1531,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1624,6 +1626,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1718,6 +1721,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1804,6 +1808,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1898,6 +1903,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1992,6 +1998,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2080,6 +2087,7 @@ class SpotifyClient:
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11812,6 +11820,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11901,6 +11910,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11990,6 +12000,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12258,6 +12269,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12636,6 +12648,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12725,6 +12738,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12814,6 +12828,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12903,6 +12918,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
