@@ -1351,9 +1351,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckAlbumFavorites(self, 
-                            ids:str
-                            ) -> dict:
+    def CheckAlbumFavorites(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check if one or more albums is already saved in the current Spotify user's 
         'Your Library'.
@@ -1365,6 +1366,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the albums.  
                 Maximum: 20 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,2noRn2Aes5aoNVsU6iWThc`
+                If null, the currently playing album uri id value is used.
                 
         Returns:
             A dictionary of the ids, along with a boolean status for each that indicates 
@@ -1395,6 +1397,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more albums are saved in a user's favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing album id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAlbumUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1435,9 +1445,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckArtistsFollowing(self, 
-                              ids:str,
-                              ) -> dict:
+    def CheckArtistsFollowing(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check to see if the current user is following one or more artists.
         
@@ -1448,6 +1459,7 @@ class SpotifyClient:
                 A comma-separated list of Spotify artist ID's to check.  
                 Maximum: 50 ID's.  
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`  
+                If null, the currently playing artist uri id value is used.
                 
         Returns:
             A dictionary of the IDs, along with a boolean status for each that indicates 
@@ -1482,6 +1494,14 @@ class SpotifyClient:
             if ids is not None:
                 ids = ids.replace(' ','')
                 
+            # if ids not specified, then return currently playing artist id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1523,9 +1543,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckAudiobookFavorites(self, 
-                                ids:str
-                                ) -> dict:
+    def CheckAudiobookFavorites(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check if one or more audiobooks is already saved in the current Spotify user's 
         'Your Library'.
@@ -1537,6 +1558,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `74aydHJKgYz3AIq3jjBSv1,4nfQ1hBJWjD0Jq9sK3YRW8,3PFyizE2tGCSRLusl2Qizf`
+                If null, the currently playing audiobook uri id value is used.
                 
         Returns:
             A dictionary of the ids, along with a boolean status for each that indicates 
@@ -1567,6 +1589,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more audiobooks are saved in a user's favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingAudiobookUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1607,9 +1637,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckEpisodeFavorites(self, 
-                              ids:str
-                              ) -> dict:
+    def CheckEpisodeFavorites(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check if one or more episodes is already saved in the current Spotify user's 
         'Your Library'.
@@ -1621,6 +1652,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
+                If null, the currently playing episode uri id value is used.
                 
         Returns:
             A dictionary of the ids, along with a boolean status for each that indicates 
@@ -1651,6 +1683,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more episodes are saved in a user's favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingUri('episode')
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1777,9 +1817,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckShowFavorites(self, 
-                           ids:str
-                           ) -> dict:
+    def CheckShowFavorites(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check if one or more shows is already saved in the current Spotify user's 
         'Your Library'.
@@ -1791,6 +1832,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
+                If null, the currently playing show uri id value is used.
                 
         Returns:
             A dictionary of the ids, along with a boolean status for each that indicates 
@@ -1821,6 +1863,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more shows are saved in a user's favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingShowUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -1861,9 +1911,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckTrackFavorites(self, 
-                            ids:str
-                            ) -> dict:
+    def CheckTrackFavorites(
+            self, 
+            ids:str=None,
+            ) -> dict:
         """
         Check if one or more tracks is already saved in the current Spotify user's 
         'Your Library'.
@@ -1875,6 +1926,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
+                If null, the currently playing track uri id value is used.
                 
         Returns:
             A dictionary of the ids, along with a boolean status for each that indicates 
@@ -1905,6 +1957,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more tracks are saved in a user's favorites", apiMethodParms)
                 
+            # if ids not specified, then return currently playing id value.
+            if (ids is None) or (len(ids.strip()) == 0):
+                uri = self._GetPlayerNowPlayingUri()
+                if uri is not None:
+                    ids = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -11779,7 +11839,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
-                If null, the currently playing track album uri id value is used.
+                If null, the currently playing audiobook uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -11868,7 +11928,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing episode uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12136,7 +12196,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing show uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12224,7 +12284,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,4eoYKv2kDwJS7gRGh5q6SK`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing track uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12603,6 +12663,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the audiobooks.  
                 Maximum: 50 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
+                If null, the currently playing audiobook uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12691,7 +12752,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the episodes.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing episode uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12780,7 +12841,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the shows.  
                 Maximum: 50 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing show uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12868,7 +12929,7 @@ class SpotifyClient:
                 A comma-separated list of the Spotify IDs for the tracks.  
                 Maximum: 50 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
-                If null, the currently playing context uri id value is used.
+                If null, the currently playing track uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 

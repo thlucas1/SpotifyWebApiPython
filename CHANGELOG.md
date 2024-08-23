@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.89 ] - 2024/08/22
+
+  * Updated `SpotifyClient.CheckAlbumFavorites` method to make the `ids` argument optional; if not supplied, the currently playing album id value is used instead.
+  * Updated `SpotifyClient.CheckArtistsFollowing` method to make the `ids` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.CheckAudiobookFavorites` method to make the `ids` argument optional; if not supplied, the currently playing audiobook id value is used instead.
+  * Updated `SpotifyClient.CheckEpisodeFavorites` method to make the `ids` argument optional; if not supplied, the currently playing episode id value is used instead.
+  * Updated `SpotifyClient.CheckShowFavorites` method to make the `ids` argument optional; if not supplied, the currently playing show id value is used instead.
+  * Updated `SpotifyClient.CheckTrackFavorites` method to make the `ids` argument optional; if not supplied, the currently playing track id value is used instead.
+
 ###### [ 1.0.88 ] - 2024/08/20
 
   * Updated `SpotifyClient.DefaultDeviceId` property to setter to account for empty string values.

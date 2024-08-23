@@ -34,6 +34,14 @@ try:
     for key in result.keys():
         print('- %s = %s' % (key, result[key]))
 
+    # check if nowplaying episode is saved in the current Spotify user's 'Your Library'.
+    print('\nChecking if nowplaying episode is saved by the current user ...')
+    result:dict = spotify.CheckEpisodeFavorites()
+            
+    print('\nResults:')
+    for key in result.keys():
+        print('- %s = %s' % (key, result[key]))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

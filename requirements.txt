@@ -12,6 +12,6 @@ urllib3>=1.21.1,<1.27
 zeroconf>=0.132.2
 
 # required for building the project.
-twine==4.0.2
+twine==5.1.1
 wheel==0.41.2
 pdoc==14.3.0

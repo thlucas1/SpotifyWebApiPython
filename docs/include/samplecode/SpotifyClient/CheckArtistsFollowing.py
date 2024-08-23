@@ -29,6 +29,14 @@ try:
     for key in result.keys():
         print('- %s = %s' % (key, result[key]))
 
+    # check to see if the current user is following nowplaying artist.
+    print('\nChecking if nowplaying artist is followed by me ...')
+    result:dict = spotify.CheckArtistsFollowing()
+            
+    print('Results:')
+    for key in result.keys():
+        print('- %s = %s' % (key, result[key]))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
