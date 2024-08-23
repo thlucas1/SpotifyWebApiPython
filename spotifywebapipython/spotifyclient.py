@@ -723,6 +723,12 @@ class SpotifyClient:
         """
         Returns the uri value of the currently playing media type if something is
         playing; otherwise, null is returned.
+        
+        Args:
+            additionalTypes (str):
+                An item type that your client supports besides the default track type.  
+                Valid types are: `track` and `episode`.  
+                Specify `episode` to get podcast track information.  
         """
         result:str = None
         
@@ -734,7 +740,15 @@ class SpotifyClient:
         if nowPlaying is not None:
             _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
             if nowPlaying.Item is not None:
-                result = nowPlaying.Item.Uri
+                if additionalTypes is None:
+                    # if not validating uri type then just return the uri.
+                    result = nowPlaying.Item.Uri
+                elif nowPlaying.CurrentlyPlayingType == additionalTypes:
+                    # if validating uri type then return uri if nowplaying types matches desired type.
+                    result = nowPlaying.Item.Uri
+                else:
+                    # otherwise nowplaying type is not the desired type!
+                    raise SpotifyApiError("Currently playing item is not a %s" % additionalTypes, logsi=_logsi)
                 
         return result
     
@@ -1965,7 +1979,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri()
+                uri = self._GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12330,7 +12344,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri()
+                uri = self._GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12979,7 +12993,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri()
+                uri = self._GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:

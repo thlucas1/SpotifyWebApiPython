@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.91 ] - 2024/08/22
+
+  * Updated `CheckTrackFavorites`, `RemoveTrackFavorites`, and `SaveTrackFavorites` methods to ensure that nowplaying item was a track and not an episode item.
+
 ###### [ 1.0.90 ] - 2024/08/22
 
   * Updated various methods to not log handled exception data as unhandled exceptions.
