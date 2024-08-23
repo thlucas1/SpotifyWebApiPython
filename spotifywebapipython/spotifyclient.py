@@ -622,137 +622,6 @@ class SpotifyClient:
         msg.ResponseData = responseData
 
 
-    def _GetPlayerNowPlayingAlbumUri(self) -> str:
-        """
-        Returns the album uri value of the currently playing media if something is
-        playing; otherwise, null is returned.
-        """
-        result:str = None
-        
-        # get nowplaying status.
-        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
-        
-        # is a track playing?  if so, return the album uri value.
-        if nowPlaying is not None:
-            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
-            if nowPlaying.CurrentlyPlayingType in ['track']:
-                trackItem:Track = nowPlaying.Item
-                if (trackItem is not None) and (trackItem.Album is not None):
-                    result = trackItem.Album.Uri
-                
-        return result
-    
-
-    def _GetPlayerNowPlayingArtistUri(self) -> str:
-        """
-        Returns the artist uri value of the currently playing media if something is
-        playing; otherwise, null is returned.
-        """
-        result:str = None
-        
-        # get nowplaying status.
-        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
-        
-        # is a track playing?  if so, return the artist uri value.
-        if nowPlaying is not None:
-            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
-            if nowPlaying.CurrentlyPlayingType in ['track']:
-                trackItem:Track = nowPlaying.Item
-                if (trackItem is not None) and (len(trackItem.Artists) > 0):
-                    result = trackItem.Artists[0].Uri
-                
-        return result
-    
-
-    def _GetPlayerNowPlayingAudiobookUri(self) -> str:
-        """
-        Returns the audiobook uri value of the currently playing media if something is
-        playing; otherwise, null is returned.
-        """
-        result:str = None
-        
-        # get nowplaying status.
-        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
-        
-        # is an chapter playing?  if so, return the parent show uri value.
-        if nowPlaying is not None:
-            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
-            if nowPlaying.CurrentlyPlayingType in ['episode']:
-                playingItem:Chapter = nowPlaying.Item
-                if (playingItem is not None):
-                    chapter:Chapter = self.GetChapter(playingItem.Id)
-                    result = chapter.Audiobook.Uri
-            else:
-                raise SpotifyApiError("Currently playing item is not a Audiobook Chapter", logsi=_logsi)
-                
-        return result
-    
-
-    def _GetPlayerNowPlayingShowUri(self) -> str:
-        """
-        Returns the show uri value of the currently playing media if something is
-        playing; otherwise, null is returned.
-        """
-        result:str = None
-        
-        # get nowplaying status.
-        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
-        
-        # is an episode playing?  if so, return the parent show uri value.
-        if nowPlaying is not None:
-            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
-            if nowPlaying.CurrentlyPlayingType in ['episode']:
-                playingItem:Episode = nowPlaying.Item
-                if (playingItem is not None):
-                    episode:Episode = self.GetEpisode(playingItem.Id)
-                    result = episode.Show.Uri
-            else:
-                raise SpotifyApiError("Currently playing item is not a Show Episode", logsi=_logsi)
-                
-        return result
-    
-
-    def _GetPlayerNowPlayingUri(
-            self,
-            additionalTypes:str=None,
-            ) -> str:
-        """
-        Returns the uri value of the currently playing media type if something is
-        playing; otherwise, null is returned.
-        
-        Args:
-            additionalTypes (str):
-                An item type that your client supports besides the default track type.  
-                Valid types are: `track` and `episode`.  
-                Specify `episode` to get podcast track information.  
-        """
-        result:str = None
-        
-        # get nowplaying status.
-        _logsi.LogVerbose("Querying NowPlaying status of Spotify player")
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=additionalTypes)
-        
-        # is anything playing?  if so, return the uri value.
-        if nowPlaying is not None:
-            _logsi.LogVerbose("NowPlaying data: %s" % str(nowPlaying))
-            if nowPlaying.Item is not None:
-                if additionalTypes is None:
-                    # if not validating uri type then just return the uri.
-                    result = nowPlaying.Item.Uri
-                elif nowPlaying.CurrentlyPlayingType == additionalTypes:
-                    # if validating uri type then return uri if nowplaying types matches desired type.
-                    result = nowPlaying.Item.Uri
-                else:
-                    # otherwise nowplaying type is not the desired type!
-                    raise SpotifyApiError("Currently playing item is not a %s" % additionalTypes, logsi=_logsi)
-                
-        return result
-    
-
     def _ValidateMarket(self, 
                         market:str,
                         ) -> str:
@@ -1121,6 +990,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
         
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1193,7 +1063,7 @@ class SpotifyClient:
                 
             # if uris not specified, then return currently playing uri value.
             if (uris is None) or (len(uris.strip()) == 0):
-                uris = self._GetPlayerNowPlayingUri()
+                uris = self.GetPlayerNowPlayingUri(None)
                 if uris is None:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
                     
@@ -1352,6 +1222,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -1413,7 +1284,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAlbumUri()
+                uri = self.GetPlayerNowPlayingAlbumUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -1511,7 +1382,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing artist id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingArtistUri()
+                uri = self.GetPlayerNowPlayingArtistUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -1607,7 +1478,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAudiobookUri()
+                uri = self.GetPlayerNowPlayingAudiobookUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -1702,7 +1573,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri('episode')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -1884,7 +1755,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingShowUri()
+                uri = self.GetPlayerNowPlayingShowUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -1979,7 +1850,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -2202,6 +2073,7 @@ class SpotifyClient:
             _logsi.LogString(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2339,6 +2211,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2352,9 +2225,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def FollowArtists(self, 
-                      ids:str=None,
-                      ) -> None:
+    def FollowArtists(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Add the current user as a follower of one or more artists.
 
@@ -2395,7 +2269,7 @@ class SpotifyClient:
                                    
             # if ids not specified, then return currently playing artist id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingArtistUri()
+                uri = self.GetPlayerNowPlayingArtistUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -2423,6 +2297,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2436,10 +2311,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def FollowPlaylist(self, 
-                       playlistId:str,
-                       public:bool=True
-                       ) -> None:
+    def FollowPlaylist(
+            self, 
+            playlistId:str=None,
+            public:bool=True
+            ) -> None:
         """
         Add the current user as a follower of a playlist.
 
@@ -2449,6 +2325,7 @@ class SpotifyClient:
             playlistId (str):  
                 The Spotify ID of the playlist.  
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
+                If null, the currently playing playlist uri id value is used.
             public (bool):
                 If true the playlist will be included in user's public playlists, if false it 
                 will remain private.  
@@ -2479,6 +2356,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("public", public)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of a playlist", apiMethodParms)
                 
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             reqData:dict = {}
             if public is not None:
@@ -2494,6 +2379,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2569,6 +2455,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2582,10 +2469,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAlbum(self, 
-                 albumId:str, 
-                 market:str=None,
-                 ) -> Album:
+    def GetAlbum(
+            self, 
+            albumId:str=None, 
+            market:str=None,
+            ) -> Album:
         """
         Get Spotify catalog information for a single album.
         
@@ -2593,6 +2481,8 @@ class SpotifyClient:
             albumId (str):  
                 The Spotify ID of the album.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE`
+                If null, the currently playing album uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -2617,6 +2507,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbum.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAlbum_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetAlbum'
@@ -2633,6 +2527,14 @@ class SpotifyClient:
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+
+            # if albumId not specified, then return currently playing album id value.
+            if (albumId is None) or (len(albumId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingAlbumUri()
+                if uri is not None:
+                    albumId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'albumId'), logsi=_logsi)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -2652,6 +2554,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2818,6 +2721,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -2979,6 +2883,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3069,6 +2974,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Album]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3082,13 +2988,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAlbumTracks(self, 
-                       albumId:str, 
-                       limit:int=20, 
-                       offset:int=0,
-                       market:str=None,
-                       limitTotal:int=None
-                       ) -> TrackPageSimplified:
+    def GetAlbumTracks(
+            self, 
+            albumId:str=None, 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None
+            ) -> TrackPageSimplified:
         """
         Get Spotify catalog information about an album's tracks.  
         
@@ -3098,6 +3005,8 @@ class SpotifyClient:
             albumId (str):  
                 The Spotify ID of the album.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE`
+                If null, the currently playing album uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
@@ -3176,6 +3085,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if albumId not specified, then return currently playing album id value.
+            if (albumId is None) or (len(albumId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingAlbumUri()
+                if uri is not None:
+                    albumId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'albumId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3230,6 +3147,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3243,9 +3161,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetArtist(self, 
-                  artistId:str, 
-                  ) -> Artist:
+    def GetArtist(
+            self, 
+            artistId:str=None, 
+            ) -> Artist:
         """
         Get Spotify catalog information for a single artist identified by their unique Spotify ID.
         
@@ -3253,6 +3172,8 @@ class SpotifyClient:
             artistId (str):  
                 The Spotify ID of the artist.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
+                If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
                 
         Returns:
             An `Artist` object that contains the artist details.
@@ -3269,6 +3190,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetArtist.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetArtist_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetArtist'
@@ -3282,6 +3207,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("artistId", artistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single artist", apiMethodParms)
                 
+            # if artistId not specified, then return currently playing artist id value.
+            if (artistId is None) or (len(artistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    artistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'artistId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}'.format(id=artistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -3294,6 +3227,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3309,7 +3243,7 @@ class SpotifyClient:
 
     def GetArtistAlbums(
             self, 
-            artistId:str, 
+            artistId:str=None, 
             include_groups:str='album', 
             limit:int=20, 
             offset:int=0,
@@ -3324,6 +3258,8 @@ class SpotifyClient:
             artistId (str):  
                 The Spotify ID of the artist.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
+                If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             include_groups (str):  
                 A comma-separated list of keywords that will be used to filter the response.  
                 If not supplied, all album types will be returned.  
@@ -3413,6 +3349,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if artistId not specified, then return currently playing artist id value.
+            if (artistId is None) or (len(artistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    artistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'artistId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -3470,6 +3414,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3483,9 +3428,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
         
 
-    def GetArtistInfo(self, 
-                      artistId:str, 
-                      ) -> ArtistInfo:
+    def GetArtistInfo(
+            self, 
+            artistId:str=None, 
+            ) -> ArtistInfo:
         """
         Get artist about information from the Spotify Artist Biography page for the
         specified Spotify artist ID.
@@ -3494,6 +3440,8 @@ class SpotifyClient:
             artistId (str):  
                 The Spotify ID of the artist.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
+                If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
                 
         Returns:
             An `ArtistInfo` object that contains the artist info details.
@@ -3525,6 +3473,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("artistId", artistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single artist", apiMethodParms)
                 
+            # if artistId not specified, then return currently playing artist id value.
+            if (artistId is None) or (len(artistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    artistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'artistId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}'.format(id=artistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -3691,6 +3647,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3731,9 +3688,10 @@ class SpotifyClient:
         return result
                 
 
-    def GetArtistRelatedArtists(self, 
-                                artistId:str, 
-                                ) -> list[Artist]:
+    def GetArtistRelatedArtists(
+            self, 
+            artistId:str=None, 
+            ) -> list[Artist]:
         """
         Get Spotify catalog information about artists similar to a given artist.  
         Similarity is based on analysis of the Spotify community's listening history.
@@ -3742,6 +3700,8 @@ class SpotifyClient:
             artistId (str):  
                 The Spotify ID of the artist.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
+                If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
                 
         Returns:
             A list of `Artist` objects that contain the artist details.
@@ -3771,6 +3731,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("artistId", artistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about artists similar to a given artist", apiMethodParms)
                 
+            # if artistId not specified, then return currently playing artist id value.
+            if (artistId is None) or (len(artistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    artistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'artistId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/related-artists'.format(id=artistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -3786,6 +3754,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -3861,6 +3830,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4019,6 +3989,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4032,10 +4003,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetArtistTopTracks(self, 
-                           artistId:str, 
-                           market:str, 
-                           ) -> list[Track]:
+    def GetArtistTopTracks(
+            self, 
+            artistId:str=None, 
+            market:str=None, 
+            ) -> list[Track]:
         """
         Get Spotify catalog information about an artist's top tracks by country.
         
@@ -4043,6 +4015,8 @@ class SpotifyClient:
             artistId (str):  
                 The Spotify ID of the artist.  
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
+                If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -4084,6 +4058,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if artistId not specified, then return currently playing artist id value.
+            if (artistId is None) or (len(artistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingArtistUri()
+                if uri is not None:
+                    artistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'artistId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -4105,6 +4087,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4118,10 +4101,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAudiobook(self, 
-                audiobookId:str, 
-                market:str=None,
-                ) -> Audiobook:
+    def GetAudiobook(
+            self, 
+            audiobookId:str=None, 
+            market:str=None,
+            ) -> Audiobook:
         """
         Get Spotify catalog information for a single audiobook.  
         
@@ -4131,6 +4115,8 @@ class SpotifyClient:
             audiobookId (str):  
                 The Spotify ID for the audiobook.
                 Example: `74aydHJKgYz3AIq3jjBSv1`
+                If null, the currently playing audiobook uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -4160,6 +4146,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobook.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetAudiobook_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetAudiobook'
@@ -4176,6 +4166,14 @@ class SpotifyClient:
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+
+            # if audiobookId not specified, then return currently playing audiobook id value.
+            if (audiobookId is None) or (len(audiobookId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingAudiobookUri()
+                if uri is not None:
+                    audiobookId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'audiobookId'), logsi=_logsi)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -4195,6 +4193,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4208,13 +4207,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAudiobookChapters(self, 
-                             audiobookId:str, 
-                             limit:int=20, 
-                             offset:int=0,
-                             market:str=None,
-                             limitTotal:int=None
-                             ) -> ChapterPageSimplified:
+    def GetAudiobookChapters(
+            self, 
+            audiobookId:str=None, 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None
+            ) -> ChapterPageSimplified:
         """
         Get Spotify catalog information about an audiobook's chapters.
         
@@ -4224,6 +4224,8 @@ class SpotifyClient:
             audiobookId (str):  
                 The Spotify ID for the audiobook.
                 Example: `74aydHJKgYz3AIq3jjBSv1`
+                If null, the currently playing audiobook uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
@@ -4302,6 +4304,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if audiobookId not specified, then return currently playing audiobook id value.
+            if (audiobookId is None) or (len(audiobookId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingAudiobookUri()
+                if uri is not None:
+                    audiobookId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'audiobookId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4356,6 +4366,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4507,6 +4518,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4602,6 +4614,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[AudiobookSimplified]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4720,6 +4733,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4894,6 +4908,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -4993,6 +5008,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5174,6 +5190,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result, resultMessage
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5264,6 +5281,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5359,6 +5377,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Chapter]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5372,10 +5391,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetEpisode(self, 
-                   episodeId:str, 
-                   market:str=None,
-                   ) -> Episode:
+    def GetEpisode(
+            self, 
+            episodeId:str=None, 
+            market:str=None,
+            ) -> Episode:
         """
         Get Spotify catalog information for a single episode identified by its unique Spotify ID.
         
@@ -5385,6 +5405,8 @@ class SpotifyClient:
             episodeId (str):  
                 The Spotify ID for the episode.
                 Example: `512ojhOuo1ktJprKbVcKyQ`
+                If null, the currently playing episode uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -5431,6 +5453,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if ids not specified, then return currently playing id value.
+            if (episodeId is None) or (len(episodeId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingUri('episode')
+                if uri is not None:
+                    episodeId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'episodeId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = {}
             if market is not None:
@@ -5449,6 +5479,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5600,6 +5631,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5695,6 +5727,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Episode]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5885,6 +5918,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result, resultMessage
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -5965,6 +5999,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6083,6 +6118,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6133,6 +6169,7 @@ class SpotifyClient:
             # subsequent calls to the Spotify Web API player endpoints.
             return None
     
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6222,6 +6259,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'Device'), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6513,6 +6551,7 @@ class SpotifyClient:
             _logsi.LogVerbose("Device name '%s' could not be found in the Spotify Connect Device list; subsequent actions will probably fail using this device name" % value)
             return value
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6616,6 +6655,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, 'list[Device]', cacheDesc), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6682,10 +6722,15 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the object currently being played on the user's Spotify account", apiMethodParms)
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+
+            # a spotify free or premium level membership is required to get the nowplaying info.
+            if (not self.UserProfile.IsProductPremium) and (not self.UserProfile.IsProductFree):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACCOUNT_REQUIRED_FOR_NOWPLAYING, logsi=_logsi)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -6707,6 +6752,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6719,6 +6765,188 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+
+    def GetPlayerNowPlayingAlbumUri(self) -> str:
+        """
+        Returns the album uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying context does not contain an album reference.  
+        """
+        result:str = None
+
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='track')
+        
+        # is a track playing?  if so, return the album uri value.
+        if nowPlaying is not None:
+            if nowPlaying.CurrentlyPlayingType in ['track']:
+                trackItem:Track = nowPlaying.Item
+                if (trackItem is not None) and (trackItem.Album is not None):
+                    result = trackItem.Album.Uri
+            else:
+                raise SpotifyApiError("Currently playing item does not contain an Album reference", logsi=_logsi)
+                
+        return result
+    
+
+    def GetPlayerNowPlayingArtistUri(self) -> str:
+        """
+        Returns the artist uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying context does not contain an artist reference.  
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        
+        # is a track playing?  if so, return the artist uri value.
+        if nowPlaying is not None:
+            if nowPlaying.CurrentlyPlayingType in ['track']:
+                trackItem:Track = nowPlaying.Item
+                if (trackItem is not None) and (len(trackItem.Artists) > 0):
+                    result = trackItem.Artists[0].Uri
+            else:
+                raise SpotifyApiError("Currently playing item does not contain an Artist reference", logsi=_logsi)
+                
+        return result
+    
+
+    def GetPlayerNowPlayingAudiobookUri(self) -> str:
+        """
+        Returns the audiobook uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying context is not a audiobook chapter.  
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        
+        # is an chapter playing?  if so, return the parent show uri value.
+        if nowPlaying is not None:
+            if nowPlaying.CurrentlyPlayingType in ['episode']:
+                playingItem:Chapter = nowPlaying.Item
+                if (playingItem is not None):
+                    chapter:Chapter = self.GetChapter(playingItem.Id)
+                    result = chapter.Audiobook.Uri
+            else:
+                raise SpotifyApiError("Currently playing item is not a Audiobook Chapter", logsi=_logsi)
+                
+        return result
+    
+
+    def GetPlayerNowPlayingPlaylistUri(self) -> str:
+        """
+        Returns the playlist uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying context is not a playlist.  
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying()
+        
+        # is a playlist playing?  if so, return the uri value.
+        if nowPlaying is not None:
+            context:Context = nowPlaying.Context
+            if (context is not None) and (context.Type == 'playlist'):
+                result = context.Uri
+            else:
+                raise SpotifyApiError("Currently playing context is not a Playlist", logsi=_logsi)
+                
+        return result
+    
+
+    def GetPlayerNowPlayingShowUri(self) -> str:
+        """
+        Returns the show uri value of the currently playing media if something is
+        playing; otherwise, null is returned.
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying context is not a show episode.  
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        
+        # is an episode playing?  if so, return the parent show uri value.
+        if nowPlaying is not None:
+            if nowPlaying.CurrentlyPlayingType in ['episode']:
+                playingItem:Episode = nowPlaying.Item
+                if (playingItem is not None):
+                    episode:Episode = self.GetEpisode(playingItem.Id)
+                    result = episode.Show.Uri
+            else:
+                raise SpotifyApiError("Currently playing item is not a Show Episode", logsi=_logsi)
+                
+        return result
+    
+
+    def GetPlayerNowPlayingUri(
+            self,
+            additionalTypes:str=None,
+            ) -> str:
+        """
+        Returns the uri value of the currently playing media type if something is
+        playing; otherwise, null is returned.
+        
+        Args:
+            additionalTypes (str):
+                An item type that your client supports besides the default track type.  
+                Valid types are: `track` and `episode`.  
+                Specify `episode` to get podcast track information.  
+        
+        Raises:
+            SpotifyApiError: 
+                If current user does not have a Spotify free or premium level account.  
+                If nowplaying item is not of the specified `additionalType`.  
+        """
+        result:str = None
+        
+        # get nowplaying status.
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=additionalTypes)
+        
+        # is anything playing?  if so, return the uri value.
+        if nowPlaying is not None:
+            if nowPlaying.Item is not None:
+                if additionalTypes is None:
+                    # if not validating uri type then just return the uri.
+                    result = nowPlaying.Item.Uri
+                elif nowPlaying.CurrentlyPlayingType == additionalTypes:
+                    # if validating uri type then return uri if nowplaying types matches desired type.
+                    result = nowPlaying.Item.Uri
+                else:
+                    # otherwise nowplaying type is not the desired type!
+                    raise SpotifyApiError("Currently playing item is not a %s" % additionalTypes, logsi=_logsi)
+            else:
+                # otherwise nowplaying item does not contain the desired type!
+                if additionalTypes is None:
+                    raise SpotifyApiError("Currently playing item context is not set", logsi=_logsi)
+                else:
+                    raise SpotifyApiError("Currently playing item context is not a %s item" % additionalTypes, logsi=_logsi)
+                
+        return result
+    
 
     def GetPlayerPlaybackState(self, 
                                market:str=None, 
@@ -6811,6 +7039,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -6868,6 +7097,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7052,6 +7282,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7065,12 +7296,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlaylist(self, 
-                    playlistId:str, 
-                    market:str=None,
-                    fields:str=None,
-                    additionalTypes:str=None
-                    ) -> Playlist:
+    def GetPlaylist(
+            self, 
+            playlistId:str=None, 
+            market:str=None,
+            fields:str=None,
+            additionalTypes:str=None
+            ) -> Playlist:
         """
         Get a playlist owned by a Spotify user.
         
@@ -7078,6 +7310,7 @@ class SpotifyClient:
             playlistId (str):  
                 The Spotify ID of the playlist.  
                 Example: `5v5ETK9WFXAnGQ3MRubKuE`
+                If null, the currently playing playlist uri id value is used.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -7122,6 +7355,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylist.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetPlaylist_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetPlaylist'
@@ -7141,6 +7378,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
             
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
             # was the Spotify DJ playlist specified?
             # the DJ is not fully integrated with the playlist API, so the GET request will fail.
             # we will manually build a basic playlist object to return for the playlist.
@@ -7184,6 +7429,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7252,6 +7498,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7265,15 +7512,16 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlaylistItems(self, 
-                         playlistId:str, 
-                         limit:int=50,
-                         offset:int=0,
-                         market:str=None,
-                         fields:str=None,
-                         additionalTypes:str=None,
-                         limitTotal:int=None
-                         ) -> PlaylistPage:
+    def GetPlaylistItems(
+            self, 
+            playlistId:str=None, 
+            limit:int=50,
+            offset:int=0,
+            market:str=None,
+            fields:str=None,
+            additionalTypes:str=None,
+            limitTotal:int=None
+            ) -> PlaylistPage:
         """
         Get full details of the items of a playlist owned by a Spotify user.
         
@@ -7283,6 +7531,7 @@ class SpotifyClient:
             playlistId (str):  
                 The Spotify ID of the playlist.  
                 Example: `5v5ETK9WFXAnGQ3MRubKuE`
+                If null, the currently playing playlist uri id value is used.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 50, Range: 1 to 50.  
@@ -7384,6 +7633,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -7442,6 +7699,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7593,6 +7851,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7750,6 +8009,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7763,10 +8023,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetShow(self, 
-                showId:str, 
-                market:str=None,
-                ) -> Show:
+    def GetShow(
+            self, 
+            showId:str=None, 
+            market:str=None,
+            ) -> Show:
         """
         Get Spotify catalog information for a single show identified by its unique Spotify ID.
         
@@ -7774,6 +8035,8 @@ class SpotifyClient:
             showId (str):  
                 The Spotify ID for the show.
                 Example: `5CfCWKI5pZ28U0uOzXkDHe`
+                If null, the currently playing show uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -7803,6 +8066,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetShow.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetShow_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetShow'
@@ -7819,6 +8086,14 @@ class SpotifyClient:
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+
+            # if showId not specified, then return currently playing show id value.
+            if (showId is None) or (len(showId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingShowUri()
+                if uri is not None:
+                    showId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'showId'), logsi=_logsi)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -7838,6 +8113,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -7851,13 +8127,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetShowEpisodes(self, 
-                        showId:str, 
-                        limit:int=20, 
-                        offset:int=0,
-                        market:str=None,
-                        limitTotal:int=None
-                        ) -> EpisodePageSimplified:
+    def GetShowEpisodes(
+            self, 
+            showId:str=None, 
+            limit:int=20, 
+            offset:int=0,
+            market:str=None,
+            limitTotal:int=None
+            ) -> EpisodePageSimplified:
         """
         Get Spotify catalog information about a show's episodes.
         
@@ -7867,6 +8144,8 @@ class SpotifyClient:
             showId (str):  
                 The Spotify ID for the show.
                 Example: `6kAsbP8pxwaU2kPibKTuHE`
+                If null, the currently playing show uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
                 Default: 20, Range: 1 to 50.  
@@ -7945,6 +8224,14 @@ class SpotifyClient:
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
+            # if showId not specified, then return currently playing show id value.
+            if (showId is None) or (len(showId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingShowUri()
+                if uri is not None:
+                    showId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'showId'), logsi=_logsi)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -7999,6 +8286,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -8150,6 +8438,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -8245,6 +8534,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[ShowSimplified]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -8800,9 +9090,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTrack(self, 
-                 trackId:str, 
-                 ) -> Track:
+    def GetTrack(
+            self, 
+            trackId:str=None, 
+            ) -> Track:
         """
         Get Spotify catalog information for a single track identified by its unique Spotify ID.
         
@@ -8810,6 +9101,8 @@ class SpotifyClient:
             trackId (str):  
                 The Spotify ID of the track.  
                 Example: `1kWUud3vY5ij5r62zxpTRy`
+                If null, the currently playing track uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
                 
         Returns:
             A `Track` object that contains the track details.
@@ -8826,6 +9119,10 @@ class SpotifyClient:
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/GetTrack.py
         ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetTrack_NowPlaying.py
+        ```
         </details>
         """
         apiMethodName:str = 'GetTrack'
@@ -8839,6 +9136,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("trackId", trackId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single track", apiMethodParms)
                 
+            # if trackId not specified, then return currently playing track id value.
+            if (trackId is None) or (len(trackId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingUri('track')
+                if uri is not None:
+                    trackId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'trackId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks/{id}'.format(id=trackId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -8851,6 +9156,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -8864,9 +9170,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTrackAudioFeatures(self, 
-                              trackId:str, 
-                              ) -> AudioFeatures:
+    def GetTrackAudioFeatures(
+            self, 
+            trackId:str=None, 
+            ) -> AudioFeatures:
         """
         Get audio feature information for a single track identified by its unique Spotify ID.
         
@@ -8874,6 +9181,8 @@ class SpotifyClient:
             trackId (str):  
                 The Spotify ID of the track.  
                 Example: `1kWUud3vY5ij5r62zxpTRy`
+                If null, the currently playing track uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
                 
         Returns:
             An `AudioFeatures` object that contains the audio feature details.
@@ -8903,6 +9212,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("trackId", trackId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get audio feature information for a single track", apiMethodParms)
                 
+            # if trackId not specified, then return currently playing track id value.
+            if (trackId is None) or (len(trackId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingUri('track')
+                if uri is not None:
+                    trackId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'trackId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features/{id}'.format(id=trackId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -8915,6 +9232,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9081,6 +9399,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9171,6 +9490,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9246,6 +9566,7 @@ class SpotifyClient:
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[AudioFeatures]'), result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9648,6 +9969,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9772,6 +10094,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9836,6 +10159,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -9998,6 +10322,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -10160,6 +10485,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -10812,6 +11138,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -10916,6 +11243,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11009,6 +11337,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11102,6 +11431,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11320,6 +11650,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11423,6 +11754,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11525,6 +11857,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11746,6 +12079,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -11806,7 +12140,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAlbumUri()
+                uri = self.GetPlayerNowPlayingAlbumUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -11896,7 +12230,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAudiobookUri()
+                uri = self.GetPlayerNowPlayingAudiobookUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -11986,7 +12320,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri('episode')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12157,7 +12491,7 @@ class SpotifyClient:
                 
             # if uris not specified, then return currently playing uri value.
             if (uris is None) or (len(uris.strip()) == 0):
-                uris = self._GetPlayerNowPlayingUri()
+                uris = self.GetPlayerNowPlayingUri(None)
                 if uris is None:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
 
@@ -12255,7 +12589,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingShowUri()
+                uri = self.GetPlayerNowPlayingShowUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12344,7 +12678,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12485,6 +12819,7 @@ class SpotifyClient:
             _logsi.LogString(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12574,6 +12909,7 @@ class SpotifyClient:
             _logsi.LogString(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -12634,7 +12970,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAlbumUri()
+                uri = self.GetPlayerNowPlayingAlbumUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12724,7 +13060,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingAudiobookUri()
+                uri = self.GetPlayerNowPlayingAudiobookUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12814,7 +13150,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri('episode')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12904,7 +13240,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingShowUri()
+                uri = self.GetPlayerNowPlayingShowUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12993,7 +13329,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri('track')
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -13199,6 +13535,7 @@ class SpotifyClient:
     #         _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
     #         return result
 
+    #     except SpotifyApiError: raise  # pass handled exceptions on thru
     #     except SpotifyWebApiError: raise  # pass handled exceptions on thru
     #     except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
     #     except Exception as ex:
@@ -13390,6 +13727,7 @@ class SpotifyClient:
             response.Albums = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -13581,6 +13919,7 @@ class SpotifyClient:
             response.Artists = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -13774,6 +14113,7 @@ class SpotifyClient:
             response.Audiobooks = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -13965,6 +14305,7 @@ class SpotifyClient:
             response.Episodes = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -14156,6 +14497,7 @@ class SpotifyClient:
             response.Playlists = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -14347,6 +14689,7 @@ class SpotifyClient:
             response.Shows = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -14538,6 +14881,7 @@ class SpotifyClient:
             response.Tracks = result
             return response
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -14999,6 +15343,7 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -15133,9 +15478,10 @@ class SpotifyClient:
         return msg
 
 
-    def UnfollowArtists(self, 
-                        ids:str=None,
-                        ) -> None:
+    def UnfollowArtists(
+            self, 
+            ids:str=None,
+            ) -> None:
         """
         Remove the current user as a follower of one or more artists.
 
@@ -15176,7 +15522,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing artist id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self._GetPlayerNowPlayingArtistUri()
+                uri = self.GetPlayerNowPlayingArtistUri()
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -15204,6 +15550,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -15217,9 +15564,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def UnfollowPlaylist(self, 
-                         playlistId:str,
-                         ) -> None:
+    def UnfollowPlaylist(
+            self, 
+            playlistId:str=None,
+            ) -> None:
         """
         Remove the current user as a follower of a playlist.
 
@@ -15229,6 +15577,7 @@ class SpotifyClient:
             playlistId (str):  
                 The Spotify ID of the playlist.  
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
+                If null, the currently playing playlist uri id value is used.
                 
         Raises:
             SpotifyWebApiError: 
@@ -15254,6 +15603,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of a playlist", apiMethodParms)
                 
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -15263,6 +15620,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -15338,6 +15696,7 @@ class SpotifyClient:
             # no results to process - this is pass or fail.
             return
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:

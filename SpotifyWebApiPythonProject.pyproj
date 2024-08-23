@@ -30,7 +30,14 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="docspdoc\buildEnv.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetArtist_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobook_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetEpisode_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetPlaylist_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetShow_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetSpotifyConnectDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetTrack_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerActivateDevices.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetSpotifyConnectDevices.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumFavorites_AutoPaging.py" />

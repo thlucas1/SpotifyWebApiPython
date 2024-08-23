@@ -6,6 +6,27 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.92 ] - 2024/08/23
+
+  * Updated `SpotifyClient.FollowPlaylist` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.
+  * Updated `SpotifyClient.GetAlbum` method to make the `albumId` argument optional; if not supplied, the currently playing album id value is used instead.
+  * Updated `SpotifyClient.GetAlbumTracks` method to make the `albumId` argument optional; if not supplied, the currently playing album id value is used instead.
+  * Updated `SpotifyClient.GetArtist` method to make the `artistId` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.GetArtistAlbums` method to make the `artistId` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.GetArtistInfo` method to make the `artistId` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.GetArtistRelatedArtists` method to make the `artistId` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.GetArtistTopTracks` method to make the `artistId` argument optional; if not supplied, the currently playing artist id value is used instead.
+  * Updated `SpotifyClient.GetAudiobook` method to make the `audiobookId` argument optional; if not supplied, the currently playing audiobook id value is used instead.
+  * Updated `SpotifyClient.GetAudiobookChapters` method to make the `audiobookId` argument optional; if not supplied, the currently playing audiobook id value is used instead.
+  * Updated `SpotifyClient.GetEpisode` method to make the `episodeId` argument optional; if not supplied, the currently playing episode id value is used instead.
+  * Updated `SpotifyClient.GetPlaylist` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.
+  * Updated `SpotifyClient.GetPlaylistItems` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.
+  * Updated `SpotifyClient.GetShow` method to make the `showId` argument optional; if not supplied, the currently playing show id value is used instead.
+  * Updated `SpotifyClient.GetShowEpisodes` method to make the `showId` argument optional; if not supplied, the currently playing show id value is used instead.
+  * Updated `SpotifyClient.GetTrack` method to make the `trackId` argument optional; if not supplied, the currently playing track id value is used instead.
+  * Updated `SpotifyClient.GetTrackAudioFeatures` method to make the `trackId` argument optional; if not supplied, the currently playing track id value is used instead.
+  * Updated `SpotifyClient.UnfollowPlaylist` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.
+
 ###### [ 1.0.91 ] - 2024/08/22
 
   * Updated `CheckTrackFavorites`, `RemoveTrackFavorites`, and `SaveTrackFavorites` methods to ensure that nowplaying item was a track and not an episode item.

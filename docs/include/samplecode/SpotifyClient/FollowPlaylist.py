@@ -30,6 +30,12 @@ try:
             
     print('\nSuccess - playlist is now followed')
 
+    # add the current user as a follower of the nowplaying playlist.
+    print('\nFollowing nowplaying playlist ...')
+    spotify.FollowPlaylist()
+            
+    print('\nSuccess - nowplaying playlist is now followed')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

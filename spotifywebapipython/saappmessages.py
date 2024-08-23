@@ -45,3 +45,8 @@ class SAAppMessages:
     SAM1001E - Spotify ZeroConf API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\"
     """
     
+    MSG_SPOTIFY_ACCOUNT_REQUIRED_FOR_NOWPLAYING:str = "SAM1004E - A Spotify Free or Premium level membership is required to get currently playing item information."
+    """
+    SAM1004E - A Spotify Premium level membership is required to get currently playing item information.
+    """
+    

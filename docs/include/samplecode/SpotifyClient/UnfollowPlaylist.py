@@ -30,6 +30,12 @@ try:
             
     print('\nSuccess - playlist is now unfollowed')
 
+    # remove the current user as a follower of the nowplaying playlist.
+    print('\nUnfollowing nowplaying playlist ...')
+    spotify.UnfollowPlaylist()
+            
+    print('\nSuccess - nowplaying playlist is now unfollowed')
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
