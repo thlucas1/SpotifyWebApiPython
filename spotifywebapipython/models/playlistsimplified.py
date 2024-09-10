@@ -140,7 +140,7 @@ class PlaylistSimplified:
     @property
     def Id(self) -> str:
         """ 
-        The Spotify user ID for the playlist.
+        The Spotify ID for the playlist.
         
         Example: `5v5ETK9WFXAnGQ3MRubKuE`
         """

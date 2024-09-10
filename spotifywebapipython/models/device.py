@@ -277,6 +277,9 @@ class Device:
             'supports_volume': self._SupportsVolume,
             'type': self._Type,
             'volume_percent': self._VolumePercent,
+            # helper property(s), not part of the Spotify Web API interface:
+            'is_muted': self.IsMuted,
+            'select_item_name_and_id': self.SelectItemNameAndId,
         }
         return result
         

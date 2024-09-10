@@ -23,7 +23,7 @@ class PageObject:
         self._CursorAfter:object = None
         self._CursorBefore:object = None
         self._Href:str = None
-        self._IsCursor = False
+        self._IsCursor:bool = False
         self._Items:list[object] = []
         self._Limit:int = 0
         self._Next:str = None
@@ -114,7 +114,7 @@ class PageObject:
 
 
     @property
-    def IsCursor(self) -> list[object]:
+    def IsCursor(self) -> bool:
         """ 
         True if cursors were returned at some point during the life of this paging object.
         """

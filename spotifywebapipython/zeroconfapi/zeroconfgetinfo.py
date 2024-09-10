@@ -492,6 +492,11 @@ class ZeroconfGetInfo(ZeroconfResponse):
             'TokenType': self._TokenType,
             'Version': self._Version,
             'VoiceSupport': self._VoiceSupport,
+            # helper property(s), not part of the Spotify Web API interface:
+            'HasActiveUser': self.HasActiveUser,
+            'HasAliases': self.HasAliases,
+            'IsAvailable': self.IsAvailable,
+            'IsBrandSonos': self.IsBrandSonos,
             'IsActiveDevice': self._IsActiveDevice,
             'IsInDeviceList': self._IsInDeviceList,
         }

@@ -198,7 +198,7 @@ class TrackSimplified:
     @property
     def Name(self) -> str:
         """ 
-        The name of the artist.
+        The name of the track.
         """
         return self._Name
 

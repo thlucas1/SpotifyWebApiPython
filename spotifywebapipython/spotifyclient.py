@@ -2713,9 +2713,12 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Album.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Album.Name or "").lower(), reverse=False)
+                else:
+                    result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -2875,9 +2878,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -3406,9 +3410,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -3981,9 +3986,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.CursorAfter = pageObj.CursorAfter
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -4510,9 +4516,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -4900,9 +4907,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5182,9 +5190,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5623,9 +5632,12 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Episode.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Episode.Name or "").lower(), reverse=False)
+                else:
+                    result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -5910,9 +5922,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -7843,9 +7856,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -8001,9 +8015,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -8416,7 +8431,7 @@ class SpotifyClient:
                 else:
                 
                     # append page of items to final results.
-                    item:AlbumSaved
+                    item:ShowSaved
                     for item in pageObj.Items:
                         result.Items.append(item)
                         result.Limit = result.ItemsCount
@@ -8430,9 +8445,12 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Show.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Show.Name or "").lower(), reverse=False)
+                else:
+                    result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -9066,9 +9084,10 @@ class SpotifyClient:
                 # update cache.
                 self._ConfigurationCache[apiMethodName] = result
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # update last refresh date.
             result.DateLastRefreshed = datetime.utcnow().timestamp()
@@ -9391,9 +9410,12 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Track.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Track.Name or "").lower(), reverse=False)
+                else:
+                    result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -10314,9 +10336,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -10477,9 +10500,10 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
 
-            # sort items on Name property, ascending order.
-            if (len(result.Items) > 0) and (sortResult is True):
-                result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+            # sort result items.
+            if (len(result.Items) > 0):
+                if (sortResult is True):
+                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)

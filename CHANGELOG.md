@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.93 ] - 2024/09/10
+
+  * Updated `SpotifyClient.GetAlbumFavorites` method to correctly sort results based upon the `sortResult` argument setting; true to sort by name ascending, false to sort by AddedAt descending.
+  * Updated `SpotifyClient.GetEpisodeFavorites` method to correctly sort results based upon the `sortResult` argument setting; true to sort by name ascending, false to sort by AddedAt descending.
+  * Updated `SpotifyClient.GetShowFavorites` method to correctly sort results based upon the `sortResult` argument setting; true to sort by name ascending, false to sort by AddedAt descending.
+  * Updated `SpotifyClient.GetTrackFavorites` method to correctly sort results based upon the `sortResult` argument setting; true to sort by name ascending, false to sort by AddedAt descending.
+
 ###### [ 1.0.92 ] - 2024/08/23
 
   * Updated `SpotifyClient.FollowPlaylist` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.

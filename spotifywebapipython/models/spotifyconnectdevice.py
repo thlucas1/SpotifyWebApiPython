@@ -127,6 +127,7 @@ class SpotifyConnectDevice():
         {
             'Id': self._Id,
             'Name': self._Name,
+            'Title': self.Title,
             'WasReConnected': self._WasReConnected,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),

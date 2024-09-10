@@ -60,7 +60,7 @@ class Context:
     @property
     def Href(self) -> str:
         """ 
-        A link to the Web API endpoint providing full details of the track.
+        A link to the Web API endpoint providing full details of the context.
         """
         return self._Href
 
@@ -69,8 +69,6 @@ class Context:
     def Type(self) -> str:
         """ 
         Object type, such as `artist`, `playlist`, `album` or `show`.
-        
-        Example: `computer`
         """
         return self._Type
 

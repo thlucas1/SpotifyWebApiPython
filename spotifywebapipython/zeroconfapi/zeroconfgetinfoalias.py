@@ -82,6 +82,7 @@ class ZeroconfGetInfoAlias:
             'Id': self._Id,
             'IsGroup': self._IsGroup,
             'Name': self._Name,
+            'Title': self.Title,
         }
         return result
         

@@ -349,7 +349,7 @@ class ZeroconfDiscoveryResult:
     @property
     def SpotifyConnectIsInDeviceList(self) -> bool:
         """ 
-        Spotify Connect SpotifyConnectIsInDeviceList property value (e.g. "/zc").
+        True if the device is in the Spotify Player active device list; otherwise, False.
         """
         return self._SpotifyConnectIsInDeviceList
     
@@ -435,6 +435,7 @@ class ZeroconfDiscoveryResult:
             'HostIpAddresses': [ str(item) for item in self._HostIpAddresses ],
             'HostIpPort': self._HostIpPort,
             'HostTTL': self._HostTTL,
+            'IsDynamicDevice': self.IsDynamicDevice,
             'Key': self._Key,
             'Name': self._Name,
             'Priority': self._Priority,

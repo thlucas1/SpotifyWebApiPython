@@ -289,6 +289,7 @@ class SpotifyConnectDevices():
         """
         result:dict = \
         {
+            'AgeLastRefreshed': self.AgeLastRefreshed,
             'DateLastRefreshed': self._DateLastRefreshed,
             'ItemsCount': self.ItemsCount,
             'Items': [ item.ToDictionary() for item in self._Items ],

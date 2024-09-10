@@ -90,6 +90,8 @@ class ArtistSimplified:
     def Id(self) -> str:
         """ 
         The Spotify ID for the artist.
+        
+        Example: `2CIMQHirSU0MQqyYHq0eOx`
         """
         return self._Id
 
@@ -114,6 +116,8 @@ class ArtistSimplified:
     def Uri(self) -> str:
         """ 
         The Spotify URI for the artist.
+        
+        Example: `spotify:artist:2CIMQHirSU0MQqyYHq0eOx`
         """
         return self._Uri
 
