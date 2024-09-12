@@ -130,7 +130,7 @@ class ShowSimplified:
     @property
     def Explicit(self) -> bool:
         """ 
-        Whether or not the show has explicit lyrics (true = yes it does; false = no it does not OR unknown).
+        Whether or not the show has explicit content (true = yes it does; false = no it does not OR unknown).
         """
         return self._Explicit
 
@@ -147,6 +147,7 @@ class ShowSimplified:
     def Href(self) -> str:
         """ 
         A link to the Web API endpoint providing full details of the show.
+        Example: `https://api.spotify.com/v1/shows/3IM0lmZxpFAY7CwMuv9H4g?locale=en-US%2Cen%3Bq%3D0.9`
         """
         return self._Href
 
@@ -164,6 +165,7 @@ class ShowSimplified:
     def Id(self) -> str:
         """ 
         The Spotify ID for the show.
+        Example: `3IM0lmZxpFAY7CwMuv9H4g`
         """
         return self._Id
 
@@ -210,6 +212,8 @@ class ShowSimplified:
     def MediaType(self) -> str:
         """ 
         The media type of the show.
+        
+        Example: `audio`
         """
         return self._MediaType
 
@@ -272,6 +276,7 @@ class ShowSimplified:
             'href': self._Href,
             'html_description': self._HtmlDescription,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'is_externally_hosted': self._IsExternallyHosted,
             'languages': [ item for item in self._Languages ],

@@ -316,6 +316,7 @@ class AudiobookSimplified:
             'href': self._Href,
             'html_description': self._HtmlDescription,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'languages': [ item for item in self._Languages ],
             'media_type': self._MediaType,

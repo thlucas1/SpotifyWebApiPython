@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.94 ] - 2024/09/12
+
+  * Added `image_url` attribute value to all models that support a `ToDictionary()` method.
+  * Miscellaneous documentation updates.
+
 ###### [ 1.0.93 ] - 2024/09/10
 
   * Updated `SpotifyClient.GetAlbumFavorites` method to correctly sort results based upon the `sortResult` argument setting; true to sort by name ascending, false to sort by AddedAt descending.

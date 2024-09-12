@@ -139,7 +139,7 @@ class TrackSimplified:
     @property
     def Explicit(self) -> bool:
         """ 
-        Whether or not the track has explicit lyrics (true = yes it does; false = no it does not OR unknown).
+        Whether or not the track has explicit content (true = yes it does; false = no it does not OR unknown).
         """
         return self._Explicit
 

@@ -124,6 +124,7 @@ class Artist(ArtistSimplified):
         {
             'followers': followers,
             'genres': [ item for item in self._Genres ],
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'popularity': self._Popularity
         }

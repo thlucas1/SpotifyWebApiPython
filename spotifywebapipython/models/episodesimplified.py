@@ -153,7 +153,7 @@ class EpisodeSimplified:
     @property
     def ExternalUrls(self) -> ExternalUrls:
         """ 
-        Known external URLs for the album.
+        Known external URLs for the episode.
         """
         return self._ExternalUrls
     
@@ -322,6 +322,7 @@ class EpisodeSimplified:
             'href': self._Href,
             'html_description': self._HtmlDescription,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'is_externally_hosted': self._IsExternallyHosted,
             'is_playable': self._IsPlayable,

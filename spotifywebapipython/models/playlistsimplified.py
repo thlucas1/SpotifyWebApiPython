@@ -256,6 +256,7 @@ class PlaylistSimplified:
             'external_urls': externalUrls,
             'href': self._Href,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'name': self._Name,
             'owner': owner,

@@ -232,7 +232,7 @@ class Device:
                 
         Returns:
             The Id portion of a `SelectItemNameAndId` property value, or None
-            if the Id potion could not be determined.
+            if the Id portion could not be determined.
         """
         result:str = None
         if isinstance(value, str):
@@ -253,7 +253,7 @@ class Device:
                 
         Returns:
             The Name portion of a `SelectItemNameAndId` property value, or None
-            if the Name potion could not be determined.
+            if the Name portion could not be determined.
         """
         result:str = None
         if isinstance(value, str):

@@ -177,6 +177,7 @@ class UserProfileSimplified:
             'followers': followers,
             'href': self._Href,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'type': self._Type,
             'uri': self._Uri,           

@@ -138,7 +138,7 @@ class ChapterSimplified:
     @property
     def ChapterNumber(self) -> int:
         """ 
-        The number of the chapter
+        The number of the chapter.
 
         Example: `1`
         """
@@ -176,7 +176,7 @@ class ChapterSimplified:
     @property
     def ExternalUrls(self) -> ExternalUrls:
         """ 
-        Known external URLs for the album.
+        Known external URLs for the chapter.
         """
         return self._ExternalUrls
     
@@ -339,6 +339,7 @@ class ChapterSimplified:
             'href': self._Href,
             'html_description': self._HtmlDescription,
             'id': self._Id,
+            'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'is_playable': self._IsPlayable,
             'languages': [ item for item in self._Languages ],
