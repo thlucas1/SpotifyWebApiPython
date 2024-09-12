@@ -120,7 +120,8 @@ class Track(TrackSimplified):
         {
             'album': album,
             'external_ids': externalIds,
-            'popularity': self._Popularity
+            'popularity': self._Popularity,
+            'image_url': self.ImageUrl,
         }
         
         # combine base class results with these results.

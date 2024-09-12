@@ -134,6 +134,7 @@ class Category:
         {
             'href': self._Href,
             'icons': [ item.ToDictionary() for item in self._Icons ],
+            'image_url': self.ImageUrl,
             'id': self._Id,
             'name': self._Name,
         }

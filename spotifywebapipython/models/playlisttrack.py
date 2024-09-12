@@ -116,6 +116,7 @@ class PlaylistTrack:
         {
             'added_at': self._AddedAt,
             'added_by': addedBy,
+            'image_url': self.ImageUrl,
             'is_local': self._IsLocal,
             'track': track
         }
