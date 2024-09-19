@@ -39,7 +39,8 @@ class AlbumPageSaved(PageObject):
             items:list = root.get('items',None)
             if items is not None:
                 for item in items:
-                    self._Items.append(AlbumSaved(root=item))
+                    if item is not None:
+                        self._Items.append(AlbumSaved(root=item))
 
         
     def __repr__(self) -> str:

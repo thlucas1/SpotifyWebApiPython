@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.96 ] - 2024/09/19
+
+  * Added defensive code in various parsers to account for the Spotify Web API returning an invalid / incomplete object.  This was noticed with the `GetAlbumFavorites` method, but also applied to other models that inherited from PageObject.
+
 ###### [ 1.0.95 ] - 2024/09/12
 
   * Added `image_url` attribute value to all models that support a `ToDictionary()` method (some that were previously missed in 1.0.94 release).
