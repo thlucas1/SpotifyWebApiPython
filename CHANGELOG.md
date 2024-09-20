@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.97 ] - 2024/09/20
+
+  * Updated `ZeroconfGetInfoAlias` to fix a bug related to Spotify Connect devices that define aliases (introduced with v1.0.93).  This was causing `TypeError: unsupported operand type(s) for &: 'str' and 'tuple'` exceptions if a device had aliases defined.
+
 ###### [ 1.0.96 ] - 2024/09/19
 
   * Added defensive code in various parsers to account for the Spotify Web API returning an invalid / incomplete object.  This was noticed with the `GetAlbumFavorites` method, but also applied to other models that inherited from PageObject.

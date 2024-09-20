@@ -78,6 +78,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
             self._VoiceSupport = root.get('voiceSupport', None)
 
             # process all collections and objects.
+            #items:list = root.get('aliases', [{ "id":"aliasId","isGroup": False, "name":"aliasName" }])  # simulate an alias value (used for testing).
             items:list = root.get('aliases',None)
             if items is not None:
                 for item in items:

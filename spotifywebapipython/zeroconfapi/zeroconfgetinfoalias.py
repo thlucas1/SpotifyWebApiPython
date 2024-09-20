@@ -70,7 +70,7 @@ class ZeroconfGetInfoAlias:
         """ 
         Alias name and id value (e.g. '"Bose-ST10-1" (30fbc80e35598f3c242f2120413c943dfd9715fe)').
         """
-        return '"%s" (%s)' & (self._Name, self._Id)
+        return '"%s" (%s)' % (self._Name, self._Id)
     
 
     def ToDictionary(self) -> dict:
