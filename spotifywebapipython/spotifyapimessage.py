@@ -42,6 +42,7 @@ class SpotifyApiMessage:
         self._RequestHeaders:Mapping[str, str] = requestHeaders
         self._RequestJson:dict = None
         self._ResponseData = {}
+        self._IgnoreResponseErrors:bool = False
         self._IsRequestDataEncoded:bool = False
         self._Uri:str = uri
         self._UrlParameters:dict = urlParameters
@@ -100,6 +101,22 @@ class SpotifyApiMessage:
 
 
     @property
+    def IgnoreResponseErrors(self) -> bool:
+        """ 
+        Indicates if request response errors are ignored (True) or not (False, default).  
+        If not, an exception will be thrown with the error details.
+        """
+        return self._IgnoreResponseErrors
+
+    @IgnoreResponseErrors.setter
+    def IgnoreResponseErrors(self, value:bool):
+        """ 
+        Sets the IgnoreResponseErrors property value.
+        """
+        self._IgnoreResponseErrors = value
+
+
+    @property
     def IsRequestDataEncoded(self) -> bool:
         """ 
         Indicates if the `RequestData` property is already encoded (True) or not (False).
@@ -109,7 +126,7 @@ class SpotifyApiMessage:
     @IsRequestDataEncoded.setter
     def IsRequestDataEncoded(self, value:bool):
         """ 
-        Sets the MethodName property value.
+        Sets the IsRequestDataEncoded property value.
         """
         self._IsRequestDataEncoded = value
 

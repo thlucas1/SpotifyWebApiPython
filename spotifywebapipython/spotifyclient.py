@@ -607,7 +607,8 @@ class SpotifyClient:
                     if errCode is None:
                         errCode = response.status
                         
-                    raise SpotifyWebApiError(errCode, errMessage, msg.MethodName, response.reason, _logsi)
+                    if (not msg.IgnoreResponseErrors):
+                        raise SpotifyWebApiError(errCode, errMessage, msg.MethodName, response.reason, _logsi)
 
                 elif isinstance(errObj, str):
                     
@@ -5216,6 +5217,7 @@ class SpotifyClient:
     def GetChapter(self, 
                    chapterId:str, 
                    market:str=None,
+                   ignoreResponseErrors:bool=False,
                    ) -> Chapter:
         """
         Get Spotify catalog information for a single audiobook chapter identified by its unique Spotify ID.
@@ -5234,6 +5236,9 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            ignoreResponseErrors (bool):
+                True to ignore any request response errors that occur; otherwise, an exception will be thrown
+                if a response error is detected (default).
                 
         Returns:
             An `Chapter` object that contain the chapter details.
@@ -5267,6 +5272,7 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("chapterId", chapterId)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("ignoreResponseErrors", ignoreResponseErrors)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook chapter", apiMethodParms)
                 
             # ensure market was either supplied or implied; default if neither.
@@ -5281,6 +5287,7 @@ class SpotifyClient:
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/chapters/{id}'.format(id=chapterId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
+            msg.IgnoreResponseErrors = ignoreResponseErrors
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -6833,11 +6840,28 @@ class SpotifyClient:
         return result
     
 
-    def GetPlayerNowPlayingAudiobookUri(self) -> str:
+    def GetPlayerNowPlayingAudiobookUri(
+            self,
+            market:str=None,
+            ignoreResponseErrors:bool=False,
+            ) -> str:
         """
         Returns the audiobook uri value of the currently playing media if something is
         playing; otherwise, null is returned.
         
+        Args:
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            ignoreResponseErrors (bool):
+                True to ignore any request response errors that occur; otherwise, an exception will be thrown
+                if a response error is detected (default).
+                
         Raises:
             SpotifyApiError: 
                 If current user does not have a Spotify free or premium level account.  
@@ -6846,17 +6870,19 @@ class SpotifyClient:
         result:str = None
         
         # get nowplaying status.
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(market, additionalTypes='episode')
         
         # is an chapter playing?  if so, return the parent show uri value.
         if nowPlaying is not None:
             if nowPlaying.CurrentlyPlayingType in ['episode']:
                 playingItem:Chapter = nowPlaying.Item
                 if (playingItem is not None):
-                    chapter:Chapter = self.GetChapter(playingItem.Id)
-                    result = chapter.Audiobook.Uri
+                    chapter:Chapter = self.GetChapter(playingItem.Id, market, ignoreResponseErrors)
+                    if (chapter.Audiobook is not None):
+                        result = chapter.Audiobook.Uri
             else:
-                raise SpotifyApiError("Currently playing item is not a Audiobook Chapter", logsi=_logsi)
+                if (not ignoreResponseErrors):
+                    raise SpotifyApiError("Currently playing item is not a Audiobook Chapter", logsi=_logsi)
                 
         return result
     
@@ -10519,6 +10545,97 @@ class SpotifyClient:
 
         finally:
         
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def IsChapterEpisode(
+            self, 
+            episodeId:str=None, 
+            market:str=None,
+            ) -> bool:
+        """
+        Returns true if the specified episode id is an audiobook chapter; otherwise, false.
+        
+        Args:
+            episodeId (str):  
+                The Spotify ID to check.
+                Example: `74aydHJKgYz3AIq3jjBSv1`
+                If null, the currently playing uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+                
+        Returns:
+            True if the specified id is an audiobook chapter; otherwise, false.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/IsChapterEpisode.py
+        ```
+          <summary>Sample Code - NowPlaying</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/IsChapterEpisode_NowPlaying.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'IsChapterEpisode'
+        apiMethodParms:SIMethodParmListContext = None
+        result:bool = False
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("episodeId", episodeId)
+            apiMethodParms.AppendKeyValue("market", market)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if episode id is an audiobook chapter or not", apiMethodParms)
+                
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
+
+            # if id not specified, then return currently playing id value.
+            # this will issue a GetChapter call to retrieve the actual audiobook id.
+            # the `GetPlayerNowPlayingAudiobookUri` method will fail if it's not a chapter id.
+            if (episodeId is None) or (len(episodeId.strip()) == 0):
+                
+                uri = self.GetPlayerNowPlayingAudiobookUri(market, True)
+                result = (uri is not None)
+                
+            else:
+                
+                # if id was supplied, then call the `GetChapter` method to retrieve chapter information.
+                # the `GetChapter` method will fail if it's not a chapter id.
+                chapter:Chapter = self.GetChapter(episodeId, market, True)
+                result = (chapter.Id is not None)
+                
+            return result
+
+        except Exception as ex:
+            
+            # at this point we can safely assume it's NOT an audiobook chapter.
+            result = False
+            return result
+               
+        finally:
+        
+            # trace.
+            _logsi.LogValue(SILevel.Verbose, TRACE_METHOD_RESULT % (apiMethodName), result)
+
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
