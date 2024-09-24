@@ -6767,6 +6767,17 @@ class SpotifyClient:
 
             # process results.
             result = PlayerPlayState(root=msg.ResponseData)
+            
+            # is this an episode?  if so, then determine the item type (e.g. podcast or audiobook).
+            if (result is not None):
+                if (result.Item is not None):
+                    result.ItemType = SpotifyClient.GetTypeFromUri(result.Item.Uri)
+                    if (result.CurrentlyPlayingType == 'episode'):
+                        uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
+                        if (self.IsChapterEpisode(uriId)):
+                            result.ItemType = 'audiobook'
+                        else:
+                            result.ItemType = 'podcast'
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -7061,7 +7072,18 @@ class SpotifyClient:
 
             # process results.
             result = PlayerPlayState(root=msg.ResponseData)
-
+            
+            # is this an episode?  if so, then determine the item type (e.g. podcast or audiobook).
+            if (result is not None):
+                if (result.Item is not None):
+                    result.ItemType = SpotifyClient.GetTypeFromUri(result.Item.Uri)
+                    if (result.CurrentlyPlayingType == 'episode'):
+                        uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
+                        if (self.IsChapterEpisode(uriId)):
+                            result.ItemType = 'audiobook'
+                        else:
+                            result.ItemType = 'podcast'
+        
             # check for a restricted device; if found, then grab the device id from the 
             # cached list of spotify connect devices (if present).
             if result is not None:

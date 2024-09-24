@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.99 ] - 2024/09/24
+
+  * Added `PlayerPlayState.ItemType` property that denotes the type of episode being played: `podcast` or `audiobook`.  This property is only loaded when the `SpotifyClient` `GetPlayerNowPlaying` or `GetPlayerPlaybackState` method is called with `additionalTypes='episode'`.
+
 ###### [ 1.0.98 ] - 2024/09/24
 
   * Added `SpotifyClient.IsAudiobookEpisode` method that returns true if the specified episode id is an audiobook chapter; otherwise, false.  This allows you to programatically determine the difference between a podcast / show episode, and an audiobook episode.

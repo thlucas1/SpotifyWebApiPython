@@ -28,6 +28,7 @@ class PlayerPlayState:
         """
         self._Actions:PlayerActions = None
         self._Context:Context = None
+        self._ItemType:str = None
         self._CurrentlyPlayingType:str = None
         self._Device:Device = None
         self._Item:object = None
@@ -146,6 +147,27 @@ class PlayerPlayState:
         Will be of type `Track`, `Episode`, or null.
         """
         return self._Item
+
+
+    @property
+    def ItemType(self) -> str:
+        """ 
+        The type of the currently playing episode; can be null.  
+        This value will be null if the `Item` property value is null.
+        
+        If not null, it can be one of `audiobook` or `podcast`.
+        
+        Note that this is not a Spotify Web API property; it is loaded from our API so
+        that the type of episode can be determined programatically (e.g. audiobook or podcast).
+        """
+        return self._ItemType
+
+    @ItemType.setter
+    def ItemType(self, value:str):
+        """ 
+        Sets the ItemType property value.
+        """
+        self._ItemType = value
 
 
     @property
@@ -330,6 +352,7 @@ class PlayerPlayState:
             'shuffle_state': self._ShuffleState,
             'smart_shuffle': self._SmartShuffle,
             'timestamp': self._Timestamp,
+            'item_type': self._ItemType,
             'item': item,
         }
         return result
@@ -342,6 +365,7 @@ class PlayerPlayState:
         msg:str = 'PlayerPlayState:'
         #if self._Actions is not None: msg = '%s\n %s' % (msg, str(self._Actions))
         if self._CurrentlyPlayingType is not None: msg = '%s\n CurrentlyPlayingType="%s"' % (msg, str(self._CurrentlyPlayingType))
+        if self._ItemType is not None: msg = '%s\n ItemType="%s"' % (msg, str(self._ItemType))
         if self._Device is not None: msg = '%s\n Device Name="%s"' % (msg, str(self._Device.Name))
         #if self._Context is not None: msg = '%s\n %s' % (msg, str(self._Context))
         #if self._Item is not None: msg = '%s\n %s' % (msg, str(self._Item))
