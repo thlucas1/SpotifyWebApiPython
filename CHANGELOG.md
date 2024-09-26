@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.100 ] - 2024/09/26
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` method to force a Spotify Connect Disconnect call to the device if `activateDevice` argument is `True`.  The `verifyUserContext` argument is deprecated as well.  This was necessary, as Spotify Connect device manufacturers do not use the Spotify Connect Zeroconf Information `ActiveUser` property consistently.
+  * Added `PlayerTransferPlayback.forceActivateDevice` argument that allows you to force activate the Spotify Connect device as part of the transfer of playback.
+
 ###### [ 1.0.99 ] - 2024/09/24
 
   * Added `PlayerPlayState.ItemType` property that denotes the type of episode being played: `podcast` or `audiobook`.  This property is only loaded when the `SpotifyClient` `GetPlayerNowPlaying` or `GetPlayerPlaybackState` method is called with `additionalTypes='episode'`.
