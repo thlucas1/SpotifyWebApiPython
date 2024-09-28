@@ -745,6 +745,7 @@ class SpotifyClient:
                 
             # trace.
             if (msg.HasRequestHeaders):
+                # "User-Agent: Spotify/8.9.76 iOS/18.1 (iPhone17,1)"
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
             # *** IMPORTANT ***
@@ -6436,10 +6437,12 @@ class SpotifyClient:
                                                                 tokenStorageDir=self.TokenStorageDir,
                                                                 tokenStorageFile=self.TokenStorageFile)
                     
-                        # if a different user context has control of the device then we need to disconnect 
-                        # the current user context before connecting a different user.
-                        if (info.HasActiveUser):
-                            _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for user context '%s'" % (scDevice.Title, deviceActiveUser))
+                        # disconnect the device.
+                        # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
+                        # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
+                        # generate a 404 request response.
+                        if (info.BrandDisplayName != 'librespot'):
+                            _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (scDevice.Title, deviceActiveUser))
                             zcfResult = zconn.Disconnect(delay)
                             status = status + 'disconnected from user context "%s";' % deviceActiveUser
 
@@ -8844,8 +8847,12 @@ class SpotifyClient:
                         break
                                        
                     # disconnect the device.
-                    _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (deviceResult.Title, deviceActiveUser))
-                    zcfResult = zconn.Disconnect(delay)
+                    # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
+                    # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
+                    # generate a 404 request response.
+                    if (info.BrandDisplayName != 'librespot'):
+                        _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (deviceResult.Title, deviceActiveUser))
+                        zcfResult = zconn.Disconnect(delay)
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!

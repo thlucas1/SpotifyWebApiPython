@@ -29,6 +29,9 @@ class Credentials:
         
         # initialize storage.
         self.username: bytes = bytes(username, 'ascii')
-        self.password: bytes = bytes(password, 'ascii')
+        if (isinstance(password, bytes)):
+            self.password: bytes = password
+        else:
+            self.password: bytes = bytes(password, 'ascii')
         self.auth_type: AuthenticationTypes = authenticationType
         

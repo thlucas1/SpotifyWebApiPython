@@ -1,5 +1,6 @@
 # external package imports.
 import json
+import os.path
 import requests
 from requests.models import Response
 import time
@@ -7,7 +8,7 @@ import time
 # our package imports.
 from .blobbuilder import BlobBuilder
 from .credentials import Credentials, AuthenticationTypes
-from .helpers import int_to_b64str
+from .helpers import int_to_b64str, b64str_to_bytes
 from .spotifyzeroconfapierror import SpotifyZeroconfApiError
 from .zeroconfresponse import ZeroconfResponse
 from .zeroconfgetinfo import ZeroconfGetInfo
@@ -379,6 +380,12 @@ class ZeroconfConnect:
         .. include:: ../../docs/include/samplecode/ZeroconfConnect/Connect.py
         ```
         </details>
+        <details>
+          <summary>Sample Code - spotifyD</summary>
+        ```python
+        .. include:: ../../docs/include/samplecode/ZeroconfConnect/Connect_SPOTIFYD.py
+        ```
+        </details>
         """
         apiMethodName:str = 'Connect'
         apiMethodParms:SIMethodParmListContext = None
@@ -559,8 +566,37 @@ class ZeroconfConnect:
             if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
                 includeOriginDeviceInfo = True
 
+            # special processing for librespot, spotifyd.
+            if info.ModelDisplayName == 'librespot':
+
+                # we will use credentials from a librespot credentials.json file.
+                # this requires that the user copy the "credentials.json" file from the 
+                # librespot cache location (e.g. "/home/user/.cache/spotifyd/credentials.json", etc)
+                # and place it in the same folder as the token storage file with a new name
+                # of "SpotifyWebApiPython_librespot_credentials.json".
+                
+                # get credentials from librespot credentials file.
+                credentials:dict = self._LoadLibrespotCredentials(loginId)
+                
+                # create credentials and builder objects.
+                librespot_username = credentials.get('username','')
+                librespot_password = b64str_to_bytes(credentials.get('auth_data',''))
+                credentials:Credentials = Credentials(librespot_username, librespot_password, AuthenticationTypes.STORED_SPOTIFY_CREDENTIALS)
+                builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
+
+                # set defaults used by this token type:
+                # - clientKey should be the getInfo response PublicKey (base64 encoded).
+                # - include origin device information in the addUser request.
+                # - tokenType should be set to '' (not used by librespot).
+                clientKey:str = builder.dh_keys.PublicKeyBase64String
+                includeOriginDeviceInfo = True
+                tokenType = ''
+            
+                # formulate the blob.
+                blob = builder.build()
+            
             # special processing for tokenType "authorization_code":
-            if info.TokenType == 'authorization_code':
+            elif info.TokenType == 'authorization_code':
 
                 # trace.
                 _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify Desktop Client OAuth2 token to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
@@ -819,6 +855,90 @@ class ZeroconfConnect:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def _LoadLibrespotCredentials(self, loginId:str) -> dict:
+        """
+        Loads spotify user credentials from a librespot credentials.json file.
+        
+        Args:
+            loginId (str):
+                Spotify canonical login id of the authenticating user.  
+                Example = `3758dfdsfjk435hjk6k79lm0n3c4`
+        
+        Returns:
+            A credentials dictionary, if one was found in the credentials storage file; 
+            otherwise, null.
+        """
+        apiMethodName:str = '_LoadLibrespotCredentials'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Loading librespot credentials from storage", apiMethodParms)
+               
+            # librespot credntials.json file format as of 2024/09/28
+            # {
+            #   "username": "31l77xxxxxxxxxxxxxxxxxxxxxxx",
+            #   "auth_type": 1,
+            #   "auth_data": "QVFET2h6 ... aFp3OHg="
+            # }
+
+            # formulate the credentials file path.
+            filePath:str = os.path.join(self._TokenStorageDir, "SpotifyWebApiPython_librespot_credentials.json")
+            
+            # does the file exist?  if not, then it's an error as we are trying to authenticate!
+            if (not os.path.exists(filePath)):
+                raise SpotifyApiError("Could not find librespot authorization credentials file (%s).  This file is required in order to authenticate to a device or service that utilizes the librespot application." % (filePath), logsi=_logsi)
+
+            # open the credentials file, and load its contents.
+            _logsi.LogVerbose('Opening librespot credentials file: "%s"' % (filePath))
+            with open(filePath, 'r') as f:
+                credentials:dict = json.load(f)
+                _logsi.LogDictionary(SILevel.Verbose, 'librespot credentials were loaded successfully', credentials, prettyPrint=True)
+    
+            # prepare for comparison.
+            loginId = loginId.lower()
+            credential:dict = None
+
+            # check for multiple credential format.
+            if (isinstance(credentials, list)):
+                
+                # file contents are an array of librespot credentials.
+                for credential in credentials:
+                    if (credential.get('username','').lower() == loginId):
+                        break
+                    
+            else:
+                
+                # file contents are a single librespot credential.
+                credential = credentials
+
+            # does the found credential match the requested login?  if not, then reset the credential.
+            if (credential is not None):
+                if (credential.get('username','').lower() != loginId):
+                    credential = None
+                
+            # if no credentials then it's an error.
+            if (credential is None):
+                raise SpotifyApiError("librespot authorization credentials file (%s) did not contain credentials for canonical loginid (%s)." % (filePath, loginId), logsi=_logsi)
+                
+            # return credentials to caller.
+            return credential
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('Could not load librespot authorization credentials file (%s).' % (filePath), ex)
+            raise
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def Disconnect(
             self,
             delay:float=0.50,
@@ -848,6 +968,10 @@ class ZeroconfConnect:
 
         The currently logged in user (if any) will be logged out of Spotify Connect, and the 
         device id removed from the active Spotify Connect device list.  
+        
+        This method should not be attempted for devices or services that utilize `librespot`,
+        such as `spotifyd`.  The `librespot` library does not implement the `resetUsers`
+        Spotify Connect Zeroconf endpoint, and will fail with a 404 error.
 
         <details>
           <summary>Sample Code</summary>

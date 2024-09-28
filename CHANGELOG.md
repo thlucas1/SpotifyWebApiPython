@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.101 ] - 2024/09/28
+
+  * Updated `ZeroconfConnect.Connect` method to load authorization credentials for the Spotify Connect `addUser` blob from a `credentials.json` file for devices that utilize librespot / spotifyd.  Spotify no longer supports uername / password authentication via librespot (always returns "Bad Credentials" exceptions.  This allows the librespot `credentials.json` file to be copied to the spotifywebapiPython storage folder, and used for calls to the librespot `addUser` zeroconf endpoint.
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` and `PlayerActivateDevices` methods to bypass the call to Spotify Connect Zeroconf Disconnect for devices that utilize librespot / spotifyd.  librespot does not implement the Spotify Connect Zeroconf `resetUsers` endpoint, so the request always fails with a 404.
+
 ###### [ 1.0.100 ] - 2024/09/26
 
   * Updated `SpotifyClient.GetSpotifyConnectDevice` method to force a Spotify Connect Disconnect call to the device if `activateDevice` argument is `True`.  The `verifyUserContext` argument is deprecated as well.  This was necessary, as Spotify Connect device manufacturers do not use the Spotify Connect Zeroconf Information `ActiveUser` property consistently.

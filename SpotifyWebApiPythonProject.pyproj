@@ -185,6 +185,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum.py" />
     <Compile Include="docs\include\samplecode\SpotifyDiscovery\DiscoverDevices.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\AuthTokenGenerator.py" />
+    <Compile Include="docs\include\samplecode\ZeroconfConnect\Connect_SPOTIFYD.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\GetInformation.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\Disconnect.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\Connect.py" />
@@ -380,10 +381,12 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Content Include="research\spotify_connect_flow_tokenType_authorization_code.txt" />
     <Content Include="research\spotify_connect_results_getinfo.txt" />
     <Content Include="test\smartinspect.cfg" />
+    <Content Include="test\testdata\haconfig\SpotifyWebApiPython_librespot_credentials.json" />
     <Content Include="test\testdata\haconfig\SpotifyWebApiPython_tokens.json" />
     <Content Include="test\testdata\PlaylistCoverImage.jpg" />
     <Content Include="test\testdata\PlaylistCoverImage_TooLarge.jpg" />
     <Content Include="test\testdata\RollingTheDice [454 x 625].jpg" />
+    <Content Include="test\testdata\SpotifyWebApiPython_librespot_credentials.json" />
     <Content Include="test\testdata\SpotifyWebApiPython_tokens.json" />
   </ItemGroup>
   <ItemGroup>

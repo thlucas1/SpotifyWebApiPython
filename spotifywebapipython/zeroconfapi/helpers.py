@@ -43,6 +43,13 @@ def b64_to_int(value: str):
     return int.from_bytes(b64decode(value), 'big')
 
 
+def b64str_to_bytes(value: str):
+    """
+    Decodes a base64-encoded string to a byte array.
+    """
+    return b64decode(value)
+
+
 def string_to_int(value):
     """
     Converts a string to a big integer.
