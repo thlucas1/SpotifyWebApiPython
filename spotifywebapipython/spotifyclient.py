@@ -8372,6 +8372,7 @@ class SpotifyClient:
             offset:int=0,
             limitTotal:int=None,
             sortResult:bool=True,
+            excludeAudiobooks:bool=True,
             ) -> ShowPageSaved:
         """
         Get a list of the shows saved in the current Spotify user's 'Your Library'.
@@ -8397,6 +8398,10 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            excludeAudiobooks (bool):
+                True to exclude audiobook shows from the returned list, leaving only podcast shows;
+                otherwise, False to include all results returned by the Spotify Web API.  
+                Default: True  
                 
         Returns:
             An `ShowPageSaved` object that contains saved show information.
@@ -8407,6 +8412,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifApiError: 
                 If the method fails for any other reason.
+                
+        For some reason, Spotify Web API returns audiobooks AND podcasts with the `/me/shows` service.
+        Spotify Web API returns only audiobooks with the `/me/audiobooks` service.
+        The reasoning for that is unclear, but the `excludeAudiobooks` argument allows you to
+        only return podcast shows in the results if desired.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -8492,6 +8502,20 @@ class SpotifyClient:
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
                         break
+
+            # exclude audiobook shows if requested.
+            if (excludeAudiobooks):
+
+                item:ShowSaved
+                idx:int = 0
+                while idx < len(result.Items):
+                    if (result.Items[idx].Show is not None) \
+                    and (result.Items[idx].Show.Description is not None) \
+                    and (result.Items[idx].Show.Description.startswith('Author(s):')):
+                        del result.Items[idx]
+                        pageObj.Total -= 1
+                    else:
+                        idx += 1
 
             # update result object with final paging details.
             result.Total = pageObj.Total

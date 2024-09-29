@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.102 ] - 2024/09/29
+
+  * Updated `SpotifyClient.GetShowFavorites` method to only return podcast show items by default.  Prior to this fix, it was returning both audiobook and podcast shows.  The new `excludeAudiobooks` argument allows you to return both audiobook and podcast shows (default returned by Spotify Web API).
+
 ###### [ 1.0.101 ] - 2024/09/28
 
   * Updated `ZeroconfConnect.Connect` method to load authorization credentials for the Spotify Connect `addUser` blob from a `credentials.json` file for devices that utilize librespot / spotifyd.  Spotify no longer supports uername / password authentication via librespot (always returns "Bad Credentials" exceptions.  This allows the librespot `credentials.json` file to be copied to the spotifywebapiPython storage folder, and used for calls to the librespot `addUser` zeroconf endpoint.
