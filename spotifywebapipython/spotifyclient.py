@@ -11385,17 +11385,17 @@ class SpotifyClient:
             relativePositionMS:int=0,
             ) -> None:
         """
-        Seeks to the given position in the user's currently playing track for the specified 
-        Spotify Connect device.
+        Seeks to the given absolute or relative position in the user's currently playing track 
+        for the specified Spotify Connect device.
         
         This method requires the `user-modify-playback-state` scope.
 
         Args:
             positionMS (int):
-                The position in milliseconds to seek to; must be a positive number.  
+                The absolute position in milliseconds to seek to; must be a positive number.  
                 Passing in a position that is greater than the length of the track will cause the 
-                player to start playing the next song.
-                Example: `25000`  
+                player to start playing the next song.  
+                Example = `25000` to start playing at the 25 second mark.  
             deviceId (str):
                 The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
@@ -11408,9 +11408,8 @@ class SpotifyClient:
                 Default is 0.50; value range is 0 - 10.
             relativePositionMS (int):
                 The relative position in milliseconds to seek to; can be a positive or negative number.  
-                Passing in a positive relative position that causes the position to be greater than the 
-                length of the track will cause the player to start playing the next song.
-                Example: `25000`  
+                Example = `-10000` to seek behind by 10 seconds.  
+                Example = `10000` to seek ahead by 10 seconds.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -11423,12 +11422,15 @@ class SpotifyClient:
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
         
+        If using relative positioning, the `positionMS` argument must be zero (or null); the `positionMS`
+        argument takes precedence if it and the `relativePositionMS` argument are specified. A positive 
+        relative position that causes the seek position to be greater than the length of the track will 
+        cause the player to start playing the next song.  A negative relative position that causes the 
+        seek position to be less than zero will cause the player to start playing the track from the beginning.
+
         Note that the `relativePositionMS` functionality is not defined by the Spotify Web API.  This
-        argument was added to this API to support "skip" seeking.  A positive relative position that causes 
-        the seek position to be greater than the length of the track will cause the player to start playing 
-        the next song.  A negative relative position that causes the seek position to be less than zero 
-        will cause the player to start playing the track from the beginning.
-        
+        argument was added to this API to support "skip" seeking.  
+                        
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -11470,7 +11472,7 @@ class SpotifyClient:
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
             
             # was relative seeking specified?
-            if (relativePositionMS != 0) and (positionMS == 0):
+            if (relativePositionMS != 0) and (positionMS <= 0):
                 
                 # get current track position.
                 playState:PlayerPlayState = self.GetPlayerPlaybackState()
