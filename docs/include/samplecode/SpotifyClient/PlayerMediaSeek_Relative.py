@@ -20,13 +20,23 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # seek to the given position in the track on the specified Spotify Connect device.
-    positionMS:int = 25000
+    # seek ahead 5 seconds in the playing track.
+    relPositionMS:int = 5000
     deviceId:str = None   # use currently playing device
     #deviceId:str = "Web Player (Chrome)" # or device name
     #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
-    print('\nSeeking to %d milliseconds on Spotify Connect device:\n- "%s" ...' % (positionMS, deviceId))
-    spotify.PlayerMediaSeek(positionMS, deviceId)
+    print('\nSeeking ahead by %d milliseconds on Spotify Connect device:\n- "%s" ...' % (relPositionMS, deviceId))
+    spotify.PlayerMediaSeek(relativePositionMS=relPositionMS, deviceId=deviceId)
+
+    print('\nSuccess - seek to position in track')
+
+    # seek behind 5 seconds in the playing track.
+    relPositionMS:int = -5000
+    deviceId:str = None   # use currently playing device
+    #deviceId:str = "Web Player (Chrome)" # or device name
+    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
+    print('\nSeeking ahead by %d milliseconds on Spotify Connect device:\n- "%s" ...' % (relPositionMS, deviceId))
+    spotify.PlayerMediaSeek(relativePositionMS=relPositionMS, deviceId=deviceId)
 
     print('\nSuccess - seek to position in track')
 

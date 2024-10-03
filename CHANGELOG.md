@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.103 ] - 2024/10/03
+
+  * Updated `SpotifyClient.PlayerMediaSeek` method to add relative positioning capability.  This allows you to seek ahead / behind by a specified `relativePositionMS` positioning amount.  The `positionMS` argument must be zero to enable this functionality.  Note that the relative position functionality is not defined by the Spotify Web API.  The functionality was added to this API to support "skip" seeking.
+
 ###### [ 1.0.102 ] - 2024/09/29
 
   * Updated `SpotifyClient.GetShowFavorites` method to only return podcast show items by default.  Prior to this fix, it was returning both audiobook and podcast shows.  The new `excludeAudiobooks` argument allows you to return both audiobook and podcast shows (default returned by Spotify Web API).

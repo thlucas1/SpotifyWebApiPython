@@ -2656,6 +2656,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -2822,6 +2824,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -3344,6 +3348,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -3923,6 +3929,8 @@ class SpotifyClient:
                 limit = 20
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -4464,6 +4472,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -4849,6 +4859,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -5130,6 +5142,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -5586,6 +5600,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -5867,6 +5883,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -6647,6 +6665,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("refresh", refresh)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get user's available Spotify Connect player devices", apiMethodParms)
+
+            # validations.
+            if sortResult is None: 
+                sortResult = True
 
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
@@ -7853,6 +7875,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -8011,6 +8035,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -8443,6 +8469,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("excludeAudiobooks", excludeAudiobooks)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users show favorites", apiMethodParms)
                 
             # validations.
@@ -8452,6 +8479,10 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
+            if excludeAudiobooks is None: 
+                excludeAudiobooks = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -9015,7 +9046,11 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("refresh", refresh)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get available Spotify Connect devices", apiMethodParms)
-                
+
+            # validations.
+            if sortResult is None: 
+                sortResult = True
+
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -9423,6 +9458,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -10353,6 +10390,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -10517,6 +10556,8 @@ class SpotifyClient:
                 offset = 0
             if not isinstance(limitTotal, int):
                 limitTotal = 0
+            if sortResult is None: 
+                sortResult = True
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
@@ -11336,11 +11377,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaSeek(self, 
-                        positionMS:int=0,
-                        deviceId:str=None,
-                        delay:float=0.50
-                        ) -> None:
+    def PlayerMediaSeek(
+            self, 
+            positionMS:int=0,
+            deviceId:str=None,
+            delay:float=0.50,
+            relativePositionMS:int=0,
+            ) -> None:
         """
         Seeks to the given position in the user's currently playing track for the specified 
         Spotify Connect device.
@@ -11363,6 +11406,11 @@ class SpotifyClient:
                 This delay will give the spotify web api time to process the change before 
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
+            relativePositionMS (int):
+                The relative position in milliseconds to seek to; can be a positive or negative number.  
+                Passing in a positive relative position that causes the position to be greater than the 
+                length of the track will cause the player to start playing the next song.
+                Example: `25000`  
                 
         Raises:
             SpotifyWebApiError: 
@@ -11375,10 +11423,22 @@ class SpotifyClient:
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
         
+        Note that the `relativePositionMS` functionality is not defined by the Spotify Web API.  This
+        argument was added to this API to support "skip" seeking.  A positive relative position that causes 
+        the seek position to be greater than the length of the track will cause the player to start playing 
+        the next song.  A negative relative position that causes the seek position to be less than zero 
+        will cause the player to start playing the track from the beginning.
+        
         <details>
           <summary>Sample Code</summary>
         ```python
         .. include:: ../docs/include/samplecode/SpotifyClient/PlayerMediaSeek.py
+        ```
+        </details>
+        <details>
+          <summary>Sample Code - Relative Positioning</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerMediaSeek_Relative.py
         ```
         </details>
         """
@@ -11392,10 +11452,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
+            apiMethodParms.AppendKeyValue("relativePositionMS", relativePositionMS)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device seek position", apiMethodParms)
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (positionMS is None):
+                positionMS = 0
+            if (relativePositionMS is None):
+                relativePositionMS = 0
 
             # if deviceId was not specified, then verify that there is an active player device.
             if deviceId is None:
@@ -11403,6 +11468,20 @@ class SpotifyClient:
 
             # check for device name; convert to an id if a name was supplied.
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            
+            # was relative seeking specified?
+            if (relativePositionMS != 0) and (positionMS == 0):
+                
+                # get current track position.
+                playState:PlayerPlayState = self.GetPlayerPlaybackState()
+                newPositionMS:int = playState.ProgressMS
+                if (newPositionMS is not None) and (newPositionMS > 0):
+                    
+                    # calculate new position; if less than zero, then force it to zero.
+                    newPositionMS += relativePositionMS
+                    if (newPositionMS < 0):
+                        newPositionMS = 0
+                    positionMS = newPositionMS
 
             # build spotify web api request parameters.
             urlParms:dict = \

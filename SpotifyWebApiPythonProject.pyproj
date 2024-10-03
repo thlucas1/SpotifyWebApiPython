@@ -72,6 +72,7 @@ PDOC_DISPLAY_ENV_VARS=1</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerRecentTracks_Past01Hours.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPause.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaResume.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSeek_Relative.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSeek.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSkipNext.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaSkipPrevious.py" />

@@ -49,7 +49,7 @@ setup(
     # place documentation folder named "docs" in the package folder.
     data_files=[
         ('../../spotifywebapiPython/docs', getDirFilesList('docspdoc/build/')),
-        ('../../spotifywebapiPython/docs/spotifywebapiPython', getDirFilesList('docspdoc/build/spotifywebapiPython/')),
+        ('../../spotifywebapiPython/docs/spotifywebapipython', getDirFilesList('docspdoc/build/spotifywebapipython/')),
     ],
     
     # set minimum python version requirement.
