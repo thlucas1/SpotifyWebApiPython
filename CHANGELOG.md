@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.105 ] - 2024/10/04
+
+  * Updated Spotify Connect device processing to only require the userid and password parameters when authenticating to devices that require user and password values.  Some devices only require a loginid value (e.g. spotifyd, Spotify Connect AddOn, librespot, Sonos, etc).  The user should not have to specify userid and password values if they are not required!
+  * Cleaned up some documentation, as well as some of the code examples.
+
 ###### [ 1.0.104 ] - 2024/10/03
 
   * Updated `SpotifyClient.PlayerMediaSeek` method to change the `progressMS` check to `<= 0` when invoking relative positioning.

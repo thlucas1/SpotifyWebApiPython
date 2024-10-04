@@ -26,20 +26,13 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
-    # activate all Spotify Connect player devices on the local network
-    # without switching the device user context.
+    # activate all Spotify Connect player devices on the local network.
+    # this will disconnect other users from all spotify connect player 
+    # devices defined to the local network.
     print('\nActivating Spotify Connect player devices')
-    result:str = spotify.PlayerActivateDevices(verifyUserContext=False)
+    result:str = spotify.PlayerActivateDevices()
     print(result)
     
-    # activate all Spotify Connect player devices on the local network
-    # and switch the device user context to our user context.  this will
-    # disconnect other users from all spotify connect player devices
-    # defined to the local network.
-    print('\nActivating Spotify Connect player devices for our user context')
-    result:str = spotify.PlayerActivateDevices(verifyUserContext=True)
-    print(result)
-
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

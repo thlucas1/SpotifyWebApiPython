@@ -6342,25 +6342,32 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyZeroconfApiError:
                 If any Spotify Zeroconf API request failed.  
-                If the `spotifyConnectUsername` argument was not specified for the class contructor.
             SpotifApiError: 
+                If the `spotifyConnectLoginId` argument was not specified for the class contructor.  
+                If the `spotifyConnectUsername` argument was not specified for the class contructor.  
+                If the `spotifyConnectPassword` argument was not specified for the class contructor.  
                 If the method fails for any other reason.
 
-        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected
-        to the local network.  A Spotify Zeroconf API `getInfo` call is then issued for each device
-        that was found to retrieve device information.  A Spotify Zeroconf API `addUser` call is also
-        issued for each device that does not have an active user context established, OR if the currently
-        active user context does not match the `SpotifyConnectUsername` argument specified on the class 
-        constructor and the `verifyUserContext` argument is True.
-        
-        The user context switch is bypassed if the `verifyUserContext` argument is False.  If the user context 
-        is to be switched, then a Disconnect will be issued if a user context is active on the device followed 
-        by a Connect to the user context specified on the class constructor.
-        
-        Dynamic Spotify Connect devices are not processed by this method, as they are temporary devices and are 
-        already active and in the device list.  These devices are not found in Zeroconf discovery process, and only
-        exist in the player device list.  These are usually Spotify Connect web or mobile players with temporary device id's.        
+        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected 
+        to the local network.  It will then iterate through the returned devices and perform the 
+        following on each one:  
+        - call Spotify Zeroconf API `getInfo` endpoint to retrieve device information.  
+        - call Spotify Zeroconf API `resetUsers` endpoint to disconnect the device.  This step is omitted 
+        for dynamic devices (see note below).  Note that this will force any users that are connected to 
+        the device off of the device.  
+        - call Spotify Zeroconf API `addUser` endpoint to connect the device.  This step is omitted for 
+        dynamic devices (see note below).  This should "re-awaken" the device if necessary, and make it 
+        ready for immediate use.  
 
+        Dynamic Spotify Connect devices are not processed by this method, as they are temporary devices and 
+        are already active and in the device list.  These devices are not found in Zeroconf discovery process, 
+        and only exist in the player device list.  These are usually Spotify Connect web or mobile players 
+        with temporary device id's.  
+
+        Note that the SpotifyConnectUsername, SpotifyConnectPassword, and SpotifyConnectLoginId arguments must 
+        be specified on the class contructor in order to use this method.  They are all required in order to 
+        reactivate a Spotify Connect device.
+                
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -6378,13 +6385,9 @@ class SpotifyClient:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
+            apiMethodParms.AppendKeyValue("verifyUserContext (deprecated)", verifyUserContext)
             apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Activating Spotify Connect Player Devices", apiMethodParms)
-
-            # validation - ensure spotify connect user context was specified on the class constructor.
-            if (self._SpotifyConnectUsername is None):
-                raise SpotifyZeroconfApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'SpotifyConnectUsername'), logsi=_logsi)
 
             # validations.
             delay = validateDelay(delay, 0.25, 10)
@@ -6422,24 +6425,10 @@ class SpotifyClient:
 
                     # is this a dynamic device?  if so, then there is no need to activate it as it's already active.
                     if (discoverResult.IsDynamicDevice):
+                        
                         _logsi.LogVerbose("Activation not required for dynamic Spotify Connect device: '%s'" % (scDevice.Title))
-                        status = status + "dynamic device, cannot switch user context"
+                        status = status + "dynamic device, cannot switch user context; "
                     
-                    # does our Spotify Connect user account need to take control of the device?
-                    # if not, then we are done.
-                    # this takes into account if the device is in the available device list, as well
-                    # as if the active user is not our user context.
-                    elif (info.IsInDeviceList == True) \
-                    and ((deviceActiveUser == self._SpotifyConnectUsername.lower()) or (deviceActiveUser == self.UserProfile.Id.lower())):
-                        _logsi.LogVerbose("User context '%s' was verified for Spotify Connect device '%s'; switch not necessary" % (deviceActiveUser, scDevice.Title))
-                        status = status + "user context switch not needed"
-                    
-                    # did caller request user context switch bypass?
-                    # if so, then just return the device id.
-                    elif (info.HasActiveUser) and (not verifyUserContext):
-                        _logsi.LogVerbose("User context '%s' will be used for Spotify Connect device '%s', as user chose to bypass user context switch" % (deviceActiveUser, scDevice.Title))
-                        status = status + "caller bypassed user context switch"
-
                     else:
                         
                         zcfResult:ZeroconfResponse
@@ -6462,19 +6451,21 @@ class SpotifyClient:
                         if (info.BrandDisplayName != 'librespot'):
                             _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (scDevice.Title, deviceActiveUser))
                             zcfResult = zconn.Disconnect(delay)
-                            status = status + 'disconnected from user context "%s";' % deviceActiveUser
+                            status = status + 'disconnected from user context "%s"; ' % deviceActiveUser
+                        else:
+                            status = status + 'disconnect bypassed for librespot device; '
 
                         # connect the device to OUR Spotify Connect user context.
                         # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                        _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (scDevice.Title, self._SpotifyConnectUsername))
+                        _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (scDevice.Title, self._SpotifyConnectLoginId))
                         zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId, delay=delay)
-                        status = status + 'connected to user context "%s"' % self._SpotifyConnectUsername
+                        status = status + 'connected to user context "%s"; ' % self._SpotifyConnectLoginId
                         
                         # indicate device was reconnected.
                         scDevice.WasReConnected = True
 
                         # trace.
-                        _logsi.LogVerbose("User context switch from '%s' to '%s' was requested for Spotify Connect device '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, scDevice.Title))
+                        _logsi.LogVerbose("User context switched from '%s' to '%s' for Spotify Connect device '%s'" % (deviceActiveUser, self._SpotifyConnectLoginId, scDevice.Title))
 
                 # append device status to results.
                 result = "%s%s\n" % (result, MSG_RESULT % (info.RemoteName, info.DeviceId, info.ActiveUser, status))
@@ -8728,6 +8719,9 @@ class SpotifyClient:
             SpotifyZeroconfApiError:
                 If any Spotify Zeroconf API request failed.
             SpotifApiError: 
+                If the `spotifyConnectLoginId` argument was not specified for the class contructor.  
+                If the `spotifyConnectUsername` argument was not specified for the class contructor.  
+                If the `spotifyConnectPassword` argument was not specified for the class contructor.  
                 If the method fails for any other reason.
 
         The Spotify Connect discovery list is searched for the specified device value; the search will 
@@ -8773,6 +8767,11 @@ class SpotifyClient:
                 _logsi.LogVerbose("deviceValue not specified; active Spotify Player will be used")
                 return None
             
+            # was a Spotify Connect loginId specified on the class constructor?
+            # if not, then we cannot re-activate devices!
+            if (self._SpotifyConnectLoginId is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
+
             # validations.
             delay = validateDelay(delay, 0.25, 10)
             verifyTimeout = validateDelay(verifyTimeout, 5, 10)
@@ -8876,7 +8875,7 @@ class SpotifyClient:
                         )
                         
                         if not hasToken:
-                            _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LogiId: '%s'" % (self._SpotifyConnectLoginId))
+                            _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LoginId: '%s'" % (self._SpotifyConnectLoginId))
                             break
 
                     # store the currently active user of the device, in case we need to switch users later on.
@@ -8894,13 +8893,6 @@ class SpotifyClient:
 
                     zcfResult:ZeroconfResponse
                                           
-                    # was a Spotify Connect user account specified on the class constructor?
-                    # if not, then we cannot re-activate the device!
-                    if (self._SpotifyConnectUsername is None):
-                        raise SpotifyApiError("A SpotifyConnectUsername parameter was not supplied; could not reactivate Spotify Connect device '%s'" % (deviceResult.Title), logsi=_logsi)
-                        #_logsi.LogVerbose("A SpotifyConnectUsername parameter was not supplied; could not reactivate Spotify Connect device '%s'" % (deviceResult.Title))
-                        break
-                                       
                     # disconnect the device.
                     # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
                     # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
@@ -8911,14 +8903,14 @@ class SpotifyClient:
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                    _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (deviceResult.Title, self._SpotifyConnectUsername))
+                    _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (deviceResult.Title, self._SpotifyConnectLoginId))
                     zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId)
                     
                     # indicate device was reconnected.
                     deviceResult.WasReConnected = True
                     
                     # trace.
-                    _logsi.LogVerbose("User context switch from '%s' to '%s' was requested for Spotify Connect device: '%s'" % (deviceActiveUser, self._SpotifyConnectUsername, deviceResult.Title))
+                    _logsi.LogVerbose("User context switched from '%s' to '%s' for Spotify Connect device: '%s'" % (deviceActiveUser, self._SpotifyConnectLoginId, deviceResult.Title))
 
                     loopTotalDelay:float = 0
                     LOOP_DELAY:float = 0.25
@@ -11392,7 +11384,8 @@ class SpotifyClient:
 
         Args:
             positionMS (int):
-                The absolute position in milliseconds to seek to; must be a positive number.  
+                The absolute position in milliseconds to seek to; must be a positive number or
+                zero if the `relativePositionMS` argument is specified.  
                 Passing in a position that is greater than the length of the track will cause the 
                 player to start playing the next song.  
                 Example = `25000` to start playing at the 25 second mark.  
@@ -11407,7 +11400,8 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             relativePositionMS (int):
-                The relative position in milliseconds to seek to; can be a positive or negative number.  
+                The relative position in milliseconds to seek to; can be a positive or negative number,
+                or zero if the `positionMS` argument is specified.  
                 Example = `-10000` to seek behind by 10 seconds.  
                 Example = `10000` to seek ahead by 10 seconds.  
                 
@@ -11472,7 +11466,7 @@ class SpotifyClient:
             deviceId = self.PlayerConvertDeviceNameToId(deviceId)
             
             # was relative seeking specified?
-            if (relativePositionMS != 0) and (positionMS <= 0):
+            if (relativePositionMS != 0) and ((positionMS is None) or (positionMS <= 0)):
                 
                 # get current track position.
                 playState:PlayerPlayState = self.GetPlayerPlaybackState()

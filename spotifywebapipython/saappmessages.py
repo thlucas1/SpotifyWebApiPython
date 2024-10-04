@@ -50,3 +50,8 @@ class SAAppMessages:
     SAM1004E - A Spotify Premium level membership is required to get currently playing item information.
     """
     
+    MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED:str = "SAM1005E - The \"%s\" configuration option was not supplied, which is required in order to reactivate a Spotify Connect device."
+    """
+    SAM1005E - The \"%s\" configuration option was not supplied, which is required in order to reactivate a Spotify Connect device.
+    """
+       

@@ -408,10 +408,6 @@ class ZeroconfConnect:
             _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect (ip=%s)" % self._HostIpAddress, apiMethodParms)
 
             # validations.
-            if (username is None) or (not isinstance(username,str)):
-                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'username'), logsi=_logsi)
-            if (password is None) or (not isinstance(password,str)):
-                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'password'), logsi=_logsi)
             delay = validateDelay(delay, 0.50, 10)
 
             # get the current device id from the device via Spotify ZeroConf API `getInfo` endpoint.
@@ -551,10 +547,6 @@ class ZeroconfConnect:
                 'Connection': 'close'
             }
 
-            # create credentials and builder objects.
-            credentials:Credentials = Credentials(username, password, AuthenticationTypes.USER_PASS)
-            builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
-
             # set defaults used by most manufacturers - we will tailor these in the
             # logic below for specific manufacturers / devices as required.
             # - exclude origin device information from the addUser request.
@@ -568,6 +560,16 @@ class ZeroconfConnect:
 
             # special processing for librespot, spotifyd.
             if info.ModelDisplayName == 'librespot':
+
+                # trace.
+                _logsi.LogVerbose("Spotify Connect token type is '%s' - using librespot authorization credentials to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
+
+                # validations.
+                # note that userid and password are not needed by librespot, as both of those
+                # are contained in the librespot credentials object.  we only need the loginId
+                # value for the credentials lookup.
+                if (loginId is None) or (not isinstance(loginId,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
 
                 # we will use credentials from a librespot credentials.json file.
                 # this requires that the user copy the "credentials.json" file from the 
@@ -601,6 +603,18 @@ class ZeroconfConnect:
                 # trace.
                 _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify Desktop Client OAuth2 token to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
 
+                # validations.
+                if (loginId is None) or (not isinstance(loginId,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
+                if (username is None) or (not isinstance(username,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectUsername"), logsi=_logsi)
+                if (password is None) or (not isinstance(password,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectPassword"), logsi=_logsi)
+
+                # create credentials and builder objects.
+                credentials:Credentials = Credentials(username, password, AuthenticationTypes.USER_PASS)
+                builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
+
                 # set defaults used by token type "authorization_code".
                 # - set the clientKey value to null, as it is not used to encrypt / decrypt anything.
                 # - include origin device information in the addUser request.
@@ -616,6 +630,18 @@ class ZeroconfConnect:
                 
                 # trace.
                 _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify username and password to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
+
+                # validations.
+                if (loginId is None) or (not isinstance(loginId,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
+                if (username is None) or (not isinstance(username,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectUsername"), logsi=_logsi)
+                if (password is None) or (not isinstance(password,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectPassword"), logsi=_logsi)
+
+                # create credentials and builder objects.
+                credentials:Credentials = Credentials(username, password, AuthenticationTypes.USER_PASS)
+                builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
 
                 # set defaults used by this token type:
                 # - clientKey should be the getInfo response PublicKey (base64 encoded).

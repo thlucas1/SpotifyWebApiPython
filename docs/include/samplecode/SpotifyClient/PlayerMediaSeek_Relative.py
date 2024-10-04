@@ -35,7 +35,7 @@ try:
     deviceId:str = None   # use currently playing device
     #deviceId:str = "Web Player (Chrome)" # or device name
     #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
-    print('\nSeeking ahead by %d milliseconds on Spotify Connect device:\n- "%s" ...' % (relPositionMS, deviceId))
+    print('\nSeeking behind by %d milliseconds on Spotify Connect device:\n- "%s" ...' % (relPositionMS, deviceId))
     spotify.PlayerMediaSeek(relativePositionMS=relPositionMS, deviceId=deviceId)
 
     print('\nSuccess - seek to position in track')
