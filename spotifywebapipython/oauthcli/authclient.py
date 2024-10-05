@@ -96,7 +96,7 @@ class AuthClient:
             tokenStorageDir (str):
                 The directory path that will contain the Token Cache file.  
                 A null value will default to the platform specific storage location:  
-                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+                Example for Windows OS = `C:\\ProgramData\\SpotifyWebApiPython`
             tokenStorageFile (str):
                 The filename and extension of the Token Cache file.  
                 Default is `tokens.json`.
@@ -398,7 +398,7 @@ class AuthClient:
         tokenStorageFile:str=None,
         ) -> bool:
         """
-        Checks if a token exists in the token storage file for the ProviderId \ ClientId key.
+        Checks if a token exists in the token storage file for the ProviderId / ClientId key.
         
         Args:
             clientId (str):
@@ -410,7 +410,7 @@ class AuthClient:
             tokenStorageDir (str):
                 The directory path that will contain the `tokens.json` file.  
                 A null value will default to the platform specific storage location:  
-                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+                Example for Windows OS = `C:\\ProgramData\\SpotifyWebApiPython`
             tokenStorageFile (str):
                 The filename and extension of the Token Cache file.  
                 Default is `tokens.json`.
@@ -483,7 +483,7 @@ class AuthClient:
 
     def _LoadToken(self) -> dict:
         """
-        Loads a token from the token storage file for the ProviderId \ ClientId key.
+        Loads a token from the token storage file for the ProviderId / ClientId key.
         
         Returns:
             A token dictionary, if one was found in the token storage file for the
@@ -536,7 +536,7 @@ class AuthClient:
 
     def _SaveToken(self, token:dict=None) -> None:
         """
-        Saves a token to the token storage file (e.g. disk) for the ProviderId \ ClientId key.
+        Saves a token to the token storage file (e.g. disk) for the ProviderId / ClientId key.
         
         Args:
             token (dict):
@@ -575,14 +575,14 @@ class AuthClient:
                     
             if token is None:
                 
-                # if token not specified, then remove the existing token for the providerId \ clientId.
+                # if token not specified, then remove the existing token for the providerId / clientId.
                 _logsi.LogVerbose('Removing token from token storage file')
                 if tokenKey in tokens:
                     del tokens[tokenKey]
                     
             else:
                 
-                # store the token for the providerId \ clientId.
+                # store the token for the providerId / clientId.
                 _logsi.LogVerbose('Storing token in token storage file')
                 tokens[tokenKey] = token
 

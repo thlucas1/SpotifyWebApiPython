@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.106 ] - 2024/10/04
+
+  * Fixed various python `SyntaxWarning: invalid escape sequence '\ '` warnings that were being generated when code was executed.  Something changed with Home Assistant recently that turned these "used to be ignored" warnings into actual warnings that wind up in the HA System Log!  This is due to invalid escaped characters in various string comments that are used for documentation purposes (e.g. """ this is a code comment """).
+
 ###### [ 1.0.105 ] - 2024/10/04
 
   * Updated Spotify Connect device processing to only require the userid and password parameters when authenticating to devices that require user and password values.  Some devices only require a loginid value (e.g. spotifyd, Spotify Connect AddOn, librespot, Sonos, etc).  The user should not have to specify userid and password values if they are not required!

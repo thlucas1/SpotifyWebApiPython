@@ -89,7 +89,7 @@ class ZeroconfConnect:
                 The directory path that will contain the Token Cache file.  
                 This is used for Spotify Connect devices that utilize the `authorization_code` token type.
                 A null value will default to the platform specific storage location:  
-                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+                Example for Windows OS = `C:\\ProgramData\\SpotifyWebApiPython`
             tokenStorageFile (str):
                 The filename and extension of the Token Cache file.  
                 Default is `SpotifyWebApiPython_tokens.json`.

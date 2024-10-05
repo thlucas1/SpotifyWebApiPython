@@ -95,7 +95,7 @@ class SpotifyClient:
             tokenStorageDir (str):
                 The directory path that will contain the authorization Token Cache file.  
                 A null value will default to the platform specific storage location:  
-                Example for Windows OS = `C:\ProgramData\SpotifyWebApiPython`
+                Example for Windows OS = `C:\\ProgramData\\SpotifyWebApiPython`
             tokenStorageFile (str):
                 The filename and extension of the authorization Token Cache file.  
                 Default is `SpotifyWebApiPython_tokens.json`.

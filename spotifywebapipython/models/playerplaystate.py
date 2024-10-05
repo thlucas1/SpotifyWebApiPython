@@ -215,7 +215,7 @@ class PlayerPlayState:
         
         The `RepeatState` property contains the actual repeat setting.
         """
-        if self._RepeatState is not 'off': 
+        if self._RepeatState != 'off': 
             return True
         return False
 

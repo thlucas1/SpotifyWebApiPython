@@ -18,7 +18,8 @@
     <UnitTestPattern>testVS_*.py</UnitTestPattern>
     <UnitTestRootDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject\test</UnitTestRootDirectory>
     <Environment>PYTHONIOENCODING=437:replace
-PDOC_DISPLAY_ENV_VARS=1</Environment>
+PDOC_DISPLAY_ENV_VARS=1
+PYTHONWARNINGS=always</Environment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
