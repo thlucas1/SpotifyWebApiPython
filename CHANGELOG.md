@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.107 ] - 2024/10/09
+
+  * Updated `SpotifyClient.RemoveShowFavorites` method to account for Spotify Web API changes to remove show favorites.
+  * Updated `SpotifyClient.SaveShowFavorites` method to account for Spotify Web API changes to save show favorites.
+  * Updated `SpotifyClient.CheckPlaylistFollowers` method to account for Spotify Web API changes to `userIds` argument, which is now deprecated.  A single item list containing current user's Spotify Username must now be used.
+
 ###### [ 1.0.106 ] - 2024/10/04
 
   * Fixed various python `SyntaxWarning: invalid escape sequence '\ '` warnings that were being generated when code was executed.  Something changed with Home Assistant recently that turned these "used to be ignored" warnings into actual warnings that wind up in the HA System Log!  This is due to invalid escaped characters in various string comments that are used for documentation purposes (e.g. """ this is a code comment """).

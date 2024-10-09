@@ -76,9 +76,9 @@ class Playlist(PlaylistSimplified):
 
     def GetTracks(self) -> list[Track]:
         """ 
-        Gets a list of all tracks contained in the underlying `Items` list.
+        Gets a list of all tracks contained in the underlying `Tracks.Items` list.
         
-        This is a convenience method so one does not have to loop through the `Items`
+        This is a convenience method so one does not have to loop through the `Tracks.Items`
         array of PlaylistPage objects to get the list of tracks.
         """
         result:list[Track] = []

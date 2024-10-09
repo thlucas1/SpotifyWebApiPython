@@ -117,6 +117,20 @@ class SpotifyConnectDevices():
         info.Status = 101
         info.StatusString = 'OK'
         
+        # populate brand info for popular devices.
+        if (device.Name == "Web Player (Chrome)"):
+            info.BrandDisplayName = 'Google'
+            info.ModelDisplayName = 'Chrome'
+            info.ProductId = 'Web Player'
+        elif (device.Name == "Web Player (Microsoft Edge)"):
+            info.BrandDisplayName = 'Microsoft'
+            info.ModelDisplayName = 'Edge'
+            info.ProductId = 'Web Player'
+        else:
+            info.BrandDisplayName = 'unknown'
+            info.ModelDisplayName = 'unknown'
+            info.ProductId = 'unknown'
+        
         # add the device.
         scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
         scDevice.Id = info.DeviceId

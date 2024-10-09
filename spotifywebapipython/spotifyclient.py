@@ -1622,12 +1622,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckPlaylistFollowers(self, 
-                               playlistId:str,
-                               userIds:str
-                               ) -> dict:
+    def CheckPlaylistFollowers(
+            self, 
+            playlistId:str,
+            userIds:str=None,
+            ) -> dict:
         """
-        Check to see if one or more Spotify users are following a specified playlist.
+        Check to see if the current user is following a specified playlist.
         
         Args:
             playlistId (str):  
@@ -1637,9 +1638,10 @@ class SpotifyClient:
                 A comma-separated list of Spotify User ID's to check.  
                 Maximum: 5 ID's.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`  
+                Deprecated - A single item list containing current user's Spotify Username; Maximum of 1 id.
                 
         Returns:
-            A dictionary of the userIds, along with a boolean status for each that indicates 
+            Array of boolean, containing a single boolean status that indicates 
             if the user follows the playlist (True) or not (False).
                 
         Raises:
@@ -1648,6 +1650,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifApiError: 
                 If the method fails for any other reason.
+                
+        As of (at least) 2024/10/07, Spotify has deprecated the userId's argument; 
+        only current user can be tested.  Any other id's specified on this argument will 
+        generate a `400 Bad Request` error.
+                
 
         <details>
           <summary>Sample Code</summary>
@@ -1667,6 +1674,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             apiMethodParms.AppendKeyValue("userIds", userIds)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check to see if users are following a playlist", apiMethodParms)
+
+            # validations.
+            if (userIds is None):
+                userIds = self.UserProfile.Id
                 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -4265,7 +4276,7 @@ class SpotifyClient:
                 Default: None (disabled)
                 
         Returns:
-            A `ChapterPageSimplified` object that contains simplified track information for the audiobookId.
+            A `ChapterPageSimplified` object that contains simplified chapter information for the audiobook Id.
                 
         Raises:
             SpotifyWebApiError: 
@@ -7653,7 +7664,7 @@ class SpotifyClient:
                 Default: None (disabled)
                 
         Returns:
-            A `Playlist` object that contains the playlist details.
+            A `PlaylistPage` object that contains the playlist items.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12627,9 +12638,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemovePlaylist(self, 
-                       playlistId:str, 
-                       ) -> None:
+    def RemovePlaylist(
+            self, 
+            playlistId:str=None, 
+            ) -> None:
         """
         Remove a user's playlist (calls the `UnfollowPlaylist` method).
         
@@ -12638,9 +12650,8 @@ class SpotifyClient:
         Args:
         
             playlistId (str):  
-                The Spotify ID of the playlist.
-                Example: `5AC9ZXA7nJ7oGWO911FuDG`
-                
+                The Spotify ID of the playlist (e.g. `5AC9ZXA7nJ7oGWO911FuDG`).
+                If null, the currently playing playlist uri id value is used.
         Raises:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
@@ -12860,22 +12871,20 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            if (ids is not None):
+                ids = ids.replace(" ","")
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'ids': ids
             }
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -13511,22 +13520,20 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            if (ids is not None):
+                ids = ids.replace(" ","")
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'ids': ids
             }
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
             # process results.

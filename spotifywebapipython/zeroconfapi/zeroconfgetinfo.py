@@ -167,6 +167,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """
         return self._BrandDisplayName
 
+    @BrandDisplayName.setter
+    def BrandDisplayName(self, value:str):
+        """ 
+        Sets the BrandDisplayName property value.
+        """
+        if isinstance(value, str):
+            self._BrandDisplayName = value
+
 
     @property
     def ClientId(self) -> str:
@@ -305,6 +313,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """
         return self._ModelDisplayName
 
+    @ModelDisplayName.setter
+    def ModelDisplayName(self, value:str):
+        """ 
+        Sets the ModelDisplayName property value.
+        """
+        if isinstance(value, str):
+            self._ModelDisplayName = value
+
 
     @property
     def ProductId(self) -> str:
@@ -312,6 +328,14 @@ class ZeroconfGetInfo(ZeroconfResponse):
         An integer enumerating the product for this partner (e.g. 12345).
         """
         return self._ProductId
+
+    @ProductId.setter
+    def ProductId(self, value:str):
+        """ 
+        Sets the ProductId property value.
+        """
+        if isinstance(value, str):
+            self._ProductId = value
 
 
     @property
