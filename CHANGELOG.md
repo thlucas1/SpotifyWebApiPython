@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.110 ] - 2024/10/10
+
+  * Updated `ImageObject.GetImageHighestResolution` method to account for null width values.
+
 ###### [ 1.0.109 ] - 2024/10/10
 
   * Correctly Updated various methods that return an ImageUrl property to return the highest resolution image from the Images collection instead of the first image.  For some reason, the Spotify Web API sets the first Images collection image to the lowest resolution (e.g. 64x64); for all other Images, the highest resolution image is listed first (e.g. 640x640).

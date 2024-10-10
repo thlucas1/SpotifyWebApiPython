@@ -100,14 +100,15 @@ class ImageObject:
         
             # set default image to return.
             result = images[0].Url
-            resultWidth:int = images[0].Width
+            resultWidth:int = (images[0].Width or 0)  # in case width is null
             
             # search for the highest resolution image and return it.
             image: ImageObject
             for image in images:
-                if (image.Width > resultWidth):
+                imageWidth:int = (image.Width or 0)   # in case width is null
+                if (imageWidth > resultWidth):
                     result = image.Url
-                    resultWidth = image.Width
+                    resultWidth = imageWidth
                     if (desiredWidth is not None) and (desiredWidth == resultWidth):
                         break
         
