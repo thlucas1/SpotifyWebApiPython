@@ -197,12 +197,10 @@ class EpisodeSimplified:
     @property
     def ImageUrl(self) -> str:
         """
-        Gets the first image url in the `Images` list, if images are defined;
-        otherwise, null.
+        Returns the highest resolution order image from the `Images` list, if images 
+        are defined; otherwise, null.
         """
-        if len(self._Images) > 0:
-            return self._Images[0].Url
-        return None
+        return ImageObject.GetImageHighestResolution(self._Images)
             
         
     @property

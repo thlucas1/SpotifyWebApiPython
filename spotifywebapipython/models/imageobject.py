@@ -71,6 +71,49 @@ class ImageObject:
         return self._Width
 
 
+    @staticmethod
+    def GetImageHighestResolution(
+            images:list,
+            desiredWidth:int=None,
+            ) -> str:
+        """
+        Returns the highest resolution order image from a list of `ImageObject` items.
+    
+        Args:
+            images (list[ImageObject]):
+                The cover art for the media in various sizes, usually widest first.
+            desiredWidth (int):
+                A desired resolution width to return (if found); if not found, then the
+                highest resolution is returned.
+
+        Returns:
+            The highest resolution order image from the list of `images`.
+    
+        The Spotify Web API normally returns a list of `ImageObject` items with the
+        highest resolution image as the first list item; however, the GetShowFavorites
+        returns them in the reverse order.
+        """
+        result:str = None
+        resultWidth:int = 0
+
+        if (images is not None) and (len(images) > 0):
+        
+            # set default image to return.
+            result = images[0].Url
+            resultWidth:int = images[0].Width
+            
+            # search for the highest resolution image and return it.
+            image: ImageObject
+            for image in images:
+                if (image.Width > resultWidth):
+                    result = image.Url
+                    resultWidth = image.Width
+                    if (desiredWidth is not None) and (desiredWidth == resultWidth):
+                        break
+        
+        return result
+    
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
