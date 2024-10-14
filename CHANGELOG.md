@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.111 ] - 2024/10/14
+
+  * Updated `SpotifyClient.GetChapter` method to make the `chapterId` argument optional; if not supplied, the currently playing chapter id value is used instead.
+
 ###### [ 1.0.110 ] - 2024/10/10
 
   * Updated `ImageObject.GetImageHighestResolution` method to account for null width values.

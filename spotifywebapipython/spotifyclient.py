@@ -5240,11 +5240,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetChapter(self, 
-                   chapterId:str, 
-                   market:str=None,
-                   ignoreResponseErrors:bool=False,
-                   ) -> Chapter:
+    def GetChapter(
+            self, 
+            chapterId:str=None, 
+            market:str=None,
+            ignoreResponseErrors:bool=False,
+            ) -> Chapter:
         """
         Get Spotify catalog information for a single audiobook chapter identified by its unique Spotify ID.
         
@@ -5254,6 +5255,8 @@ class SpotifyClient:
             chapterId (str):  
                 The Spotify ID for the chapter.
                 Example: `0D5wENdkdwbqlrHoaJ9g29`
+                If null, the currently playing chapter uri id value is used; a Spotify Free or Premium account 
+                is required to correctly read the currently playing context.
             market (str):
                 An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
                 is available in that market will be returned.  If a valid user access token is specified 
@@ -5303,6 +5306,14 @@ class SpotifyClient:
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
+
+            # if ids not specified, then return currently playing id value.
+            if (chapterId is None) or (len(chapterId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingUri('episode')
+                if uri is not None:
+                    chapterId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'chapterId'), logsi=_logsi)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
@@ -7660,7 +7671,7 @@ class SpotifyClient:
                 The maximum number of items to return for the request.  
                 If specified, this argument overrides the limit and offset argument values
                 and paging is automatically used to retrieve all available items up to the
-                maximum number specified.  
+                maximum number specified.  * See notes below.
                 Default: None (disabled)
                 
         Returns:
@@ -7673,6 +7684,14 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        * Notes regarding `limit_total` processing.  
+        There appears to be a bug in the Spotify Web API that forces you to use manual paging if 
+        utilizing the `fields` argument.  It has been found that the API will only return a value
+        of 50 (maximum) or less in the page `total` value if the `fields` argument is supplied.  
+        The API will return the total number of playlist items in the page `total` value if the `fields` 
+        argument is NOT supplied.  A good playlist id to test this on is `1XhVM7jWPrGLTiNiAy97Za`,
+        which is the largest playlist on spotify (4700+ items).
+        
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
