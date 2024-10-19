@@ -543,8 +543,8 @@ class ZeroconfConnect:
             
             # set request headers.
             reqHeaders:dict = {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Connection': 'close'
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Connection": "close"
             }
 
             # set defaults used by most manufacturers - we will tailor these in the
@@ -552,14 +552,14 @@ class ZeroconfConnect:
             # - exclude origin device information from the addUser request.
             # - tokenType should be set to 'default'.
             includeOriginDeviceInfo:bool = False
-            tokenType:str = 'default'
+            tokenType:str = "default"
             
             # include the origin device information if PublicKey="INVALID" (base64 encoded) and availability="NOT-LOADED".
-            if (info.PublicKey == 'SU5WQUxJRA==') and (info.Availability == 'NOT-LOADED'):
+            if (info.PublicKey == "SU5WQUxJRA==") and (info.Availability == "NOT-LOADED"):
                 includeOriginDeviceInfo = True
 
             # special processing for librespot, spotifyd.
-            if info.ModelDisplayName == 'librespot':
+            if info.ModelDisplayName == "librespot":
 
                 # trace.
                 _logsi.LogVerbose("Spotify Connect token type is '%s' - using librespot authorization credentials to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
@@ -649,20 +649,20 @@ class ZeroconfConnect:
                 # - tokenType should be set to 'default'.
                 clientKey:str = builder.dh_keys.PublicKeyBase64String
                 includeOriginDeviceInfo = False
-                tokenType = 'default'
+                tokenType = "default"
             
                 # formulate the blob.
                 blob = builder.build()
 
             # set request parameters.
             reqData={
-                'action': 'addUser',
-                'version': self.Version, # info.Version,
-                'tokenType': tokenType,
-                'clientKey': clientKey,
-                'loginId': loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
-                'userName': credentials.username.decode('ascii'),           # canonical user name (e.g. "31l77fd87g8h9j00k89f07jf87ge")
-                'blob': blob,
+                "action": "addUser",
+                "version": self.Version, # info.Version,
+                "tokenType": tokenType,
+                "clientKey": clientKey,
+                "loginId": loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
+                "userName": credentials.username.decode("ascii"),           # canonical user name (e.g. "31l77fd87g8h9j00k89f07jf87ge")
+                "blob": blob,
             }
                 
             # are we including origin device information (e.g. deviceName, deviceId)?
@@ -1028,21 +1028,21 @@ class ZeroconfConnect:
             delay = validateDelay(delay, 0.50, 10)
             
             # set request endpoint.
-            endpoint:str = self.GetEndpoint('resetUsers')
+            endpoint:str = self.GetEndpoint("resetUsers")
             if ignoreStatusResult is None:
                 ignoreStatusResult = False
             
             # set request headers.
             reqHeaders:dict = {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Connection': 'close'
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Connection": "close"
             }
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
             
             # set request parameters.
             reqData={
-                'action': 'resetUsers',
-                'version': self.Version,
+                "action": "resetUsers",
+                "version": self.Version,
             }
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
 
@@ -1195,19 +1195,19 @@ class ZeroconfConnect:
             _logsi.LogMethodParmList(SILevel.Verbose, "Get information from Spotify Connect Zeroconf API (ip=%s)" % self._HostIpAddress, apiMethodParms)
             
             # set request endpoint.
-            endpoint:str = self.GetEndpoint('getInfo')
+            endpoint:str = self.GetEndpoint("getInfo")
             
             # set request headers.
             reqHeaders:dict = {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Connection': 'close'
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Connection": "close"
             }
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
             
             # set request parameters.
             reqParams={
-                'action': 'getInfo',
-                'version': self.Version,
+                "action": "getInfo",
+                "version": self.Version,
             }
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (params)" % (endpoint), reqParams)
 

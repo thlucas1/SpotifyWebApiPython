@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.112 ] - 2024/10/19
+
+  * Updated `SpotifyClient.GetSpotifyConnectDevice` method to issue a slight delay after disconnecting the device.  This should prevent `Getinformation` exceptions for devices that require a little bit of extra time after a Disconnect (e.g. zeroconf `resetUsers`) request in order to be ready for a Connect (e.g. zeroconf `addUser`) request.
+
 ###### [ 1.0.111 ] - 2024/10/14
 
   * Updated `SpotifyClient.GetChapter` method to make the `chapterId` argument optional; if not supplied, the currently playing chapter id value is used instead.

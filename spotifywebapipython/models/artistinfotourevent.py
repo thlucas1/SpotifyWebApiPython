@@ -82,10 +82,11 @@ class ArtistInfoTourEvent:
         """
         result:dict = \
         {
-            'event_datetime': self._EventDateTime.isoformat(),
             'title': self._Title,
             'venue_name': self._VenueName,
         }
+        if self._EventDateTime is not None:
+            result['event_datetime'] = self._EventDateTime.isoformat()
         return result
         
 

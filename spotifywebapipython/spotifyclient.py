@@ -9,7 +9,8 @@ import time
 from typing import Tuple, Callable
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
-from lxml.etree import fromstring, Element
+from lxml.etree import fromstring, Element, tostring
+from lxml import etree
 from zeroconf import Zeroconf
 
 # our package imports.
@@ -3638,12 +3639,21 @@ class SpotifyClient:
             for elm in attrElements:
                 innerText = _xmlGetInnerText(elm)
                 if innerText is not None:
-                    if innerText.lower() == 'see all':
+                    innerTextLCase = innerText.lower()
+                    if innerTextLCase == 'see all':
                         break
-                _logsi.LogObject(SILevel.Verbose, "Element match: '%s' (innerText=%s)" % (attrXPath, innerText), elm)
+                    if innerTextLCase.startswith('view all upcoming concerts'):
+                        break;
+                
+                if (_logsi.IsOn(SILevel.Verbose)):
+                    xml_string = etree.tostring(elm, pretty_print=True, encoding="utf-8")
+                    _logsi.LogXml(SILevel.Verbose, "Element match: '%s' (html)" % (attrXPath), xml_string.decode("utf-8"))
+
                 event:ArtistInfoTourEvent = ArtistInfoTourEvent() 
-                elmChild = elm.xpath('.//time/@dateTime')
-                if elmChild is not None:
+
+                attrXPath = './/time/@dateTime'
+                elmChild = elm.xpath(attrXPath)
+                if (elmChild is not None) and (len(elmChild) > 0):
                     try:
                         attrValue = str(elmChild[0])
                         idx:int = attrValue.rfind('-')
@@ -3652,12 +3662,17 @@ class SpotifyClient:
                     except Exception as ex:
                         _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmChild[0], attrValue), ex, logToSystemLogger=False)
                         event.EventDateTime = None
-                elmChild = elm.xpath('.//h3/text()')
-                if elmChild is not None:
+                        
+                attrXPath = './/h3/text()'
+                elmChild = elm.xpath(attrXPath)
+                if (elmChild is not None) and (len(elmChild) > 0):
                     event.Title = elmChild[0]
-                elmChild = elm.xpath('.//p/text()')
-                if elmChild is not None:
+                    
+                attrXPath = './/p/text()'
+                elmChild = elm.xpath(attrXPath)
+                if (elmChild is not None) and (len(elmChild) > 0):
                     event.VenueName = elmChild[0]
+                    
                 result.TourEvents.append(event)
                 _logsi.LogObject(SILevel.Verbose, '%s: "%s" (%s)' % (type(event).__name__, event.Title, event.EventDateTime), event, excludeNonPublic=True)
 
@@ -8927,9 +8942,16 @@ class SpotifyClient:
                     # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
                     # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
                     # generate a 404 request response.
-                    if (info.BrandDisplayName != 'librespot'):
+                    if (info.BrandDisplayName != 'librespot'):                       
+
                         _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (deviceResult.Title, deviceActiveUser))
                         zcfResult = zconn.Disconnect(delay)
+                        
+                        # delay just a little to give the device time to process the disconnect.
+                        # some devices only support a single connection on the spotify connect 
+                        # zeroconf webserver, so we have to give it a little time to process the 
+                        # disconnect command before we try to call the Connect method.
+                        time.sleep(0.350)
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
