@@ -839,6 +839,8 @@ class SpotifyClient:
                            deviceId:str=None
                            ) -> None:
         """
+        DEPRECATED - use `AddPlayerQueueItems` method instead.
+        
         Add an item to the end of the user's current playback queue. 
         
         This method requires the `user-modify-playback-state` scope.
@@ -863,13 +865,6 @@ class SpotifyClient:
         This API only works for users who have Spotify Premium. 
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
-        
-        <details>
-          <summary>Sample Code</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/AddPlayerQueueItem.py
-        ```
-        </details>
         """
         apiMethodName:str = 'AddPlayerQueueItem'
         apiMethodParms:SIMethodParmListContext = None
@@ -902,6 +897,139 @@ class SpotifyClient:
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('POST', msg)
+            
+            # process results.
+            # no results to process - this is pass or fail.
+            return
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def AddPlayerQueueItems(
+            self, 
+            uris:str,
+            deviceId:str=None,
+            verifyDeviceId:bool=True,
+            delay:float=0.15,
+            ) -> None:
+        """
+        Add one or more items to the end of the user's current playback queue. 
+        
+        This method requires the `user-modify-playback-state` scope.
+
+        Args:
+            uris (str):
+                A list of Spotify track or episode URIs to add to the queue; can be track or episode URIs.  
+                All URIs must be of the same type - you cannot mix and match tracks and episodes!  
+                Example: [`spotify:track:6zd8T1PBe9JFHmuVnurdRp` ,`spotify:track:1kWUud3vY5ij5r62zxpTRy`].  
+                It can also be specified as a comma-delimited string.  
+                Example: `spotify:track:6zd8T1PBe9JFHmuVnurdRp,spotify:track:1kWUud3vY5ij5r62zxpTRy`.  
+                A maximum of 50 items can be added in one request.
+            deviceId (str):
+                The id or name of the device this command is targeting.  
+                If not supplied, the user's currently active device is the target.  
+                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
+                Example: `Web Player (Chrome)`  
+            verifyDeviceId (bool):
+                True to verify a device id is active; otherwise, false to assume that a
+                device id is already active.  
+                Default is True.  
+            delay (float):
+                Time delay (in seconds) to wait AFTER issuing the add request.  This delay will give the 
+                Spotify web api time to process the queue change before another command is issued.  
+                Default is 0.15; value range is 0 - 10.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifApiError: 
+                If the method fails for any other reason.
+
+        This API only works for users who have Spotify Premium. 
+        
+        The order of execution is not guaranteed when you use this API with other Player API endpoints.
+        
+        The Spotify Web API endpoint is called to add each item individually.  
+        The Spotify Web API does not currently support adding more than 1 item to the queue at a time.
+        
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/AddPlayerQueueItems.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'AddPlayerQueueItems'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            apiMethodParms.AppendKeyValue("deviceId", deviceId)
+            apiMethodParms.AppendKeyValue("verifyDeviceId", verifyDeviceId)
+            apiMethodParms.AppendKeyValue("delay", delay)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Add items to playback queue", apiMethodParms)
+            
+            # validations.
+            delay = validateDelay(delay, 0.15, 10)
+            if (verifyDeviceId is None):
+                verifyDeviceId = True
+
+            # build a list of all item uri's.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = None
+            if isinstance(uris, list):
+                arrUris = uris
+            else:
+                arrUris = uris.split(',')
+                for idx in range(0, len(arrUris)):
+                    arrUris[idx] = arrUris[idx].strip()
+                
+            # if deviceId was not specified, then verify that there is an active player device.
+            if verifyDeviceId:    
+                if deviceId is None:
+                    deviceId:str = self.VerifyPlayerActiveDeviceId()
+
+            # check for device name; convert to an id if a name was supplied.
+            if verifyDeviceId:    
+                deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+                
+            # process all uri's.
+            for idx in range(0, len(arrUris)):
+                
+                # build spotify web api request parameters.
+                urlParms:dict = \
+                {
+                    'uri': arrUris[idx]
+                }
+                if deviceId is not None:
+                    urlParms['device_id'] = deviceId
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('POST', msg)
+
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
+
             
             # process results.
             # no results to process - this is pass or fail.
@@ -2728,7 +2856,8 @@ class SpotifyClient:
                     
             # update result object with final paging details.
             result.Total = pageObj.Total
-
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
+            
             # sort result items.
             if (len(result.Items) > 0):
                 if (sortResult is True):
@@ -2895,6 +3024,7 @@ class SpotifyClient:
                     
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -3162,6 +3292,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort items, as they are in playable order.
 
@@ -3429,6 +3560,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -4021,6 +4153,7 @@ class SpotifyClient:
             # update result object with final paging details.
             result.Total = pageObj.Total
             result.CursorAfter = pageObj.CursorAfter
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -4401,6 +4534,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # no sorting, as chapters are in playable order.
 
@@ -4553,6 +4687,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -4946,6 +5081,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -5231,6 +5367,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -5692,6 +5829,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -5984,6 +6122,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -7391,6 +7530,7 @@ class SpotifyClient:
             result.Total = result.ItemsCount
             result.CursorAfter = pageObj.CursorAfter
             result.CursorBefore = pageObj.CursorBefore
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -7814,6 +7954,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort this list, as it is in play order.
             
@@ -7966,6 +8107,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -8127,6 +8269,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -8407,6 +8550,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # no sort, as items are in playable order.
 
@@ -8586,6 +8730,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -9562,6 +9707,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -10490,6 +10636,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -10656,6 +10803,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # sort result items.
             if (len(result.Items) > 0):
@@ -11284,6 +11432,25 @@ class SpotifyClient:
                 # if so, then use the found device id in case a device name was specified.
                 if scDevice is not None:
                     deviceId = scDevice.Id
+                    
+            # left this here in case we want to implement it in the future.
+                    
+            # # are we backfilling the player queue? if so, we can only have 50 uris total.
+            # if (backfillUrisPageOffset > -1) and (len(arrUris) < 50):
+
+            #     # are we playing tracks?
+            #     if (len(arrUris) > 0) and (SpotifyClient.GetTypeFromUri(arrUris[0]) == 'track'):
+                    
+            #         _logsi.LogVerbose("Backfilling player queue items from users top tracks")
+                
+            #         # get list of users top tracks (50 max items).
+            #         pageObj:TrackPage = self.GetUsersTopTracks(timeRange='medium_term', offset=backfillUrisPageOffset, limit=(50 - len(arrUris)), sortResult=False)
+                
+            #         # add them to the player queue; no need to validate the device id, since we
+            #         # know there is an active device id by this point.
+            #         item:Track
+            #         for item in pageObj.Items:
+            #             arrUris.append(item.Uri)
 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -11308,7 +11475,7 @@ class SpotifyClient:
             if delay > 0:
                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                 time.sleep(delay)
-
+                
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -14029,6 +14196,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -14221,6 +14389,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -14415,6 +14584,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -14607,6 +14777,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -14799,6 +14970,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -14991,6 +15163,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 
@@ -15183,6 +15356,7 @@ class SpotifyClient:
 
             # update result object with final paging details.
             result.Total = pageObj.Total
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
 
             # do not sort, as spotify uses intelligent AI to return results in its order.
 

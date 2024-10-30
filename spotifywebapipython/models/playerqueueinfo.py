@@ -42,15 +42,25 @@ class PlayerQueueInfo:
                 elif self._CurrentlyPlayingType == 'episode':
                     self._CurrentlyPlaying = Episode(root=item)
 
+            # for some reason, the Spotify Web API will return up to 10 duplicate items 
+            # with the same information!  for example:
+            # - if there is only 1 item in the queue, then 10 duplicate items are returned by the Spotify Web API.
+            # - if there are 5 items in the queue, then 5 duplicate items are returned by the Spotify Web API.
+            # we will check for this scenario, and only return non-duplicate items if so.
             items:list = root.get('queue',None)
             if items is not None:
                 for item in items:
+                    
                     itemType = item.get('type','unknown')
                     if itemType == 'track':
-                        self._Queue.append(Track(root=item))
+                        track:Track = Track(root=item)
+                        if (track) and (not self.ContainsUri(track.Uri)):
+                            self._Queue.append(track)
                     elif itemType == 'episode':
-                        self._Queue.append(Episode(root=item))
-        
+                        episode:Episode = Episode(root=item)
+                        if (episode) and (not self.ContainsUri(episode.Uri)):
+                            self._Queue.append(episode)
+                        
 
     def __repr__(self) -> str:
         return self.ToString()
@@ -122,6 +132,26 @@ class PlayerQueueInfo:
         return result
 
 
+    def ContainsUri(self, uri:str) -> bool:
+        """
+        Checks the `Queue` collection to see if an item already exists with the
+        specified Uri value.
+        
+        Returns True if the specified Uri value exists in the collection; otherwise, False.
+        """
+        result:bool = False
+        
+        if (uri is None):
+            return result
+        
+        for item in self._Queue:
+            if item.Uri == uri:
+                result = True
+                break
+            
+        return result
+        
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
@@ -132,8 +162,8 @@ class PlayerQueueInfo:
             
         result:dict = \
         {
-            'currently_playing': currentlyPlaying,
             'currently_playing_type': self._CurrentlyPlayingType,
+            'currently_playing': currentlyPlaying,
             'queue': [ item.ToDictionary() for item in self._Queue ],
         }
         return result

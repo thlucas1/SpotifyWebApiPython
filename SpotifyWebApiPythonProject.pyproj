@@ -31,6 +31,7 @@ PYTHONWARNINGS=always</Environment>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="docspdoc\buildEnv.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\AddPlayerQueueItems.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetArtist_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobook_NowPlaying.py" />
@@ -88,7 +89,6 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerPlaybackState.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerNowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerDevices.py" />
-    <Compile Include="docs\include\samplecode\SpotifyClient\AddPlayerQueueItem.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\CheckArtistsFollowing.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetArtistsFollowed.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\CheckUsersFollowing.py" />

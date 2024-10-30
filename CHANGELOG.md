@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.113 ] - 2024/10/30
+
+  * Updated `PlayerQueueInfo` model to remove repeated items when retrieving player queue information.  For some reason, the Spotify Web API will return up to 10 duplicate items with the same information.  For example: if there is only 1 item in the queue, then 10 duplicate items are returned by the Spotify Web API; if there are 5 items in the queue, then 5 duplicate items are returned by the Spotify Web API.  We will check for this scenario, and only return non-duplicate items if so.
+  * Updated `PageObject` model to include the `DateLastRefreshed` property, which contains the date and time items were was last refreshed in unix epoch format (e.g. 1669123919.331225).  A value of zero indicates the date was unknown.  Note that this attribute does not exist in the Spotify Web API; it was added here for convenience.
+  * Added `SpotifyClient.AddPlayerQueueItems` method that will add one or more items to the end of the user's current playback queue. 
+  * Marked `SpotifyClient.AddPlayerQueueItem` method as deprecated; use the new `AddPlayerQueueItems` method instead.
+
 ###### [ 1.0.112 ] - 2024/10/19
 
   * Updated `SpotifyClient.GetSpotifyConnectDevice` method to issue a slight delay after disconnecting the device.  This should prevent `Getinformation` exceptions for devices that require a little bit of extra time after a Disconnect (e.g. zeroconf `resetUsers`) request in order to be ready for a Connect (e.g. zeroconf `addUser`) request.

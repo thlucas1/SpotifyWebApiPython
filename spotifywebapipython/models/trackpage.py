@@ -58,6 +58,46 @@ class TrackPage(PageObject):
         return self._Items
     
 
+    def GetUris(self, afterUri:str=None) -> str:
+        """ 
+        Gets a comma-delimited list of uri's contained in the underlying `Items` list.
+        
+        args:
+            afterUri (str):
+                If specified, the process will look for this uri before adding subsequent
+                uri's to the returned results.  This allows you to skip uri's that have
+                recently been played.
+        
+        This is a convenience method so one does not have to loop through the `Items`
+        array of PlayHistory objects to get the list of uri's.
+        """
+        result:str = ""
+        addUri:bool = False
+        item:Track
+
+        # add uri's from the beginning if no `afterUri` argument was passed.
+        if (afterUri is None) or (len(afterUri.strip()) == 0):
+            addUri = True
+        
+        for item in self._Items:
+
+            if (not addUri):
+
+                # check for `afterUri` match; if found, we will start adding uri's
+                # to the list with the next item.
+                if (afterUri == item.Uri):
+                    addUri = True
+                    
+            elif (addUri):
+                
+                # add item uri to the list.
+                if (len(result) > 0):
+                    result += ","
+                result += item.Uri
+                
+        return result
+    
+
     def ToString(self, includeItems:bool=False) -> str:
         """
         Returns a displayable string representation of the class.

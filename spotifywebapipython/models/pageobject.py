@@ -1,4 +1,5 @@
 # external package imports.
+#from datetime import datetime
 
 # our package imports.
 from ..sautils import export
@@ -22,6 +23,7 @@ class PageObject:
         """
         self._CursorAfter:object = None
         self._CursorBefore:object = None
+        self._DateLastRefreshed:float = 0 # datetime.utcnow().timestamp()
         self._Href:str = None
         self._IsCursor:bool = False
         self._Items:list[object] = []
@@ -101,6 +103,30 @@ class PageObject:
         """
         self._IsCursor = True
         self._CursorBefore = value
+
+
+    @property
+    def DateLastRefreshed(self) -> float:
+        """ 
+        Date and time items were was last refreshed, in unix epoch format (e.g. 1669123919.331225).
+        A value of zero indicates the date was unknown.
+        
+        Note that this attribute does not exist in the Spotify Web API; 
+        it was added here for convenience.
+        """
+        return self._DateLastRefreshed
+    
+    @DateLastRefreshed.setter
+    def DateLastRefreshed(self, value:float):
+        """ 
+        Sets the DateLastRefreshed property value.
+        """
+        if (value is None):
+            self._DateLastRefreshed = 0
+        elif isinstance(value, float):
+            self._DateLastRefreshed = value
+        elif isinstance(value, int):
+            self._DateLastRefreshed = float(value)
 
 
     @property
@@ -274,6 +300,7 @@ class PageObject:
         """
         result:dict = \
         {
+            'date_last_refreshed': self._DateLastRefreshed,
             'href': self._Href,
             'limit': self._Limit,
             'next': self._Next,
@@ -309,6 +336,7 @@ class PageObject:
         msg = '%s\n Previous="%s"' % (msg, str(self._Previous))
         msg = '%s\n Total="%s"' % (msg, str(self._Total))
         msg = '%s\n Items Count="%s"' % (msg, str(self.ItemsCount))
+        msg = '%s\n DateLastRefreshed=%s' % (msg, str(self._DateLastRefreshed))
         if self._CursorAfter is not None: msg = '%s\n Cursor After="%s"' % (msg, str(self._CursorAfter))
         if self._CursorBefore is not None: msg = '%s\n Cursor Before="%s"' % (msg, str(self._CursorBefore))
         

@@ -26,7 +26,7 @@ try:
     #deviceId:str = "Web Player (Chrome)" # or device name
     #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     print('\nAdding item to the users current playback queue:\n- "%s" ...' % (trackUri))
-    spotify.AddPlayerQueueItem(trackUri, deviceId)
+    spotify.AddPlayerQueueItems(trackUri, deviceId)
 
     print('\nSuccess - item was added to the queue')
 
