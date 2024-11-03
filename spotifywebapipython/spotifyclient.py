@@ -935,7 +935,8 @@ class SpotifyClient:
                 Example: [`spotify:track:6zd8T1PBe9JFHmuVnurdRp` ,`spotify:track:1kWUud3vY5ij5r62zxpTRy`].  
                 It can also be specified as a comma-delimited string.  
                 Example: `spotify:track:6zd8T1PBe9JFHmuVnurdRp,spotify:track:1kWUud3vY5ij5r62zxpTRy`.  
-                A maximum of 50 items can be added in one request.
+                An unlimited number of items can be added in one request, but the more items the longer it
+                will take.
             deviceId (str):
                 The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
@@ -3862,6 +3863,7 @@ class SpotifyClient:
     def GetArtistRelatedArtists(
             self, 
             artistId:str=None, 
+            sortResult:bool=True,
             ) -> list[Artist]:
         """
         Get Spotify catalog information about artists similar to a given artist.  
@@ -3873,6 +3875,10 @@ class SpotifyClient:
                 Example: `6APm8EjxOHSYM5B4i3vT3q`
                 If null, the currently playing artist uri id value is used; a Spotify Free or Premium account 
                 is required to correctly read the currently playing context.
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             A list of `Artist` objects that contain the artist details.
@@ -3900,8 +3906,13 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("artistId", artistId)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about artists similar to a given artist", apiMethodParms)
-                
+
+            # validations.
+            if sortResult is None: 
+                sortResult = True
+
             # if artistId not specified, then return currently playing artist id value.
             if (artistId is None) or (len(artistId.strip()) == 0):
                 uri = self.GetPlayerNowPlayingArtistUri()
@@ -3920,6 +3931,11 @@ class SpotifyClient:
             if items is not None:
                 for item in items:
                     result.append(Artist(root=item))
+        
+            # sort result items.
+            if (len(result) > 0):
+                if (sortResult is True):
+                    result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
@@ -4182,6 +4198,7 @@ class SpotifyClient:
             self, 
             artistId:str=None, 
             market:str=None, 
+            sortResult:bool=True,
             ) -> list[Track]:
         """
         Get Spotify catalog information about an artist's top tracks by country.
@@ -4200,6 +4217,10 @@ class SpotifyClient:
                 Note: If neither market or user country are provided, the content is considered unavailable for the client.  
                 Users can view the country that is associated with their account in the account settings.  
                 Example: `ES`
+            sortResult (bool):
+                True to sort the items by name; otherwise, False to leave the items in the same order they 
+                were returned in by the Spotify Web API.  
+                Default: True
                 
         Returns:
             A list of `Track` objects that contain the track details.
@@ -4228,8 +4249,13 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("artistId", artistId)
             apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's top tracks", apiMethodParms)
                 
+            # validations.
+            if sortResult is None: 
+                sortResult = True
+            
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -4257,6 +4283,11 @@ class SpotifyClient:
             if items is not None:
                 for item in items:
                     result.append(Track(root=item))
+        
+            # sort result items.
+            if (len(result) > 0):
+                if (sortResult is True):
+                    result.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)

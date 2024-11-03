@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.114 ] - 2024/11/03
+
+  * Added `sortResult` argument to the following `SpotifyClient` methods: `GetArtistRelatedArtists`, `GetArtistTopTracks`.  If True (default), result items are sorted by name prior to returning to the caller; otherwise, results are left in the order that the Spotify Web API returned them.
+
 ###### [ 1.0.113 ] - 2024/10/30
 
   * Updated `PlayerQueueInfo` model to remove repeated items when retrieving player queue information.  For some reason, the Spotify Web API will return up to 10 duplicate items with the same information.  For example: if there is only 1 item in the queue, then 10 duplicate items are returned by the Spotify Web API; if there are 5 items in the queue, then 5 duplicate items are returned by the Spotify Web API.  We will check for this scenario, and only return non-duplicate items if so.

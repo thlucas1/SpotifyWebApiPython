@@ -17,7 +17,7 @@ try:
     # get Spotify catalog information about artists similar to a given artist.
     artistId:str = '6APm8EjxOHSYM5B4i3vT3q'
     print('\nGetting artists similar to artist "%s" ...\n' % artistId)
-    artists:list[Artist] = spotify.GetArtistRelatedArtists(artistId)
+    artists:list[Artist] = spotify.GetArtistRelatedArtists(artistId, True)
 
     artist:Artist
     for artist in artists:

@@ -17,7 +17,7 @@ try:
     # get Spotify catalog information about an artist's top tracks by country.
     artistId:str = '6APm8EjxOHSYM5B4i3vT3q'
     print('\nGetting top tracks for artist id "%s" ...\n' % artistId)
-    tracks:list[Track] = spotify.GetArtistTopTracks(artistId, 'ES')
+    tracks:list[Track] = spotify.GetArtistTopTracks(artistId, 'ES', False)
 
     track:Track
     for track in tracks:
