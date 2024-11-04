@@ -24,6 +24,7 @@ class PlayerQueueInfo:
         """
         self._CurrentlyPlaying:object = None
         self._CurrentlyPlayingType:str = None
+        self._DateLastRefreshed:float = 0
         self._Queue:list[object] = []
         
         if (root is None):
@@ -86,6 +87,30 @@ class PlayerQueueInfo:
         If not null, it can be one of `track`, `episode`, `ad` or `unknown`.
         """
         return self._CurrentlyPlayingType
+
+
+    @property
+    def DateLastRefreshed(self) -> float:
+        """ 
+        Date and time items were was last refreshed, in unix epoch format (e.g. 1669123919.331225).
+        A value of zero indicates the date was unknown.
+        
+        Note that this attribute does not exist in the Spotify Web API; 
+        it was added here for convenience.
+        """
+        return self._DateLastRefreshed
+    
+    @DateLastRefreshed.setter
+    def DateLastRefreshed(self, value:float):
+        """ 
+        Sets the DateLastRefreshed property value.
+        """
+        if (value is None):
+            self._DateLastRefreshed = 0
+        elif isinstance(value, float):
+            self._DateLastRefreshed = value
+        elif isinstance(value, int):
+            self._DateLastRefreshed = float(value)
 
 
     @property
@@ -162,6 +187,7 @@ class PlayerQueueInfo:
             
         result:dict = \
         {
+            'date_last_refreshed': self._DateLastRefreshed,
             'currently_playing_type': self._CurrentlyPlayingType,
             'currently_playing': currentlyPlaying,
             'queue': [ item.ToDictionary() for item in self._Queue ],
@@ -176,4 +202,5 @@ class PlayerQueueInfo:
         msg:str = 'PlayerQueueInfo:'
         if self._CurrentlyPlayingType is not None: msg = '%s\n CurrentlyPlayingType="%s"' % (msg, str(self._CurrentlyPlayingType))
         if self.QueueCount is not None: msg = '%s\n QueueCount="%s"' % (msg, str(self.QueueCount))
+        msg = '%s\n DateLastRefreshed=%s' % (msg, str(self._DateLastRefreshed))
         return msg 

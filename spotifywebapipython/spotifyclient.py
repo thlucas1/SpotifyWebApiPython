@@ -4968,7 +4968,7 @@ class SpotifyClient:
             sortResult:bool=True,
             ) -> CategoryPage:
         """
-        Get a page of categories used to tag items in Spotify.
+        Get categories used to tag items in Spotify.
         
         Args:
             limit (int):
@@ -7376,6 +7376,7 @@ class SpotifyClient:
 
             # process results.
             result = PlayerQueueInfo(root=msg.ResponseData)
+            result.DateLastRefreshed = datetime.utcnow().timestamp()
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)

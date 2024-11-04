@@ -1,6 +1,3 @@
-# external package imports.
-#from datetime import datetime
-
 # our package imports.
 from ..sautils import export
 
@@ -23,7 +20,7 @@ class PageObject:
         """
         self._CursorAfter:object = None
         self._CursorBefore:object = None
-        self._DateLastRefreshed:float = 0 # datetime.utcnow().timestamp()
+        self._DateLastRefreshed:float = 0
         self._Href:str = None
         self._IsCursor:bool = False
         self._Items:list[object] = []

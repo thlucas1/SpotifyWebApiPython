@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.115 ] - 2024/11/04
+
+  * Updated `PlayerQueueInfo` model to include the `DateLastRefreshed` property, which contains the date and time items were was last refreshed in unix epoch format (e.g. 1669123919.331225).  A value of zero indicates the date was unknown.  Note that this attribute does not exist in the Spotify Web API; it was added here for convenience.
+  * Updated `Category` model to include the `Type` property, which contains a simulated data type.  This is a helper property - no value with this name is returned from the Spotify Web API.
+  * Updated `Category` model to add the `uri` and `type` values to data returned by the `ToDictionary` method.
+
 ###### [ 1.0.114 ] - 2024/11/03
 
   * Added `sortResult` argument to the following `SpotifyClient` methods: `GetArtistRelatedArtists`, `GetArtistTopTracks`.  If True (default), result items are sorted by name prior to returning to the caller; otherwise, results are left in the order that the Spotify Web API returned them.

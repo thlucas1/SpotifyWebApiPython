@@ -116,6 +116,17 @@ class Category:
 
 
     @property
+    def Type(self) -> str:
+        """
+        A simulated Spotify type value for the category.
+        
+        This is a helper property - no value with this name is returned from the
+        Spotify Web API.
+        """
+        return "category"
+
+
+    @property
     def Uri(self) -> str:
         """
         A simulated Spotify URI value for the category.
@@ -137,6 +148,8 @@ class Category:
             'image_url': self.ImageUrl,
             'id': self._Id,
             'name': self._Name,
+            'type': self.Type,
+            'uri': self.Uri,
         }
         return result
         
@@ -150,4 +163,6 @@ class Category:
         if self._Href is not None: msg = '%s\n Href="%s"' % (msg, str(self._Href))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._Icons is not None: msg = '%s\n Icons Count=%s' % (msg, str(len(self._Icons)))
+        if self._Id is not None: msg = '%s\n Type="%s"' % (msg, str(self.Type))
+        if self._Id is not None: msg = '%s\n Uri="%s"' % (msg, str(self.Uri))
         return msg
