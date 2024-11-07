@@ -44,7 +44,8 @@ try:
             print('- {played_at} {played_atMS}: "{name}" ({uri})'.format(played_at=history.PlayedAt, played_atMS=history.PlayedAtMS, name=history.Track.Name, uri=history.Track.Uri))
 
         # anymore page results?
-        if pageObj.Next is None:
+        if (pageObj.Next is None) \
+        or (pageObj.IsCursor and pageObj.CursorAfter is None and pageObj.CursorBefore is None):
             # no - all pages were processed.
             break
         else:

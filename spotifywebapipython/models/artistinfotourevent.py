@@ -15,6 +15,7 @@ class ArtistInfoTourEvent:
         Initializes a new instance of the class.
         """
         self._EventDateTime:str = None
+        self._Href:str = None
         self._Title:str = None
         self._VenueName:str = None
         
@@ -42,6 +43,22 @@ class ArtistInfoTourEvent:
         """
         if value is None or isinstance(value, datetime):
             self._EventDateTime = value
+
+
+    @property
+    def Href(self) -> str:
+        """ 
+        Link to the concert information, if supplied; otherwise, null.
+        """
+        return self._Href
+    
+    @Href.setter
+    def Href(self, value:str):
+        """ 
+        Sets the Href property value.
+        """
+        if isinstance(value, str):
+            self._Href = value
 
 
     @property
@@ -84,6 +101,7 @@ class ArtistInfoTourEvent:
         {
             'title': self._Title,
             'venue_name': self._VenueName,
+            'href': self._Href,
         }
         if self._EventDateTime is not None:
             result['event_datetime'] = self._EventDateTime.isoformat()
@@ -105,4 +123,5 @@ class ArtistInfoTourEvent:
         if self._EventDateTime is not None: msg = '%s\n EventDateTime="%s"' % (msg, self._EventDateTime.isoformat())
         if self._Title is not None: msg = '%s\n Title="%s"' % (msg, str(self._Title))
         if self._VenueName is not None: msg = '%s\n VenueName="%s"' % (msg, str(self._VenueName))
+        if self._Href is not None: msg = '%s\n Href="%s"' % (msg, str(self._Href))
         return msg 

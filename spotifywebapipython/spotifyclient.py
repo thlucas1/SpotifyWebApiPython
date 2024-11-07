@@ -50,6 +50,8 @@ CACHE_SOURCE_CURRENT:str = "current"
 
 SPOTIFY_DJ_PLAYLIST_ID = "37i9dqzf1eykqdzj48dyyq"
 
+SPOTIFY_ONLINE_LINK_PREFIX = "https://open.spotify.com"
+
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
 import logging
@@ -423,8 +425,14 @@ class SpotifyClient:
             False if there are no more pages to process;
             otherwise, True to safely process the next page of results.
         """
-        # anymore page results?  
+        # anymore page results for non-cursor paging types?  
         if (pageObj.Next is None) or (resultItemsCount >= limitTotal):
+            # no - all pages were processed, or limit total reached.
+            return False
+        
+        # anymore page results for cursor paging types?  
+        if (pageObj.IsCursor and pageObj.CursorAfter is None and pageObj.CursorBefore is None) \
+        or (resultItemsCount >= limitTotal):
             # no - all pages were processed, or limit total reached.
             return False
 
@@ -434,7 +442,7 @@ class SpotifyClient:
             urlParms['after'] = pageObj.CursorAfter
         else:
             urlParms['before'] = pageObj.CursorBefore
-        
+
         # just in case spotify doesn't return what is expected, and to prevent
         # an endless loop
         if pageObj.ItemsCount == 0:
@@ -3658,162 +3666,205 @@ class SpotifyClient:
 
             # was a Spotify external url specified for the artist?  if not then we are done.
             if artist.ExternalUrls is None or artist.ExternalUrls.Spotify is None:
-                return artist
+                _logsi.LogVerbose("Spotify ExternalUrl not present for artist details page")
+                return result
             
-            # retrieve artist details page.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, artist.ExternalUrls.Spotify)
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+            try:
                 
-            # log html response.
-            #_logsi.LogHtml(SILevel.Verbose, "GetArtistInfo response HTML", msg.ResponseData)
-            _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text", msg.ResponseData, SISourceId.Html)
+                # retrieve artist details page.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, artist.ExternalUrls.Spotify)
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
                 
-            # if no response data then we are done.
-            if not msg.HasResponseData:
-                _logsi.LogVerbose("No html returned for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
-                return result
+                # log html response.
+                #_logsi.LogHtml(SILevel.Verbose, "GetArtistInfo response HTML", msg.ResponseData)
+                _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text", msg.ResponseData, SISourceId.Html)
                 
-            # find the starting <html> tag.
-            # ElementTree fromstring method will fail if initial tag is "<!doctype html>".
-            html:str = msg.ResponseData
-            if html is None:
-                return result
-            if not html.startswith('<html'):
-                idx:int = html.find('<html')
-                if idx == -1:
-                    _logsi.LogVerbose("<html> tag could not be found for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
+                # if no response data then we are done.
+                if not msg.HasResponseData:
+                    _logsi.LogVerbose("No html returned for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
                     return result
-                html = html[idx:]
-                _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text (starting from '<html')", html, SISourceId.Html)
-                    
-            # log formatted html response.
-            _logsi.LogXml(SILevel.Verbose, "GetArtistInfo response Text (formatted)", html, prettyPrint=True)
                 
-            # load html element tree so we can parse it.
-            doc:Element = fromstring(html)
-            _logsi.LogObject(SILevel.Verbose, "doc Element object", doc)
+                # find the starting <html> tag.
+                # ElementTree fromstring method will fail if initial tag is "<!doctype html>".
+                html:str = msg.ResponseData
+                if html is None:
+                    return result
+                if not html.startswith('<html'):
+                    idx:int = html.find('<html')
+                    if idx == -1:
+                        _logsi.LogVerbose("<html> tag could not be found for artist details page: '%s'" % (artist.ExternalUrls.Spotify))
+                        return result
+                    html = html[idx:]
+                    _logsi.LogSource(SILevel.Verbose, "GetArtistInfo response Text (starting from '<html')", html, SISourceId.Html)
+                    
+                # log formatted html response.
+                _logsi.LogXml(SILevel.Verbose, "GetArtistInfo response Text (formatted)", html, prettyPrint=True)
+                
+                # load html element tree so we can parse it.
+                doc:Element = fromstring(html)
+                _logsi.LogObject(SILevel.Verbose, "doc Element object", doc)
                                
-            attrXPath:str = None
-            elm:Element = None
-            elmChild:Element = None
-            innerText:str = None
+                attrXPath:str = None
+                elm:Element = None
+                elmChild:Element = None
+                innerText:str = None
 
-            # about information - image (button / bio page):
-            attrXPath = './/button[@type="button"]/descendant-or-self::img'
-            _logsi.LogVerbose("Element search 'image button': '%s'" % attrXPath)
-            attrElements:list[Element] = doc.xpath(attrXPath)
-            for elm in attrElements:
-                _logsi.LogObject(SILevel.Verbose, "Element match: '%s'" % attrXPath, elm)
-                attrValue:str = elm.get('src', None)
-                if attrValue is not None:
-                    result.ImageUrl = attrValue
-                    break
+                # about information - image (button / bio page):
+                attrXPath = './/button[@type="button"]/descendant-or-self::img'
+                _logsi.LogVerbose("Element search 'image button': '%s'" % attrXPath)
+                attrElements:list[Element] = doc.xpath(attrXPath)
+                for elm in attrElements:
+                    _logsi.LogObject(SILevel.Verbose, "Element match: '%s'" % attrXPath, elm)
+                    attrValue:str = elm.get('src', None)
+                    if attrValue is not None:
+                        result.ImageUrl = attrValue
+                        break
 
-            # about information - image (entity-id):
-            # use the internal `_ImageUrl` attribute value to check, as the `ImageUrl` property
-            # will return the `ImageUrlDefault` if `_ImageUrl` attribute was not set.
-            # <img data-testid="artist-entity-image" src="https://i.scdn.co/image/ab6761610000517446196125b56397cd4e0d9c4b" />
-            if result._ImageUrl is None:
-                attrXPath = './/attribute::data-testid[contains(., "artist-entity-image")]/../@src'
-                _logsi.LogVerbose("Element search 'image entity': '%s'" % attrXPath)
+                # about information - image (entity-id):
+                # use the internal `_ImageUrl` attribute value to check, as the `ImageUrl` property
+                # will return the `ImageUrlDefault` if `_ImageUrl` attribute was not set.
+                # <img data-testid="artist-entity-image" src="https://i.scdn.co/image/ab6761610000517446196125b56397cd4e0d9c4b" />
+                if result._ImageUrl is None:
+                    attrXPath = './/attribute::data-testid[contains(., "artist-entity-image")]/../@src'
+                    _logsi.LogVerbose("Element search 'image entity': '%s'" % attrXPath)
+                    elmChild = doc.xpath(attrXPath)
+                    if elmChild is not None:
+                        _logsi.LogVerbose("Element match: '%s'" % elmChild[0])
+                        result.ImageUrl = elmChild[0]
+                
+                # about information - monthly listeners:
+                # <div data-testid="monthly-listeners-label">2,707,252 monthly listeners</div>
+                attrXPath = './/attribute::data-testid[contains(., "monthly-listeners-label")]/../text()'
+                _logsi.LogVerbose("Element search 'monthly listeners': '%s'" % attrXPath)
                 elmChild = doc.xpath(attrXPath)
                 if elmChild is not None:
                     _logsi.LogVerbose("Element match: '%s'" % elmChild[0])
-                    result.ImageUrl = elmChild[0]
-                
-            # about information - monthly listeners:
-            # <div data-testid="monthly-listeners-label">2,707,252 monthly listeners</div>
-            attrXPath = './/attribute::data-testid[contains(., "monthly-listeners-label")]/../text()'
-            _logsi.LogVerbose("Element search 'monthly listeners': '%s'" % attrXPath)
-            elmChild = doc.xpath(attrXPath)
-            if elmChild is not None:
-                _logsi.LogVerbose("Element match: '%s'" % elmChild[0])
-                attrValue = elmChild[0].replace(ABOUT_MONTHLY_LISTENERS,'')
-                attrValue = attrValue.replace(',','')
-                attrValue = attrValue.strip()
-                if attrValue.isnumeric:
-                    result.MonthlyListeners = int(attrValue)
+                    attrValue = elmChild[0].replace(ABOUT_MONTHLY_LISTENERS,'')
+                    attrValue = attrValue.replace(',','')
+                    attrValue = attrValue.strip()
+                    if attrValue.isnumeric:
+                        result.MonthlyListeners = int(attrValue)
 
-            # about information - bio:
-            # <div data-testid="expandable-description">
-            #    <div>
-            #       <div>
-            #          <span>MercyMe is a contemporary Christian music band ...</span>
-            #       </div>
-            #    </div>
-            # </div>                
-            attrXPath = './/attribute::data-testid[contains(., "expandable-description")]/..'
-            _logsi.LogVerbose("Element search 'bio': '%s'" % attrXPath)
-            attrElements:list[Element] = doc.xpath(attrXPath)
-            for elm in attrElements:
-                innerText = _xmlGetInnerText(elm)
-                _logsi.LogObject(SILevel.Verbose, "Element match: '%s' (innerText=%s)" % (attrXPath, innerText), elm)
-                result.Bio = innerText
-                break
+                # about information - bio:
+                # <div data-testid="expandable-description">
+                #    <div>
+                #       <div>
+                #          <span>xxxxx is a contemporary music band ...</span>
+                #       </div>
+                #    </div>
+                # </div>                
+                attrXPath = './/attribute::data-testid[contains(., "expandable-description")]/..'
+                _logsi.LogVerbose("Element search 'bio': '%s'" % attrXPath)
+                attrElements:list[Element] = doc.xpath(attrXPath)
+                for elm in attrElements:
+                    innerText = _xmlGetInnerText(elm)
+                    _logsi.LogObject(SILevel.Verbose, "Element match: '%s' (innerText=%s)" % (attrXPath, innerText), elm)
                 
-            # about information - on tour dates:
-            # <h2>On tour</h2>
-            # <div><ul><li>
-            #   <a draggable="false" class="x" href="/concert/1plBKlFD04tlsD1ky081qL">
-            #      <time class="x" dateTime="2024-04-04T19:00-07:00">
-            #         <h5 class="x" data-encore-id="type">Apr</h5>
-            #         <h1 class="x" data-encore-id="type">5</h1>
-            #      </time>
-            #      <div class="x">
-            #         <h3 class="x" data-encore-id="type">MercyMe with David Leonard and Newsboys</h3>
-            #         <p class="x" data-encore-id="type"><time class="cR3tL5CgXmgwfJDDKQ2A">Fri, Apr 5</time>accesso ShoWare Center, Kent</p>
-            #      </div>
-            #   </a>
-            # </li></ul></div>
-            attrXPath = './/h2[text()="On tour"]/following-sibling::*/descendant-or-self::a'
-            _logsi.LogVerbose("Element search 'On tour': '%s'" % attrXPath)
-            attrElements:list[Element] = doc.xpath(attrXPath)
-            for elm in attrElements:
-                innerText = _xmlGetInnerText(elm)
-                if innerText is not None:
-                    innerTextLCase = innerText.lower()
-                    if innerTextLCase == 'see all':
-                        break
-                    if innerTextLCase.startswith('view all upcoming concerts'):
-                        break;
+                    # replace "see more" suffix with spotify link.
+                    SEE_MORE:str = "see more"
+                    if (innerText) and (innerText.endswith(SEE_MORE)):
+                        innerText = innerText.removesuffix(SEE_MORE)
+                        innerText += "<a href=\"%s\" target=\"_blank\">%s</a>" % (artist.ExternalUrls.Spotify, SEE_MORE)
+
+                    result.Bio = innerText
+                    
+                    # remove various html attributes from sub-elements.
+                    for elmDIV in elm.findall(".//*[@class]"):
+                        del elmDIV.attrib["class"]
+                    for elmDIV in elm.findall(".//*[@data-testid]"):
+                        del elmDIV.attrib["data-testid"]
+                    for elmDIV in elm.findall(".//*[@data-encore-id]"):
+                        del elmDIV.attrib["data-encore-id"]
+                    for elmDIV in elm.findall(".//*[@draggable]"):
+                        del elmDIV.attrib["draggable"]
+                        
+                    # modify anchor link relative references in sub-elements.
+                    for elmDIV in elm.findall(".//a[@href]"):
+                        value:str = elmDIV.attrib["href"]
+                        if (value.startswith("/")):
+                            value = SPOTIFY_ONLINE_LINK_PREFIX + value
+                            elmDIV.attrib["href"] = value
+
+                    # drop the parent DIV element, convert to html, and update result property.
+                    xml_string = etree.tostring(elm[0], pretty_print=True, encoding="utf-8")
+                    xml_decoded = xml_string.decode("utf-8")
+                    xml_decoded = xml_decoded.replace("\n","<br/>")             # add <br> tags in place of newlines
+                    xml_decoded = xml_decoded.replace("<div><br/>  ","<div>")   # trim leading line breaks
+                    result.BioHtml = xml_decoded
+                    _logsi.LogHtml(SILevel.Verbose, "GetArtistInfo result BioHtml", result.BioHtml)
+                    
+                    break
                 
-                if (_logsi.IsOn(SILevel.Verbose)):
-                    xml_string = etree.tostring(elm, pretty_print=True, encoding="utf-8")
-                    _logsi.LogXml(SILevel.Verbose, "Element match: '%s' (html)" % (attrXPath), xml_string.decode("utf-8"))
+                # about information - on tour dates:
+                # <h2>On tour</h2>
+                # <div><ul><li>
+                #   <a draggable="false" class="kZAjDLOBaUEUgIh0u_ar" href="/concert/35nHWo11uitgmm5XSkd8CU">
+                #     <time class="jqymLdIlkUVKl8shJfKZ" dateTime="2024-11-09T19:00-05:00">
+                #       <div class="encore-text encore-text-marginal-bold diaCgR2BgDJgHboSPS1S" data-encore-id="text">Nov</div>
+                #       <div class="encore-text encore-text-title-small RjfBbWVLuXMzwFtTXDL0" data-encore-id="text">9</div>
+                #     </time>
+                #     <div class="ymKJ1kNm06pnfmgmATrg">
+                #       <div class="encore-text encore-text-body-medium-bold encore-internal-color-text-base UmCMpZhcC2lll241N1NU" data-encore-id="text">Danny Gokey with Mac Powell and Seph Schlueter</div>
+                #       <p class="encore-text encore-text-body-small bk3jsOor2S1AwKPihqwM" data-encore-id="text">
+                #           <time class="cR3tL5CgXmgwfJDDKQ2A">Sat, Nov 9</time>Hobart Arena, Troy</p>
+                #     </div>
+                #   </a>
+                # </li></ul></div>
 
-                event:ArtistInfoTourEvent = ArtistInfoTourEvent() 
-
-                attrXPath = './/time/@dateTime'
-                elmChild = elm.xpath(attrXPath)
-                if (elmChild is not None) and (len(elmChild) > 0):
-                    try:
-                        attrValue = str(elmChild[0])
+                attrXPath = './/h2[text()="On tour"]/following-sibling::*/descendant-or-self::a'
+                _logsi.LogVerbose("Element search 'On tour': '%s'" % attrXPath)
+                attrElements:list[Element] = doc.xpath(attrXPath)
+                for elm in attrElements:
+                    event:ArtistInfoTourEvent = ArtistInfoTourEvent() 
+                    
+                    # process event more info link.
+                    attrValue = elm.attrib["href"]
+                    if (attrValue):
+                        event.Href = SPOTIFY_ONLINE_LINK_PREFIX + attrValue
+                    
+                    # process event datetime.
+                    for elmDT in elm.findall(".//*[@dateTime]"):
+                        attrValue = elmDT.attrib["dateTime"]
                         idx:int = attrValue.rfind('-')
                         if idx > 15:  # drop timezone portion of the datetime.
-                            event.EventDateTime = datetime.fromisoformat(attrValue[:idx])
-                    except Exception as ex:
-                        _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmChild[0], attrValue), ex, logToSystemLogger=False)
-                        event.EventDateTime = None
-                        
-                attrXPath = './/h3/text()'
-                elmChild = elm.xpath(attrXPath)
-                if (elmChild is not None) and (len(elmChild) > 0):
-                    event.Title = elmChild[0]
-                    
-                attrXPath = './/p/text()'
-                elmChild = elm.xpath(attrXPath)
-                if (elmChild is not None) and (len(elmChild) > 0):
-                    event.VenueName = elmChild[0]
-                    
-                result.TourEvents.append(event)
-                _logsi.LogObject(SILevel.Verbose, '%s: "%s" (%s)' % (type(event).__name__, event.Title, event.EventDateTime), event, excludeNonPublic=True)
+                            try:
+                                event.EventDateTime = datetime.fromisoformat(attrValue[:idx])
+                            except Exception as ex:
+                                _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmDT, attrValue), ex, logToSystemLogger=False)
+                                event.EventDateTime = None
+                        break
 
-            # about information - links.
-            result.AboutUrlFacebook = self._GetArtistInfoAboutLink(doc,"Facebook")
-            result.AboutUrlInstagram = self._GetArtistInfoAboutLink(doc,"Instagram")
-            result.AboutUrlTwitter = self._GetArtistInfoAboutLink(doc,"Twitter")
-            result.AboutUrlWikipedia = self._GetArtistInfoAboutLink(doc,"Wikipedia")
+                    # process event venue.
+                    # we will remove the <time> element, leaving only the innerText of the <p> element.
+                    for elmPT in elm.findall(".//p/time"):
+                        #xml_string_before = etree.tostring(elm, pretty_print=True, encoding="utf-8")
+                        elmPT.text = ""                         # remove <time> text value
+                        #xml_string_after = etree.tostring(elm, pretty_print=True, encoding="utf-8")
+                        break
+                    for elmP in elm.findall(".//p"):
+                        event.VenueName = _xmlGetInnerText(elmP)
+                        break
+                    
+                    # process event title.
+                    for elmDIV in elm.findall(".//div/div"):
+                        event.Title = _xmlGetInnerText(elmDIV)
+                        break
+                    
+                    # append event info to events collection.
+                    result.TourEvents.append(event)
+                    _logsi.LogObject(SILevel.Verbose, '%s: "%s" (%s)' % (type(event).__name__, event.Title, event.EventDateTime), event, excludeNonPublic=True)
+
+                # about information - links.
+                result.AboutUrlFacebook = self._GetArtistInfoAboutLink(doc,"Facebook")
+                result.AboutUrlInstagram = self._GetArtistInfoAboutLink(doc,"Instagram")
+                result.AboutUrlTwitter = self._GetArtistInfoAboutLink(doc,"Twitter")
+                result.AboutUrlWikipedia = self._GetArtistInfoAboutLink(doc,"Wikipedia")
+            
+            except Exception as ex:
+                
+                # trace parsing exceptions.
+                _logsi.LogException(str(ex), ex, logToSystemLogger=False)
                 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -7681,7 +7732,7 @@ class SpotifyClient:
                 result = Playlist()
                 result._Collaborative = False
                 result._Description = 'Spotify DJ Playlist'
-                result._ExternalUrls._Spotify = 'https://open.spotify.com/playlist/%s' % playlistId
+                result._ExternalUrls._Spotify = SPOTIFY_ONLINE_LINK_PREFIX + "/playlist/" + playlistId
                 result._Id = playlistId
                 result._Name = 'DJ'
                 result._Public = False

@@ -31,6 +31,7 @@ class ArtistInfo:
         self._AboutUrlTwitter:str = None
         self._AboutUrlWikipedia:str = None
         self._Bio:str = None
+        self._BioHtml:str = None
         self._Id:int = id
         self._ImageUrl:str = None
         self._ImageUrlDefault:str = imageUrlDefault
@@ -116,7 +117,7 @@ class ArtistInfo:
     @property
     def Bio(self) -> str:
         """ 
-        Biography text.
+        Biography text, in plain-text format.
         """
         return self._Bio
     
@@ -127,6 +128,22 @@ class ArtistInfo:
         """
         if isinstance(value, str):
             self._Bio = value
+
+
+    @property
+    def BioHtml(self) -> str:
+        """ 
+        Biography text, in html format.
+        """
+        return self._BioHtml
+    
+    @BioHtml.setter
+    def BioHtml(self, value:str):
+        """ 
+        Sets the BioHtml property value.
+        """
+        if isinstance(value, str):
+            self._BioHtml = value
 
 
     @property
@@ -223,6 +240,7 @@ class ArtistInfo:
             'about_url_twitter': self._AboutUrlTwitter,
             'about_url_wikipedia': self._AboutUrlWikipedia,
             'bio': self._Bio,
+            'bio_html': self._BioHtml,
             'id': self._Id,
             'image_url': self._ImageUrl,
             'image_url_default': self._ImageUrlDefault,
@@ -254,6 +272,7 @@ class ArtistInfo:
         if self._AboutUrlTwitter is not None: msg = '%s\n AboutUrlTwitter="%s"' % (msg, str(self._AboutUrlTwitter))
         if self._AboutUrlWikipedia is not None: msg = '%s\n AboutUrlWikipedia="%s"' % (msg, str(self._AboutUrlWikipedia))
         if self._Bio is not None: msg = '%s\n Bio="%s"' % (msg, str(self._Bio))
+        if self._BioHtml is not None: msg = '%s\n BioHtml="%s"' % (msg, str(self._BioHtml))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._ImageUrl is not None: msg = '%s\n ImageUrl="%s"' % (msg, str(self._ImageUrl))
         if self._ImageUrlDefault is not None: msg = '%s\n ImageUrlDefault="%s"' % (msg, str(self._ImageUrlDefault))

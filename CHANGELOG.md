@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.116 ] - 2024/11/07
+
+  * Updated `ArtistInfoTourEvent` model to include the concert link.
+  * Fixed `SpotifyClient.GetArtistInfo` method to correctly parse Spotify artist info and tour events.
+
 ###### [ 1.0.115 ] - 2024/11/04
 
   * Updated `PlayerQueueInfo` model to include the `DateLastRefreshed` property, which contains the date and time items were was last refreshed in unix epoch format (e.g. 1669123919.331225).  A value of zero indicates the date was unknown.  Note that this attribute does not exist in the Spotify Web API; it was added here for convenience.
