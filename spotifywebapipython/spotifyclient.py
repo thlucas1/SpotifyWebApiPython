@@ -3780,20 +3780,28 @@ class SpotifyClient:
                         del elmDIV.attrib["draggable"]
                         
                     # modify anchor link relative references in sub-elements.
+                    # also force all links to open in a new window / tab.    
                     for elmDIV in elm.findall(".//a[@href]"):
                         value:str = elmDIV.attrib["href"]
                         if (value.startswith("/")):
                             value = SPOTIFY_ONLINE_LINK_PREFIX + value
                             elmDIV.attrib["href"] = value
+                        elmDIV.attrib["target"] = "_blank"
 
-                    # drop the parent DIV element, convert to html, and update result property.
+                    # drop the parent DIV element(s), convert to html, and update result property.
                     xml_string = etree.tostring(elm[0], pretty_print=True, encoding="utf-8")
-                    xml_decoded = xml_string.decode("utf-8")
+                    xml_decoded:str = xml_string.decode("utf-8")
                     xml_decoded = xml_decoded.replace("\n","<br/>")             # add <br> tags in place of newlines
-                    xml_decoded = xml_decoded.replace("<div><br/>  ","<div>")   # trim leading line breaks
+                    if xml_decoded.startswith("<div><br/>  <div><br/>    "):    # trim leading and trailing line breaks
+                        xml_decoded = xml_decoded.removeprefix("<div><br/>  <div><br/>    ")
+                        xml_decoded = xml_decoded.removesuffix("  </div><br/></div><br/>")
+                        xml_decoded = xml_decoded.removesuffix("<br/>")
+                    # xml_decoded = xml_decoded.replace("<div><br/>  ","<div>")   # trim leading line breaks
+                    # if xml_decoded.endswith("  </div><br/></div><br/>"):        # trim trailing line breaks
+                    #     xml_decoded = xml_decoded.removesuffix("  </div><br/></div><br/>")
+                    #     xml_decoded += "</div></div>"
                     result.BioHtml = xml_decoded
                     _logsi.LogHtml(SILevel.Verbose, "GetArtistInfo result BioHtml", result.BioHtml)
-                    
                     break
                 
                 # about information - on tour dates:
