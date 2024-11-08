@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.118 ] - 2024/11/07
+
+  * Updated `SpotifyClient.GetArtistInfo` method to handle the `see more` suffix in the `BioHtml` property.
+  * Updated `SpotifyClient.GetArtistInfo` method to correctly parse tour event dates.
+
 ###### [ 1.0.117 ] - 2024/11/07
 
   * Updated `SpotifyClient.GetArtistInfo` method to force all links in the `BioHtml` property to open in a new browser window / tab (e.g. added `target="_blank"`).

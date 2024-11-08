@@ -3796,6 +3796,13 @@ class SpotifyClient:
                         xml_decoded = xml_decoded.removeprefix("<div><br/>  <div><br/>    ")
                         xml_decoded = xml_decoded.removesuffix("  </div><br/></div><br/>")
                         xml_decoded = xml_decoded.removesuffix("<br/>")
+                    elif xml_decoded.startswith("<div><div>"):                  # trim leading and trailing line breaks
+                        xml_decoded = xml_decoded.removeprefix("<div><div>")
+                        xml_decoded = xml_decoded.removesuffix("</div></div><br/>")
+                    # replace see more button link
+                    xml_decoded = xml_decoded.replace("\u2026","")              # replace unicode elipses (3 dots) character
+                    xml_decoded = xml_decoded.replace('<button><span> <!-- -->see more</span></button>', ' <a href="' + artist.ExternalUrls.Spotify + '" target="_blank">see more</a>')
+                    
                     # xml_decoded = xml_decoded.replace("<div><br/>  ","<div>")   # trim leading line breaks
                     # if xml_decoded.endswith("  </div><br/></div><br/>"):        # trim trailing line breaks
                     #     xml_decoded = xml_decoded.removesuffix("  </div><br/></div><br/>")
@@ -3835,12 +3842,14 @@ class SpotifyClient:
                     for elmDT in elm.findall(".//*[@dateTime]"):
                         attrValue = elmDT.attrib["dateTime"]
                         idx:int = attrValue.rfind('-')
-                        if idx > 15:  # drop timezone portion of the datetime.
-                            try:
+                        try:
+                            if (idx > 15):                  # drop ending timezone suffix (e.g. "-06:00")
                                 event.EventDateTime = datetime.fromisoformat(attrValue[:idx])
-                            except Exception as ex:
-                                _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmDT, attrValue), ex, logToSystemLogger=False)
-                                event.EventDateTime = None
+                            elif (attrValue.endswith("Z")): # drop ending "Z" suffix
+                                event.EventDateTime = datetime.fromisoformat(attrValue.removesuffix("Z"))
+                        except Exception as ex:
+                            _logsi.LogException("Element value '%s' (%s) could not be parsed to a datetime object" % (elmDT, attrValue), ex, logToSystemLogger=False)
+                            event.EventDateTime = None
                         break
 
                     # process event venue.
