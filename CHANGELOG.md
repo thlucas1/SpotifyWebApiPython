@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.119 ] - 2024/11/15
+
+  * Updated `TrackRecommendations` model to return empty arrays (instead of None) if seeds or tracks items were not found.
+
 ###### [ 1.0.118 ] - 2024/11/07
 
   * Updated `SpotifyClient.GetArtistInfo` method to handle the `see more` suffix in the `BioHtml` property.

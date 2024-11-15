@@ -8,7 +8,7 @@ from .track import Track
 @export
 class TrackRecommendations:
     """
-    Spotify Web API SimplifiedTrack object.
+    Spotify Web API TrackRecommendations object.
     """
 
     def __init__(self, root:dict=None) -> None:
@@ -30,12 +30,12 @@ class TrackRecommendations:
         else:
 
             # process all collections and objects.
-            items:list = root.get('seeds',None)
+            items:list = root.get('seeds', [])
             if items is not None:
                 for item in items:
                     self._Seeds.append(RecommendationSeed(root=item))
         
-            items:list = root.get('tracks',None)
+            items:list = root.get('tracks', [])
             if items is not None:
                 for item in items:
                     self._Tracks.append(Track(root=item))
@@ -60,8 +60,8 @@ class TrackRecommendations:
     @property
     def Tracks(self) -> list[Track]:
         """ 
-        A list of Track objects, ordered according to the parameters supplied.
-        on the `GetTrackRecommendations` method.
+        A list of Track objects, ordered according to the parameters supplied
+        to the `GetTrackRecommendations` method.
         """
         return self._Tracks
 
