@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.120 ] - 2024/11/18
+
+  * Updated `SpotifyClient.ReorderPlaylistItems` to validate required input parameters were supplied.
+  * Updated `SpotifyClient.ReplacePlaylistItems` to check for no uris argument; this can occur if you want to clear the playlist.
+  * Updated `SpotifyClient.GetPlaylistCoverImage` method to make the `playlistId` argument optional; if not supplied, the currently playing playlist id value is used instead.
+  * Added `SpotifyClient.Version` property.
+
 ###### [ 1.0.119 ] - 2024/11/15
 
   * Updated `TrackRecommendations` model to return empty arrays (instead of None) if seeds or tracks items were not found.

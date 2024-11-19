@@ -43,6 +43,7 @@ from .const import (
     TRACE_MSG_DELAY_DEVICE,
     TRACE_MSG_USERPROFILE,
     TRACE_WARN_SPOTIFY_SEARCH_NO_MARKET,
+    VERSION
 )
 
 CACHE_SOURCE_CACHED:str = "cached"
@@ -355,6 +356,14 @@ class SpotifyClient:
         properties that require specific scope.
         """
         return self._UserProfile
+    
+
+    @property
+    def Version(self) -> str:
+        """ 
+        The current API version identifier.
+        """
+        return VERSION
     
 
     @property
@@ -2060,7 +2069,7 @@ class SpotifyClient:
             ids (str):  
                 A comma-separated list of Spotify user ID's to check.  
                 Maximum: 50 ID's.  
-                Example: `smedjan`  
+                Example: `smedjan,smedjan123`  
                 
         Returns:
             A dictionary of the IDs, along with a boolean status for each that indicates 
@@ -6836,7 +6845,7 @@ class SpotifyClient:
             
                 # if it IS a hex string, then it should have been converted to a number.
                 # at this point we can assume it's a device id.  in this case, just return it.
-                # note that we will NOT perform a lookup in the device list .
+                # note that we will NOT perform a lookup in the device list.
                 _logsi.LogVerbose("Device id '%s' was specified, and will be used as-is" % value)
                 if intValue is not None:
                     return value
@@ -7797,15 +7806,17 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlaylistCoverImage(self, 
-                              playlistId:str, 
-                              ) -> ImageObject:
+    def GetPlaylistCoverImage(
+            self, 
+            playlistId:str=None, 
+            ) -> ImageObject:
         """
         Get the current image associated with a specific playlist.
         
         Args:
             playlistId (str):  
                 The Spotify ID of the playlist.  
+                If null, the currently playing playlist uri id value is used.  
                 Example: `5v5ETK9WFXAnGQ3MRubKuE`
                 
         Returns:
@@ -7836,6 +7847,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current image associated with a specific playlist", apiMethodParms)
                 
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -8269,7 +8288,7 @@ class SpotifyClient:
                 Default: True
                 
         Returns:
-            An `PlaylistPageSimplified` object that contains playlist information.
+            An `PlaylistPageSimplified` object that contains user playlist information.
                 
         Raises:
             SpotifyWebApiError: 
@@ -13302,13 +13321,14 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def ReorderPlaylistItems(self, 
-                             playlistId:str, 
-                             rangeStart:int,
-                             insertBefore:int,
-                             rangeLength:int=1,
-                             snapshotId:str=None
-                             ) -> str:
+    def ReorderPlaylistItems(
+            self, 
+            playlistId:str, 
+            rangeStart:int,
+            insertBefore:int,
+            rangeLength:int=1,
+            snapshotId:str=None
+            ) -> str:
         """
         Reorder items in a user's playlist.
         
@@ -13377,6 +13397,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("rangeLength", rangeLength)
             apiMethodParms.AppendKeyValue("snapshotId", snapshotId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Reorder items in a user's playlist", apiMethodParms)
+
+            # validations.
+            if (rangeStart is None):
+                rangeStart = 1
+            if (insertBefore is None):
+                insertBefore = 1
+            if (rangeLength is None):
+                rangeLength = 1
                 
             # build spotify web api request parameters.
             reqData:dict = \
@@ -13465,12 +13493,21 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             apiMethodParms.AppendKeyValue("uris", uris)
             _logsi.LogMethodParmList(SILevel.Verbose, "Replace one or more items in a user's playlist", apiMethodParms)
+            
+            # validations.
+            if (uris is None):
+                uris = ""
+            uris = uris.strip();
                 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
             arrUris:list[str] = uris.split(',')
             for idx in range(0, len(arrUris)):
                 arrUris[idx] = arrUris[idx].strip()
+                
+            # if no items are present, then clear the array (can't have empty string items).
+            if (len(arrUris) == 1) and (arrUris[0] == ""):
+                arrUris = []
 
             # build spotify web api request parameters.
             reqData:dict = \

@@ -21,7 +21,7 @@ try:
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
     # check to see if the current user is following one or more users.
-    ids:str = 'smedjan'
+    ids:str = 'smedjan, smedjan123'
     print('\nChecking if these users are followed by me:\n- %s\n' % (ids.replace(',','\n- ')))
     result:dict = spotify.CheckUsersFollowing(ids)
             
