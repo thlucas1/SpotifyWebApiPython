@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.121 ] - 2024/11/20
+
+  * Updated `AuthTokenGenerator.py` sample code to correctly reference the token cache file.
+
 ###### [ 1.0.120 ] - 2024/11/18
 
   * Updated `SpotifyClient.ReorderPlaylistItems` to validate required input parameters were supplied.
