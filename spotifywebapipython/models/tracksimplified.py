@@ -224,10 +224,17 @@ class TrackSimplified:
     @property
     def PreviewUrl(self) -> str:
         """ 
+        <span class="deprecated">
+            DEPRECATED - property no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>
+        
         A link to a 30 second preview (MP3 format) of the track. Can be null.
         
         Important policy note:
-        - Spotify Audio preview clips can not be a standalone service.
+        - Spotify Audio preview clips can not be a standalone service.       
         """
         return self._PreviewUrl
 

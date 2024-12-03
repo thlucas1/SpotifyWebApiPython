@@ -1,6 +1,11 @@
 /* darkmode */
 /* You can add additional CSS rules in custom.css. */
 
+.deprecated {
+  color: #f62817;
+  font-weight: bolder;
+}
+
 .modulename { color: #58a6ff; }
 
 /* color argument declarations to match ".pdoc-code .n" value. */

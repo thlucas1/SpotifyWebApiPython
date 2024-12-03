@@ -3943,6 +3943,13 @@ class SpotifyClient:
             sortResult:bool=True,
             ) -> list[Artist]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get Spotify catalog information about artists similar to a given artist.  
         Similarity is based on analysis of the Spotify community's listening history.
         
@@ -3985,6 +3992,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("artistId", artistId)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about artists similar to a given artist", apiMethodParms)
+            
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # validations.
             if sortResult is None: 
@@ -5324,6 +5334,13 @@ class SpotifyClient:
             sortResult:bool=True,
             ) -> Tuple[PlaylistPageSimplified, str]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get a list of Spotify playlists tagged with a particular category.
         
         Args:
@@ -5405,6 +5422,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify playlists tagged with a particular category", apiMethodParms)
                 
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -6071,6 +6091,13 @@ class SpotifyClient:
             sortResult:bool=True,
             ) -> Tuple[PlaylistPageSimplified, str]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get a list of Spotify featured playlists (shown, for example, on a Spotify player's 'Browse' tab).
         
         Args:
@@ -6159,6 +6186,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify featured playlists", apiMethodParms)
                 
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -6259,6 +6289,13 @@ class SpotifyClient:
                   refresh:bool=True
                   ) -> list[str]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get a sorted list of available genres seed parameter values.
         
         Args:
@@ -6297,6 +6334,9 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available genres")
                 
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -9609,6 +9649,13 @@ class SpotifyClient:
             trackId:str=None, 
             ) -> AudioFeatures:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get audio feature information for a single track identified by its unique Spotify ID.
         
         Args:
@@ -9646,6 +9693,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("trackId", trackId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get audio feature information for a single track", apiMethodParms)
                 
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri('track')
@@ -10042,6 +10092,13 @@ class SpotifyClient:
                                 minValence:float=None, maxValence:float=None, targetValence:float=None
                                 ) -> TrackRecommendations:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get track recommendations for specified criteria.
         
         Use the `GetTrackAudioFeatures` method to get an idea of what to specify for some of the
@@ -10280,6 +10337,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("targetValence", targetValence)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get track recommendations for specified criteria", apiMethodParms)
                 
+            # api endpoint no longer supported by Spotify as of 2024/11/27.
+            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
