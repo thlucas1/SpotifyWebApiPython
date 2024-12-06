@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.123 ] - 2024/12/06
+
+  * Updated various methods to validate boolean arguments - if value was not passed (e.g. None), then set to documented value (True or False).
+  * Fixed a bug in `SpotifyClient.PlayerTransferPlayback` method that was causing play not to resume if `Play=True` and `forceActivateDevice=True`.  If forceActivateDevice=True, then we need to resume play manually if play=True was specified; this is due to the device losing its current status since it was being forcefully activated (e.g. disconnected and reconnected).
+
 ###### [ 1.0.122 ] - 2024/12/02
 
   * Updated `SpotifyClient` methods to return an exception due to the functions being deprecated by the Spotify development team.  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.  The following methods will now raise a `SpotifyApiError` exception due to the Spotify development team changes: `GetArtistRelatedArtists`, `GetTrackRecommendations`, `GetTrackAudioFeatures`, `GetFeaturedPlaylists`, `GetCategoryPlaylists`, `GetGenres`.  The following properties were also marked as deprecated for the same reason: `TrackSimplified.PreviewUrl`.

@@ -2333,7 +2333,13 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("collaborative", collaborative)
             apiMethodParms.AppendKeyValue("imagePath", imagePath)
             _logsi.LogMethodParmList(SILevel.Verbose, "Create an empty playlist for a user", apiMethodParms)
-                
+
+            # validations.
+            if (public is None):
+                public = True
+            if (collaborative is None):
+                collaborative = False
+
             # if userId is not supplied, then use profile value.
             if userId is None or len(userId.strip()) == 0:
                 userId = self.UserProfile.Id
@@ -2489,7 +2495,7 @@ class SpotifyClient:
             public (bool):
                 If true the playlist will be included in user's public playlists, if false it 
                 will remain private.  
-                Default = True. 
+                Default is True. 
                 
         Raises:
             SpotifyWebApiError: 
@@ -2515,6 +2521,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             apiMethodParms.AppendKeyValue("public", public)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of a playlist", apiMethodParms)
+            
+            # validations.
+            if (public is None):
+                public = True
                 
             # if playlistId not specified, then return currently playing playlist id value.
             if (playlistId is None) or (len(playlistId.strip()) == 0):
@@ -4996,6 +5006,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a single category used to tag items in Spotify", apiMethodParms)
                 
+            # validations.
+            if (refresh is None):
+                refresh = True
+                
             # can we use a cached value?
             cacheKey:str = "GetBrowseCategorys"
             if (not refresh) and (cacheKey in self._ConfigurationCache):
@@ -5286,6 +5300,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             apiMethodParms.AppendKeyValue("refresh", refresh)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a sorted list of ALL browse categories", apiMethodParms)
+                
+            # validations.
+            if (refresh is None):
+                refresh = True
                 
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
@@ -5583,6 +5601,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("ignoreResponseErrors", ignoreResponseErrors)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single audiobook chapter", apiMethodParms)
+                
+            # validations.
+            if (ignoreResponseErrors is None):
+                ignoreResponseErrors = False
                 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
@@ -6337,6 +6359,10 @@ class SpotifyClient:
             # api endpoint no longer supported by Spotify as of 2024/11/27.
             raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
+            # validations.
+            if (refresh is None):
+                refresh = True
+                
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -6456,6 +6482,10 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available markets (country codes)")
             
+            # validations.
+            if (refresh is None):
+                refresh = True
+                
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -6596,6 +6626,8 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Get user's available Spotify Connect player device", apiMethodParms)
             
             # validations.
+            if (refresh is None):
+                refresh = True
             if deviceId is None:
                 return None
             deviceId = deviceId.lower()  # prepare for compare
@@ -6873,6 +6905,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("refresh", refresh)
             _logsi.LogMethodParmList(SILevel.Verbose, "Checking Spotify Connect Player device for name", apiMethodParms)
 
+            # validations.
+            if (refresh is None):
+                refresh = False
+                
             # if nothing specified then just use it as-is.
             if (value is None) or (len(value.strip()) == 0):
                 _logsi.LogVerbose("Device ID not specified; active device will be used")
@@ -6982,6 +7018,8 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Get user's available Spotify Connect player devices", apiMethodParms)
 
             # validations.
+            if (refresh is None):
+                refresh = True
             if sortResult is None: 
                 sortResult = True
 
@@ -7220,6 +7258,10 @@ class SpotifyClient:
         """
         result:str = None
         
+        # validations.
+        if (ignoreResponseErrors is None):
+            ignoreResponseErrors = False
+                
         # get nowplaying status.
         nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(market, additionalTypes='episode')
         
@@ -9046,7 +9088,8 @@ class SpotifyClient:
                 Default is 5; value range is 0 - 10.
             refreshDeviceList (bool):
                 True to refresh the Spotify Connect device list; otherwise, False to use the 
-                Spotify Connect device list cache.
+                Spotify Connect device list cache.  
+                Default is False.  
             activateDevice (bool):
                 True to activate the device if necessary; otherwise, False.  
                 Default is True.  
@@ -9098,6 +9141,8 @@ class SpotifyClient:
         apiMethodParms:SIMethodParmListContext = None
         deviceResultId:str = None
         deviceResult:SpotifyConnectDevice = None
+        
+        DELAY_DISCONNECT:float = 0.350
 
         try:
             
@@ -9126,6 +9171,10 @@ class SpotifyClient:
             verifyTimeout = validateDelay(verifyTimeout, 5, 10)
             if (not isinstance(verifyUserContext, bool)):
                 verifyUserContext = True
+            if (activateDevice is None):
+                activateDevice = True
+            if (refreshDeviceList is None):
+                refreshDeviceList = False
 
             # determine if the device value specified is a name (e.g. "Bose-ST10-1") or 
             # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe", "48b677ca-ef9b-516f-b702-93bf2e8c67ba").
@@ -9139,6 +9188,12 @@ class SpotifyClient:
 
             # get all available Spotify Connect devices on the network.
             scDevices:SpotifyConnectDevices = self.GetSpotifyConnectDevices(refresh=refreshDeviceList)
+            
+            # if we refreshed the device list, then give the device(s) a little time to disconnect so that
+            # a new connection can be established (if required).
+            if (refreshDeviceList):
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
+                time.sleep(DELAY_DISCONNECT)
 
             # process all discovered devices.
             for scDevice in scDevices:
@@ -9239,7 +9294,17 @@ class SpotifyClient:
                     if (not activateDevice):
                         _logsi.LogVerbose("Activation not requested for Spotify Connect device: '%s'" % (deviceResult.Title))
                         break
-
+                    
+                    # does the device need to be activated?
+                    # check for the device in the available device list.
+                    # if we find it, then there is no need to activate it and we are done.
+                    # note - if another user is controlling the device, then it will not be in the active device list
+                    # for the current user!
+                    device:Device = self.GetPlayerDevice(deviceResultId, refresh=True)
+                    if device is not None:
+                        _logsi.LogVerbose("Spotify Connect device '%s' is already in the available device list; no need to re-activate" % (deviceResult.Title))
+                        break
+                    
                     zcfResult:ZeroconfResponse
                                           
                     # disconnect the device.
@@ -9255,7 +9320,8 @@ class SpotifyClient:
                         # some devices only support a single connection on the spotify connect 
                         # zeroconf webserver, so we have to give it a little time to process the 
                         # disconnect command before we try to call the Connect method.
-                        time.sleep(0.350)
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
+                        time.sleep(DELAY_DISCONNECT)
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
@@ -9396,6 +9462,8 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Get available Spotify Connect devices", apiMethodParms)
 
             # validations.
+            if refresh is None:
+                refresh = True
             if sortResult is None: 
                 sortResult = True
 
@@ -10571,6 +10639,10 @@ class SpotifyClient:
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get profile information about the current user", apiMethodParms)
                 
+            # validations.
+            if (refresh is None):
+                refresh = True
+
             # can we use the cached value?
             if (not refresh) and (apiMethodName in self._ConfigurationCache):
                 
@@ -11328,12 +11400,13 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (resolveDeviceId is None):
+                resolveDeviceId = True
 
             # has the device id been resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available, and
-                # the user context is set correctly.
+                # no - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -11457,6 +11530,10 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (shuffle is None):
+                shuffle = True
+            if (resolveDeviceId is None):
+                resolveDeviceId = True
 
             # get current users favorite tracks.
             tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal)
@@ -11473,8 +11550,7 @@ class SpotifyClient:
             # has the device id been resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available, and
-                # the user context is set correctly.
+                # no - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -11586,6 +11662,8 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (resolveDeviceId is None):
+                resolveDeviceId = True
 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
@@ -11600,8 +11678,7 @@ class SpotifyClient:
             # has the device id been resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available, and
-                # the user context is set correctly.
+                # no - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -12335,7 +12412,7 @@ class SpotifyClient:
                 The shuffle mode to set: 
                 - `True`  - Shuffle user's playback.
                 - `False` - Do not shuffle user's playback.
-                Default: `False`  
+                Default is False
             deviceId (str):
                 The id or name of the device this command is targeting.  
                 If not supplied, the user's currently active device is the target.  
@@ -12600,9 +12677,14 @@ class SpotifyClient:
             
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (play is None):
+                play = True
+            if (refreshDeviceList is None):
+                refreshDeviceList = True
+            if (forceActivateDevice is None):
+                forceActivateDevice = True
             
-            # ensure the specified device id / name is active and available, and
-            # the user context is set correctly.
+            # ensure the specified device id / name is active and available.
             scDevice = self.GetSpotifyConnectDevice(
                 deviceId, 
                 refreshDeviceList=refreshDeviceList, 
@@ -12627,7 +12709,7 @@ class SpotifyClient:
             {
                 'device_ids': [deviceId]
             }
-            if play is not None:
+            if (play is not None):
                 reqData['play'] = play
 
             # execute spotify web api request.
@@ -12640,6 +12722,13 @@ class SpotifyClient:
             if delay > 0:
                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                 time.sleep(delay)
+
+            # if forceActivateDevice=True, then we need to resume play manually if play=True
+            # was specified; this is due to the device losing its current status since it 
+            # was being forcefully activated (e.g. disconnected and reconnected).
+            if (forceActivateDevice) and (play):
+                _logsi.LogVerbose('Resuming play on device that was forcefully activated')
+                self.PlayerMediaResume()
                 
             # process results.
             # no results to process - this is pass or fail.
@@ -12721,6 +12810,8 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (play is None):
+                play = False
 
             # get current Spotify Connect player state.
             result = self.GetPlayerPlaybackState()
@@ -15684,6 +15775,8 @@ class SpotifyClient:
             if scope is not None:
                 if (not isinstance(scope, list)) and (not isinstance(scope, str)):
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scope', 'list', type(scope).__name__), logsi=_logsi)
+            if (forceAuthorize is None):
+                forceAuthorize = False
 
             # create oauth provider for spotify authentication code with pkce.
             self._AuthClient:AuthClient = AuthClient(
@@ -15867,6 +15960,8 @@ class SpotifyClient:
             if scope is not None:
                 if (not isinstance(scope, list)) and (not isinstance(scope, str)):
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % (apiMethodName, 'scope', 'list', type(scope).__name__), logsi=_logsi)
+            if (forceAuthorize is None):
+                forceAuthorize = False
 
             # create oauth provider for spotify authentication code with pkce.
             self._AuthClient:AuthClient = AuthClient(

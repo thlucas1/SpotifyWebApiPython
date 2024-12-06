@@ -49,7 +49,7 @@ class ZeroconfResponse:
     @property
     def ResponseSource(self) -> str:
         """ 
-        Response source string (e.g. "").
+        Response source string (e.g. "", "eSDK", etc).
         """
         return self._ResponseSource
 
