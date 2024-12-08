@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.124 ] - 2024/12/07
+
+  * Updated various `SpotifyClient` methods to discard favorites that do not contain a valid URI value.  Sometimes the Spotify Web API returns favorite items with no information!  The following methods were updated: `GetAlbumFavorites`, `GetEpisodeFavorites`, `GetShowFavorites`, `GetTrackFavorites`.
+
 ###### [ 1.0.123 ] - 2024/12/06
 
   * Updated various methods to validate boolean arguments - if value was not passed (e.g. None), then set to documented value (True or False).

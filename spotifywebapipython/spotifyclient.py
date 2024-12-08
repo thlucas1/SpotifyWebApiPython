@@ -2873,10 +2873,12 @@ class SpotifyClient:
                     # append page of items to final results.
                     item:AlbumSaved
                     for item in pageObj.Items:
-                        result.Items.append(item)
-                        result.Limit = result.ItemsCount
-                        if result.ItemsCount >= limitTotal:
-                            break
+                        # sometimes spotify api returns items with no information; discard these!
+                        if (item.Album is not None) and (item.Album.Uri is not None):
+                            result.Items.append(item)
+                            result.Limit = result.ItemsCount
+                            if result.ItemsCount >= limitTotal:
+                                break
                     
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
@@ -5968,10 +5970,12 @@ class SpotifyClient:
                     # append page of items to final results.
                     item:EpisodeSaved
                     for item in pageObj.Items:
-                        result.Items.append(item)
-                        result.Limit = result.ItemsCount
-                        if result.ItemsCount >= limitTotal:
-                            break
+                        # sometimes spotify api returns items with no information; discard these!
+                        if (item.Episode is not None) and (item.Episode.Uri is not None):
+                            result.Items.append(item)
+                            result.Limit = result.ItemsCount
+                            if result.ItemsCount >= limitTotal:
+                                break
                     
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
@@ -8906,10 +8910,12 @@ class SpotifyClient:
                     # append page of items to final results.
                     item:ShowSaved
                     for item in pageObj.Items:
-                        result.Items.append(item)
-                        result.Limit = result.ItemsCount
-                        if result.ItemsCount >= limitTotal:
-                            break
+                        # sometimes spotify api returns items with no information; discard these!
+                        if (item.Show is not None) and (item.Show.Uri is not None):
+                            result.Items.append(item)
+                            result.Limit = result.ItemsCount
+                            if result.ItemsCount >= limitTotal:
+                                break
                     
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
@@ -9933,10 +9939,12 @@ class SpotifyClient:
                     # append page of items to final results.
                     item:TrackSaved
                     for item in pageObj.Items:
-                        result.Items.append(item)
-                        result.Limit = result.ItemsCount
-                        if result.ItemsCount >= limitTotal:
-                            break
+                        # sometimes spotify api returns items with no information; discard these!
+                        if (item.Track is not None) and (item.Track.Uri is not None):
+                            result.Items.append(item)
+                            result.Limit = result.ItemsCount
+                            if result.ItemsCount >= limitTotal:
+                                break
                     
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):
