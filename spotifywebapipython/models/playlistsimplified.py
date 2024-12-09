@@ -119,6 +119,14 @@ class PlaylistSimplified:
         Only returned for modified, verified playlists; otherwise null.
         """
         return self._Description
+
+    @Description.setter
+    def Description(self, value:str):
+        """ 
+        Sets the Description property value.
+        """
+        if isinstance(value, str):
+            self._Description = value
     
 
     @property
@@ -146,6 +154,14 @@ class PlaylistSimplified:
         """
         return self._Id
 
+    @Id.setter
+    def Id(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        if isinstance(value, str):
+            self._Id = value
+    
 
     @property
     def Images(self) -> list[ImageObject]:
@@ -174,6 +190,14 @@ class PlaylistSimplified:
         The name of the playlist.
         """
         return self._Name
+    
+    @Name.setter
+    def Name(self, value:str):
+        """ 
+        Sets the Name property value.
+        """
+        if isinstance(value, str):
+            self._Name = value
     
 
     @property
@@ -220,6 +244,14 @@ class PlaylistSimplified:
         """
         return self._Type
 
+    @Type.setter
+    def Type(self, value:str):
+        """ 
+        Sets the Type property value.
+        """
+        if isinstance(value, str):
+            self._Type = value
+    
 
     @property
     def Uri(self) -> str:
@@ -229,6 +261,14 @@ class PlaylistSimplified:
         Example: `spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE`
         """
         return self._Uri
+    
+    @Uri.setter
+    def Uri(self, value:str):
+        """ 
+        Sets the Uri property value.
+        """
+        if isinstance(value, str):
+            self._Uri = value
     
 
     def ToDictionary(self) -> dict:

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.125 ] - 2024/12/09
+
+  * Added `PlaylistSimplified` property setters for the the following properties: `Description`, `Id`, `Name`, `Type`, `Uri`.
+
 ###### [ 1.0.124 ] - 2024/12/07
 
   * Updated various `SpotifyClient` methods to discard favorites that do not contain a valid URI value.  Sometimes the Spotify Web API returns favorite items with no information!  The following methods were updated: `GetAlbumFavorites`, `GetEpisodeFavorites`, `GetShowFavorites`, `GetTrackFavorites`.
