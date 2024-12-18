@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.126 ] - 2024/12/12
+
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` to retrieve unsorted track favorites, so that the most recently added favorites are played instead of the first alphabetical favorites.
+
 ###### [ 1.0.125 ] - 2024/12/09
 
   * Added `PlaylistSimplified` property setters for the the following properties: `Description`, `Id`, `Name`, `Type`, `Uri`.

@@ -8190,7 +8190,7 @@ class SpotifyClient:
             ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by the current Spotify user.
-        
+
         This method requires the `playlist-read-private` scope.
 
         Args:
@@ -8223,6 +8223,11 @@ class SpotifyClient:
             SpotifApiError: 
                 If the method fails for any other reason.
 
+        As of 2024/11/27, the Spotify Web API will only return user-defined playlists in the results. It will 
+        not return any Spotify Algorithmic playlists (e.g. "Daily Mix 1", "Discover Weekly", and other "Made For You" 
+        playlists). It will also not return playlist folders.  More information can be found on the [Spotify Developer 
+        Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.
+        
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -11544,7 +11549,7 @@ class SpotifyClient:
                 resolveDeviceId = True
 
             # get current users favorite tracks.
-            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal)
+            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal, sortResult=False)
             if (tracks.ItemsCount == 0):
                 _logsi.LogVerbose("Current user has no favorite tracks; nothing to do")
                 return
