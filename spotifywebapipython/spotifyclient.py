@@ -11506,7 +11506,7 @@ class SpotifyClient:
                 Default is True.  
             limitTotal (int):
                 The maximum number of items to retrieve from favorites.  
-                Default: 200
+                Default is 200; value range is 1 - 750.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -11518,7 +11518,12 @@ class SpotifyClient:
         This API only works for users who have Spotify Premium. 
         
         This method simply calls the `GetTrackFavorites` method to retrieve the current users
-        favorite tracks (200 max), then calls the `PlayerMediaPlayTracks` method to play them.  
+        favorite tracks, then calls the `PlayerMediaPlayTracks` method to play them.  
+
+        While there is no limitation documented in the Spotify Web API for the `PlayerMediaPlayTracks` 
+        method, it has been found that request fail if more than 750 entries are allowed.  I believe
+        this is due to a limitation on the request size itself, rather than a limitation on the
+        number of tracks allowed for the request.
         
         <details>
           <summary>Sample Code</summary>
@@ -11547,6 +11552,10 @@ class SpotifyClient:
                 shuffle = True
             if (resolveDeviceId is None):
                 resolveDeviceId = True
+            if (limitTotal is None):
+                limitTotal = 200
+            if (isinstance(limitTotal,int)) and (limitTotal > 750):
+                limitTotal = 750
 
             # get current users favorite tracks.
             tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal, sortResult=False)

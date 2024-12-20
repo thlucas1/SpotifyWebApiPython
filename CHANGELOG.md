@@ -6,7 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
-###### [ 1.0.126 ] - 2024/12/12
+###### [ 1.0.127 ] - 2024/12/19
+
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` to default and validate limitTotal argument.  It has been found that approximately 750 items can be retrieved and played successfully (anything more generates request size errors).
+
+###### [ 1.0.126 ] - 2024/12/18
 
   * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` to retrieve unsorted track favorites, so that the most recently added favorites are played instead of the first alphabetical favorites.
 
