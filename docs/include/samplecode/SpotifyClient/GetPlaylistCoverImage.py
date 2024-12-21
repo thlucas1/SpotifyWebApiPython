@@ -19,6 +19,11 @@ try:
     print('\nGetting cover image details for playlist id "%s" ...\n' % playlistId)
     imageObj:ImageObject = spotify.GetPlaylistCoverImage(playlistId)
 
+    # download the cover image to the file system.
+    outputPath:str = "./test/testdata/downloads/playlist_%s{dotfileextn}" % (playlistId)
+    print('\nGetting cover image file:\n"%s"' % outputPath)
+    spotify.GetCoverImageFile(imageObj.Url, outputPath)
+
     print(str(imageObj))
 
 except Exception as ex:

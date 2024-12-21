@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.129 ] - 2024/12/21
+
+  * Added `SpotifyClient.GetCoverImageFile` that gets the contents of an image url and transfers the contents to the local file system.  This method should only be used to download images for playlists that contain public domain images.
+  * Added `ImageObject.GetImageHighestResolutionWidth` that returns the highest resolution order image width from a list of `ImageObject` items.
+
 ###### [ 1.0.128 ] - 2024/12/20
 
   * Updated `PlayerActions` model to load the correct action values for `TogglingRepeatTrack` and `TogglingShuffle`.  These were switched, which was causing shuffle and repeat actions to be misinterpreted.

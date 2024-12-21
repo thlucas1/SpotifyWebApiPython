@@ -105,14 +105,68 @@ class ImageObject:
             # search for the highest resolution image and return it.
             image: ImageObject
             for image in images:
+
                 imageWidth:int = (image.Width or 0)   # in case width is null
+
+                # check for exact desired width match.
+                if (desiredWidth is not None) and (desiredWidth == imageWidth):
+                    result = image.Url
+                    resultWidth = imageWidth
+                    break
+
+                # check for largest resolution width match.
                 if (imageWidth > resultWidth):
                     result = image.Url
                     resultWidth = imageWidth
-                    if (desiredWidth is not None) and (desiredWidth == resultWidth):
-                        break
         
         return result
+    
+
+    @staticmethod
+    def GetImageHighestResolutionWidth(
+            images:list,
+            desiredWidth:int=None,
+            ) -> str:
+        """
+        Returns the highest resolution order image width from a list of `ImageObject` items.
+    
+        Args:
+            images (list[ImageObject]):
+                The cover art for the media in various sizes, usually widest first.
+            desiredWidth (int):
+                A desired resolution width to return (if found); if not found, then the
+                highest resolution is returned.
+
+        Returns:
+            The highest resolution order image width from the list of `images`.
+    
+        The Spotify Web API normally returns a list of `ImageObject` items with the
+        highest resolution image as the first list item; however, the GetShowFavorites
+        returns them in the reverse order.
+        """
+        resultWidth:int = 0
+
+        if (images is not None) and (len(images) > 0):
+        
+            # set default image width to return.
+            resultWidth:int = (images[0].Width or 0)  # in case width is null
+            
+            # search for the highest resolution image width and return it.
+            image: ImageObject
+            for image in images:
+
+                imageWidth:int = (image.Width or 0)   # in case width is null
+
+                # check for exact desired width match.
+                if (desiredWidth is not None) and (desiredWidth == imageWidth):
+                    resultWidth = imageWidth
+                    break
+
+                # check for largest resolution width match.
+                if (imageWidth > resultWidth):
+                    resultWidth = imageWidth
+        
+        return resultWidth
     
 
     def ToDictionary(self) -> dict:
