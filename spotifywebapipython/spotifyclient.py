@@ -2391,141 +2391,6 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetCoverImageFile(
-        self,
-        imageUrl:Union[str,list],
-        outputPath:str,
-        desiredWidth:int=None,
-        ) -> None:
-        """
-        Gets the contents of an image url and transfers the contents to the local file system.
-
-        Args:
-            imageUrl (str | list[ImageObject]):
-                The cover image to retrieve - can be one of the following:
-                - a url string that points to the exact cover image to transfer.  
-                - a list of `ImageObject` items that contain the cover art for the media in 
-                  various sizes, usually widest first.
-            outputPath (str):
-                Fully-qualified path to store the downloaded image to.  
-            desiredWidth (int):
-                A desired resolution width to return (if found); if not found, then the
-                highest resolution is returned.  
-                This argument is ignored if the `images` argument is not an `ImageObject` list.
-
-        The output path supports the replacement of the following keyword parameters:
-        - `{dotfileextn}` - a "." followed by the file extension based on response content 
-          type (for known types: JPG,PNG,APNG,BMP,GIF).  
-        - `{imagewidth}` - the resolved width value, if `imageUrl` argument is of type list[ImageObject].
-
-        The Spotify Web API normally returns a list of `ImageObject` items in its various
-        endpoints.  The highest resolution image is usually the first list item, but the
-        order is not guarenteed (e.g. `GetShowFavorites`).
-
-        This method should only be used to download images for playlists that contain 
-        public domain images.  It should not be used to download copyright protected images, 
-        as that would violate the Spotify Web API Terms of Service.
-        """
-        apiMethodName:str = 'GetCoverImageFile'
-        apiMethodParms:SIMethodParmListContext = None
-        response:HTTPResponse = None
-        url:str = None
-        imageWidth:int = 0
-
-        try:
-            
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("imageUrl", imageUrl)
-            apiMethodParms.AppendKeyValue("outputPath", outputPath)
-            apiMethodParms.AppendKeyValue("desiredWidth", desiredWidth)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Downloading cover image url content", apiMethodParms)
-
-            # validations.
-            if (imageUrl is None):
-                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'imageUrl'), logsi=_logsi)
-            if (outputPath is None):
-                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'outputPath'), logsi=_logsi)
-
-            # was an image list specified?
-            if (isinstance(imageUrl, list)):
-
-                # return the highest resolution order image from a list of `ImageObject` items.
-                # this will return None if images argument was none or empty.
-                url = ImageObject.GetImageHighestResolution(imageUrl, desiredWidth)
-                imageWidth = ImageObject.GetImageHighestResolutionWidth(imageUrl, desiredWidth)
-                if (url) is None:
-                    _logsi.LogVerbose("List of ImageObjects was not specified, or was empty")
-                    return
-                imageUrl = url
-
-            # download content from the selected image url.
-            _logsi.LogVerbose("Downloading cover image url (width=%s): \"%s\"" % (desiredWidth, imageUrl))
-            response = self._Manager.request("GET", imageUrl)
-
-            # trace.
-            if _logsi.IsOn(SILevel.Debug):
-                _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (response)" % (response.status, response.reason, imageUrl), response)
-                if (response.headers):
-                    _logsi.LogCollection(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, imageUrl), response.headers.items())
-
-            # do response headers contain a content-type value?
-            # if so, then set file extension based on content type.
-            contentType:str = None
-            outputFileExtn:str = ".jpg"
-            if response.headers:
-                if 'content-type' in response.headers:
-                    contentType = response.headers['content-type'] + ""
-                    if (contentType.find("image/jpeg") != -1):
-                        outputFileExtn = ".jpg"
-                    elif (contentType.find("image/bmp") != -1):
-                        outputFileExtn = ".bmp"
-                    elif (contentType.find("image/png") != -1):
-                        outputFileExtn = ".png"
-                    elif (contentType.find("image/apng") != -1):
-                        outputFileExtn = ".apng"
-                    elif (contentType.find("image/gif") != -1):
-                        outputFileExtn = ".gif"
-                    else:
-                        outputFileExtn = ".jpg"
-
-            # do we have response data?
-            if len(response.data) == 0:
-                    
-                # some requests will not return a response, which is ok.
-                _logsi.LogVerbose("SpotifyClient http response [%s-%s]: '%s' (no data)" % (response.status, response.reason, imageUrl))
-
-            else:
-                    
-                # override file extension based on content type (if desired).
-                outputPath = outputPath.replace("{dotfileextn}", outputFileExtn)
-                outputPath = outputPath.replace("{imagewidth}", str(imageWidth))
-
-                # write data to output file.
-                f = open(outputPath,'wb') 
-                f.write(response.data) 
-                f.close() 
-
-                # response is raw image data.
-                _logsi.LogJpegFile(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (imagefile)" % (response.status, response.reason, imageUrl), outputPath)
-
-        except SpotifyApiError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # close the response (if needed).
-            if response is not None:
-                if response.closed == False:
-                    response.close()
-
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-   
-
     def FollowArtists(
             self, 
             ids:str=None,
@@ -5882,6 +5747,141 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+
+    def GetCoverImageFile(
+        self,
+        imageUrl:Union[str,list],
+        outputPath:str,
+        desiredWidth:int=None,
+        ) -> None:
+        """
+        Gets the contents of an image url and transfers the contents to the local file system.
+
+        Args:
+            imageUrl (str | list[ImageObject]):
+                The cover image to retrieve - can be one of the following:
+                - a url string that points to the exact cover image to transfer.  
+                - a list of `ImageObject` items that contain the cover art for the media in 
+                  various sizes, usually widest first.
+            outputPath (str):
+                Fully-qualified path to store the downloaded image to.  
+            desiredWidth (int):
+                A desired resolution width to return (if found); if not found, then the
+                highest resolution is returned.  
+                This argument is ignored if the `images` argument is not an `ImageObject` list.
+
+        The output path supports the replacement of the following keyword parameters:
+        - `{dotfileextn}` - a "." followed by the file extension based on response content 
+          type (for known types: JPG,PNG,APNG,BMP,GIF).  
+        - `{imagewidth}` - the resolved width value, if `imageUrl` argument is of type list[ImageObject].
+
+        The Spotify Web API normally returns a list of `ImageObject` items in its various
+        endpoints.  The highest resolution image is usually the first list item, but the
+        order is not guarenteed (e.g. `GetShowFavorites`).
+
+        This method should only be used to download images for playlists that contain 
+        public domain images.  It should not be used to download copyright protected images, 
+        as that would violate the Spotify Web API Terms of Service.
+        """
+        apiMethodName:str = 'GetCoverImageFile'
+        apiMethodParms:SIMethodParmListContext = None
+        response:HTTPResponse = None
+        url:str = None
+        imageWidth:int = 0
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("imageUrl", imageUrl)
+            apiMethodParms.AppendKeyValue("outputPath", outputPath)
+            apiMethodParms.AppendKeyValue("desiredWidth", desiredWidth)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Downloading cover image url content", apiMethodParms)
+
+            # validations.
+            if (imageUrl is None):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'imageUrl'), logsi=_logsi)
+            if (outputPath is None):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'outputPath'), logsi=_logsi)
+
+            # was an image list specified?
+            if (isinstance(imageUrl, list)):
+
+                # return the highest resolution order image from a list of `ImageObject` items.
+                # this will return None if images argument was none or empty.
+                url = ImageObject.GetImageHighestResolution(imageUrl, desiredWidth)
+                imageWidth = ImageObject.GetImageHighestResolutionWidth(imageUrl, desiredWidth)
+                if (url) is None:
+                    _logsi.LogVerbose("List of ImageObjects was not specified, or was empty")
+                    return
+                imageUrl = url
+
+            # download content from the selected image url.
+            _logsi.LogVerbose("Downloading cover image url (width=%s): \"%s\"" % (desiredWidth, imageUrl))
+            response = self._Manager.request("GET", imageUrl)
+
+            # trace.
+            if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (response)" % (response.status, response.reason, imageUrl), response)
+                if (response.headers):
+                    _logsi.LogCollection(SILevel.Debug, "SpotifyClient http response [%s-%s]: '%s' (headers)" % (response.status, response.reason, imageUrl), response.headers.items())
+
+            # do response headers contain a content-type value?
+            # if so, then set file extension based on content type.
+            contentType:str = None
+            outputFileExtn:str = ".jpg"
+            if response.headers:
+                if 'content-type' in response.headers:
+                    contentType = response.headers['content-type'] + ""
+                    if (contentType.find("image/jpeg") != -1):
+                        outputFileExtn = ".jpg"
+                    elif (contentType.find("image/bmp") != -1):
+                        outputFileExtn = ".bmp"
+                    elif (contentType.find("image/png") != -1):
+                        outputFileExtn = ".png"
+                    elif (contentType.find("image/apng") != -1):
+                        outputFileExtn = ".apng"
+                    elif (contentType.find("image/gif") != -1):
+                        outputFileExtn = ".gif"
+                    else:
+                        outputFileExtn = ".jpg"
+
+            # do we have response data?
+            if len(response.data) == 0:
+                    
+                # some requests will not return a response, which is ok.
+                _logsi.LogVerbose("SpotifyClient http response [%s-%s]: '%s' (no data)" % (response.status, response.reason, imageUrl))
+
+            else:
+                    
+                # override file extension based on content type (if desired).
+                outputPath = outputPath.replace("{dotfileextn}", outputFileExtn)
+                outputPath = outputPath.replace("{imagewidth}", str(imageWidth))
+
+                # write data to output file.
+                f = open(outputPath,'wb') 
+                f.write(response.data) 
+                f.close() 
+
+                # response is raw image data.
+                _logsi.LogJpegFile(SILevel.Verbose, "SpotifyClient http response [%s-%s]: '%s' (imagefile)" % (response.status, response.reason, imageUrl), outputPath)
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # close the response (if needed).
+            if response is not None:
+                if response.closed == False:
+                    response.close()
+
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+   
 
     def GetEpisode(
             self, 
