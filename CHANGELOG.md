@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.128 ] - 2024/12/20
+
+  * Updated `PlayerActions` model to load the correct action values for `TogglingRepeatTrack` and `TogglingShuffle`.  These were switched, which was causing shuffle and repeat actions to be misinterpreted.
+
 ###### [ 1.0.127 ] - 2024/12/19
 
   * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` to default and validate limitTotal argument.  It has been found that approximately 750 items can be retrieved and played successfully (anything more generates request size errors).

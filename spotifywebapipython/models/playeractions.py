@@ -43,8 +43,8 @@ class PlayerActions:
             self._SkippingNext = root.get('skipping_next', None)
             self._SkippingPrev = root.get('skipping_prev', None)
             self._TogglingRepeatContext = root.get('toggling_repeat_context', None)
-            self._TogglingRepeatTrack = root.get('toggling_shuffle', None)
-            self._TogglingShuffle = root.get('toggling_repeat_track', None)
+            self._TogglingRepeatTrack = root.get('toggling_repeat_track', None)
+            self._TogglingShuffle = root.get('toggling_shuffle', None)
             self._TransferringPlayback = root.get('transferring_playback', None)
 
         # post load validations.
