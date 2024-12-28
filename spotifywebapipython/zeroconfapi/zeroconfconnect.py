@@ -717,7 +717,7 @@ class ZeroconfConnect:
         apiMethodParms:SIMethodParmListContext = None
         tracePrefix:str = 'SpotifyConnectAuthorizationCodeToken exchange'
         
-        # based upon Fiddler trace, it the tokenType "authorization_code" flow exchanges an 
+        # based upon Fiddler trace, the tokenType "authorization_code" flow exchanges an 
         # access-token for an "authorization_code" token.  it does this by calling
         # "accounts.spotify.com/api/token" to exchange the spotify "login5" "client-token" value
         # to an "authorization_code" token value, which is then passed on the Spotify Connect 

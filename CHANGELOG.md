@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.130 ] - 2024/12/27
+
+  * Added `PlayerPlayState.IsEmpty` property; returns True if Spotify playstate returned an empty response; otherwise, false.  This is a helper property, and is not part of the Spotify Web API specification.
+
 ###### [ 1.0.129 ] - 2024/12/21
 
   * Added `SpotifyClient.GetCoverImageFile` that gets the contents of an image url and transfers the contents to the local file system.  This method should only be used to download images for playlists that contain public domain images.

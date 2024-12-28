@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.129"
+VERSION:str = "1.0.130"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -40,6 +40,9 @@ SPOTIFY_API_TOKEN_URL = "https://accounts.spotify.com/api/token"
     
 SPOTIFY_WEBAPI_URL_BASE = "https://api.spotify.com/v1"
 """ Url base name used to access tthe Spotify Web API. """
+
+SPOTIFY_WEBUI_URL_BASE = "https://open.spotify.com"
+""" Url base name used to access the Spotify Web UI. """
 
 SPOTIFY_DEFAULT_MARKET:str = "US"
 """ 

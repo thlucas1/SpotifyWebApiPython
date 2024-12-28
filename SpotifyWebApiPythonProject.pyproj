@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\testVS_SpotifyClient_Artists.py</StartupFile>
+    <StartupFile>test\test_AuthToken_AuthorizationCodePKCE_CHROMECAST.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -305,6 +305,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\testVS_ZeroconfConnect.py" />
     <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
+    <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_CHROMECAST.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SpotifyDesktop.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />

@@ -38,6 +38,9 @@ class PlayerPlayState:
         self._ShuffleState:bool = None
         self._SmartShuffle:bool = None
         self._Timestamp:int = None
+
+        # helper properties, not part of the Spotify Web API interface.
+        self._IsEmpty:bool = True
         
         if (root is None):
 
@@ -74,6 +77,10 @@ class PlayerPlayState:
                     self._Item = Track(root=item)
                 elif self._CurrentlyPlayingType == 'episode':
                     self._Item = Episode(root=item)
+
+            # if root contains keys, then assume it is NOT empty.
+            if (len(root) > 0):
+                self._IsEmpty = False
 
         # post load validations.
         if self._Actions is None:
@@ -178,6 +185,16 @@ class PlayerPlayState:
         if self._CurrentlyPlayingType == "ad":
             return True
         return False
+
+
+    @property
+    def IsEmpty(self) -> bool:
+        """ 
+        True if Spotify playstate returned an empty response; otherwise, false.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        return self._IsEmpty
 
 
     @property
@@ -342,6 +359,7 @@ class PlayerPlayState:
             
         result:dict = \
         {
+            'is_empty': self._IsEmpty,
             'actions': actions,
             'context': context,
             'currently_playing_type': self._CurrentlyPlayingType,
@@ -376,4 +394,5 @@ class PlayerPlayState:
         if self._ShuffleState is not None: msg = '%s\n ShuffleState="%s"' % (msg, str(self._ShuffleState))
         if self._SmartShuffle is not None: msg = '%s\n SmartShuffle="%s"' % (msg, str(self._SmartShuffle))
         if self._Timestamp is not None: msg = '%s\n Timestamp="%s"' % (msg, str(self._Timestamp))
+        msg = '%s\n IsEmpty="%s"' % (msg, str(self.IsEmpty))
         return msg 
