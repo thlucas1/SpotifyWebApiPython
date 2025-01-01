@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.131 ] - 2025/01/01
+
+  * Modified `ZeroconfConnect.GetInformation` method logic to automatically retry the connection (after 250ms, 10s max) to the Spotify Connect Zeroconf device service if a "connection refused" was returned while trying to get device information.  The previous logic used a simple delay prior to the call and did not retry the connection, which resulted in the "connection refused" exceptions while trying to awaken devices.  Some Spotify Connect devices take a little bit longer to start accepting connections again after a change.
+  * Added `lxml` package requirement to `setup.py`.
+
 ###### [ 1.0.130 ] - 2024/12/27
 
   * Added `PlayerPlayState.IsEmpty` property; returns True if Spotify playstate returned an empty response; otherwise, false.  This is a helper property, and is not part of the Spotify Web API specification.

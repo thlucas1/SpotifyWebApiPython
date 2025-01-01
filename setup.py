@@ -58,6 +58,7 @@ setup(
     # set minimum dependencies requirements.
     # note that urllib3 version must be less than 2!
     install_requires=[
+        'lxml>=5.2.0',
         'oauthlib>=3.2.2',
         'platformdirs>=4.1.0',
         'requests>=2.31.0',

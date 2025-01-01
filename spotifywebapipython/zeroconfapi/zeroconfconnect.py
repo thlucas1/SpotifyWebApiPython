@@ -1192,7 +1192,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("CPath", self._CPath)
             apiMethodParms.AppendKeyValue("Version", self._Version)
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get information from Spotify Connect Zeroconf API (ip=%s)" % self._HostIpAddress, apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get information from Spotify Connect Zeroconf API (ip=%s:%s)" % (self._HostIpAddress, self._HostIpPort), apiMethodParms)
             
             # set request endpoint.
             endpoint:str = self.GetEndpoint("getInfo")
@@ -1211,14 +1211,59 @@ class ZeroconfConnect:
             }
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (params)" % (endpoint), reqParams)
 
-            # execute spotify zeroconf api request.
-            response = requests.get(
-                self._Uri, 
-                timeout=5,
-                headers=reqHeaders,
-                params=reqParams
-            )
-        
+            # try connecting to the device until we timeout or there are no more "connection refused" errors.
+            loopTotalDelay:float = 0
+            LOOP_DELAY:float = 0.25
+            LOOP_TIMEOUT:float = 10.0
+            while True:
+
+                try:
+                        
+                    # execute spotify zeroconf api request.
+                    response = requests.get(
+                        self._Uri, 
+                        timeout=5,
+                        headers=reqHeaders,
+                        params=reqParams
+                    )
+
+                    # TEST TODO - force a connection refused error for testing.
+                    # if (self._HostIpAddress == "192.168.1.82"):
+                    #     if loopTotalDelay > 1:
+                    #         pass
+                    #     else:
+                    #         raise Exception("Failed to establish a new connection: [Errno 111] Connection refused")
+                    #         #raise ValueError("Some other request exception test")
+
+                    # if device connection was previously delayed, then log the info
+                    # as it may be helpful in debugging other issues.
+                    if (loopTotalDelay > 0):
+                        _logsi.LogVerbose("Spotify Connect device (ip=%s:%s) started accepting connections after %f seconds from initial request" % (self._HostIpAddress, self._HostIpPort, loopTotalDelay))
+
+                    # no exception; break out of retry loop.
+                    break  
+
+                except Exception as ex:
+
+                    # check for connection refused error.
+                    exMsg:str = str(ex).lower()
+                    if (exMsg.find("connection refused") > -1):
+
+                        # retry after a slight delay.
+                        _logsi.LogVerbose("Spotify Connect device (ip=%s:%s) connection refused exception; delaying for %s seconds to allow the device to start accepting connections" % (self._HostIpAddress, self._HostIpPort, LOOP_DELAY))
+                        time.sleep(LOOP_DELAY)
+                        loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+                        # only check so many times before we give up.
+                        if (loopTotalDelay >= LOOP_TIMEOUT):
+                            _logsi.LogWarning("Spotify Connect device (ip=%s:%s) wait time exceeded for device to start accepting connections; gave up after %f seconds from initial request" % (self._HostIpAddress, self._HostIpPort, loopTotalDelay))
+                            raise
+
+                    else:
+
+                        # some other exception occured - stop retrying the connection.
+                        raise
+
             # check response for initial errors, and return json response.
             responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
 
