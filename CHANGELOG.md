@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.132 ] - 2025/01/02
+
+  * Modified `ZeroconfConnect.GetInformation` method logic to automatically retry the connection (after 250ms, 2s max) to the Spotify Connect Zeroconf device service if a "connection refused" was returned while trying to get device information.  This was originally set to 10 seconds, which is far too long to wait for a device to become available.
+  * Updated `SpotifyClient` methods `PlayerActivateDevices` and `GetSpotifyConnectDevice` to rediscover the Spotify Connect Zeroconf device after a Disconnect call is issued.  It has been found that some device manufacturers (e.g. Denon) stop and restart the Zeroconf server on the device after a `resetUsers` (e.g. disconnect) call is made, which changes the IP Port number that the device listens on for incoming connections.
+  * Removed the deprecated function `SpotifyConnect.PlayerResolveDeviceId` (since 2024/08/15); use the `GetSpotifyConnectDevice` method instead.
+
 ###### [ 1.0.131 ] - 2025/01/01
 
   * Modified `ZeroconfConnect.GetInformation` method logic to automatically retry the connection (after 250ms, 10s max) to the Spotify Connect Zeroconf device service if a "connection refused" was returned while trying to get device information.  The previous logic used a simple delay prior to the call and did not retry the connection, which resulted in the "connection refused" exceptions while trying to awaken devices.  Some Spotify Connect devices take a little bit longer to start accepting connections again after a change.

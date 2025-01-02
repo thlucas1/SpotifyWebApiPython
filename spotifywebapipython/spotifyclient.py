@@ -49,6 +49,11 @@ from .const import (
 CACHE_SOURCE_CACHED:str = "cached"
 CACHE_SOURCE_CURRENT:str = "current"
 
+DELAY_DISCONNECT:float = 0.350
+"""
+Time to wait after a Spotify Connect Disconnect command is issued (350ms).
+"""
+
 SPOTIFY_DJ_PLAYLIST_ID = "37i9dqzf1eykqdzj48dyyq"
 
 SPOTIFY_ONLINE_LINK_PREFIX = "https://open.spotify.com"
@@ -6944,10 +6949,41 @@ class SpotifyClient:
                         # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
                         # generate a 404 request response.
                         if (info.BrandDisplayName != 'librespot'):
+
                             _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (scDevice.Title, deviceActiveUser))
                             zcfResult = zconn.Disconnect(delay)
                             status = status + 'disconnected from user context "%s"; ' % deviceActiveUser
+
+                            # delay just a little to give the device time to process the disconnect.
+                            # some devices only support a single connection on the spotify connect 
+                            # zeroconf webserver, so we have to give it a little time to process the 
+                            # disconnect command before we try to call the Connect method.
+                            _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
+                            time.sleep(DELAY_DISCONNECT)
+
+                            # some manufactureres will reset the device host ip port after a disconnect (e.g. "Denon", etc).
+                            # due to this, we must issue a call to zeroconf to re-discover the device,
+                            # and update the device results with the updated discovery details.
+
+                            # re-discover Spotify Connect devices on the network.
+                            _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
+                            rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
+                            rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+                            # process all rediscovered devices, and update selected device.
+                            rediscoverResult:ZeroconfDiscoveryResult
+                            for rediscoverResult in rediscovery.DiscoveryResults:
+                                if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
+                                    if (rediscoverResult.HostIpAddress != scDevice.DiscoveryResult.HostIpAddress):
+                                        _logsi.LogVerbose("Spotify Connect device HostIpAddress changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpAddress, scDevice.DiscoveryResult.HostIpAddress))
+                                    if (rediscoverResult.HostIpPort != scDevice.DiscoveryResult.HostIpPort):
+                                        _logsi.LogVerbose("Spotify Connect device HostIpPort changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpPort, scDevice.DiscoveryResult.HostIpPort))
+                                    _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
+                                    scDevice.DiscoveryResult = rediscoverResult
+                                    break
+
                         else:
+
                             status = status + 'disconnect bypassed for librespot device; '
 
                         # connect the device to OUR Spotify Connect user context.
@@ -9288,8 +9324,6 @@ class SpotifyClient:
         deviceResultId:str = None
         deviceResult:SpotifyConnectDevice = None
         
-        DELAY_DISCONNECT:float = 0.350
-
         try:
             
             # trace.
@@ -9461,13 +9495,34 @@ class SpotifyClient:
 
                         _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (deviceResult.Title, deviceActiveUser))
                         zcfResult = zconn.Disconnect(delay)
-                        
+
                         # delay just a little to give the device time to process the disconnect.
                         # some devices only support a single connection on the spotify connect 
                         # zeroconf webserver, so we have to give it a little time to process the 
                         # disconnect command before we try to call the Connect method.
                         _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
                         time.sleep(DELAY_DISCONNECT)
+
+                        # some manufactureres will reset the device host ip port after a disconnect (e.g. "Denon", etc).
+                        # due to this, we must issue a call to zeroconf to re-discover the device,
+                        # and update the device results with the updated discovery details.
+
+                        # re-discover Spotify Connect devices on the network
+                        _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
+                        rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
+                        rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+                        # process all rediscovered devices, and update selected device.
+                        rediscoverResult:ZeroconfDiscoveryResult
+                        for rediscoverResult in rediscovery.DiscoveryResults:
+                            if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
+                                if (rediscoverResult.HostIpAddress != scDevice.DiscoveryResult.HostIpAddress):
+                                    _logsi.LogVerbose("Spotify Connect device HostIpAddress changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpAddress, scDevice.DiscoveryResult.HostIpAddress))
+                                if (rediscoverResult.HostIpPort != scDevice.DiscoveryResult.HostIpPort):
+                                    _logsi.LogVerbose("Spotify Connect device HostIpPort changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpPort, scDevice.DiscoveryResult.HostIpPort))
+                                _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
+                                scDevice.DiscoveryResult = rediscoverResult
+                                break
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
@@ -12325,119 +12380,6 @@ class SpotifyClient:
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-
-    def PlayerResolveDeviceId(
-            self, 
-            deviceValue:str, 
-            verifyUserContext:bool=True,
-            verifyTimeout:float=5.0,
-            delay:float=0.25
-            ) -> str:
-        """
-        This method has been deprecated.  
-        Use the `GetSpotifyConnectDevice` method instead.
-        
-        Resolves a Spotify Connect device identifier from a specified device id, name, alias id,
-        or alias name.  This will ensure that the device id can be found on the network, as well 
-        as connect to the device if necessary with the current user context.  
-        
-        Args:
-            deviceValue (str):
-                The device id / name value to check.
-            verifyUserContext (bool):
-                If True, the active user context of the resolved device is checked to ensure it
-                matches the user context specified on the class constructor.
-                If False, the user context will not be checked.
-                Default is True.
-            verifyTimeout (float):
-                Maximum time to wait (in seconds) for the device to become active in the Spotify
-                Connect device list.  This value is only used if a Connect command has to be
-                issued to activate the device.
-                Default is 5; value range is 0 - 10.
-            delay (float):
-                Time delay (in seconds) to wait AFTER issuing any command to the device.  
-                This delay will give the spotify zeroconf api time to process the change before 
-                another command is issued.  
-                Default is 0.25; value range is 0 - 10.
-                
-        Returns:
-            A device Id for the deviceValue if one could be resolved; 
-            otherwise, a null value with the understanding that subsequent operations will probably 
-            fail since it's not in the device list.  
-                
-        Raises:
-            SpotifyWebApiError: 
-                If the Spotify Web API request was for a non-authorization service 
-                and the response contains error information.
-            SpotifyZeroconfApiError:
-                If any Spotify Zeroconf API request failed.
-            SpotifApiError: 
-                If the method fails for any other reason.
-
-        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected
-        to the local network.  A Spotify Zeroconf API `getInfo` call is then issued for each device
-        that was found, searching for a match on the `deviceValue` argument.  Depending on the format
-        of the `deviceValue`, the search will match on either a Device ID or RemoteName as well as any
-        alias ID's or Names that are in use (for multi-room configurations).  
-        
-        The device ID value is returned if a match is found or if the `device_value` argument is null; 
-        otherwise, a null value with the understanding that subsequent operations will probably fail
-        since it's not in the device list. 
-        
-        A user context switch will also be performed if a device id is resolved AND the active user of the 
-        device does not match the `SpotifyConnectUsername` argument specified on the class constructor.
-        The user context switch is bypassed if the `verifyUserContext` argument is False, or if the 
-        `SpotifyConnectUsername` was not supplied on the class constructor.  If the user context is to be
-        switched, then a Disconnect will be issued if a user context is active on the device followed by
-        a Connect to the user context specified on the class constructor.
-        """
-        apiMethodName:str = 'PlayerResolveDeviceId'
-        apiMethodParms:SIMethodParmListContext = None
-        deviceIdResult:str = None
-
-        try:
-            
-            # TODO method is deprecated as of 2024/08/15, v1.0.80.
-            # remove in a future release.
-
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("deviceValue", deviceValue)
-            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
-            apiMethodParms.AppendKeyValue("verifyTimeout", verifyTimeout)
-            apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Resolving Spotify Connect Player Device Id", apiMethodParms)
-
-            # trace.
-            _logsi.LogWarning("SpotifyWebApiPython `PlayerResolveDeviceId` method is deprecated, and will be removed in a future release; use the `GetSpotifyConnectDevice` instead.")
-
-            # call newer method to resolve the device id.
-            scDevice:SpotifyConnectDevice = self.GetSpotifyConnectDevice(
-                deviceValue=deviceValue, 
-                verifyTimeout=verifyTimeout, 
-                refreshDeviceList=True, 
-                activateDevice=True, 
-                delay=delay)
-            
-            # if device not found then we are done.
-            if scDevice is None:
-                return None
-            
-            # otherwise return the device id value.
-            return scDevice.Id
-
-        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
-        except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
             # format unhandled exception.

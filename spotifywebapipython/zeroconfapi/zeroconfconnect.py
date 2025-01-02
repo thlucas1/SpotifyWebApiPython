@@ -1214,7 +1214,7 @@ class ZeroconfConnect:
             # try connecting to the device until we timeout or there are no more "connection refused" errors.
             loopTotalDelay:float = 0
             LOOP_DELAY:float = 0.25
-            LOOP_TIMEOUT:float = 10.0
+            LOOP_TIMEOUT:float = 2.0
             while True:
 
                 try:

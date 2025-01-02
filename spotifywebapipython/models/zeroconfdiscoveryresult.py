@@ -22,6 +22,7 @@ class ZeroconfDiscoveryResult:
         self._HostIpAddresses:list = []
         self._HostIpPort:int = None
         self._HostTTL:int = None
+        self._IsChromeCast:bool = False
         self._Key:str = None
         self._Name:str = None
         self._OtherTTL:int = None
@@ -172,7 +173,23 @@ class ZeroconfDiscoveryResult:
         process, but still exist in the player device list.  These are usually Spotify Connect
         web or mobile players with temporary device id's.       
         """
-        return (self._HostIpPort == 0)
+        return (self._HostIpPort == 0) and (self._ServiceType is None)
+
+
+    @property
+    def IsChromeCast(self) -> bool:
+        """ 
+        True if the device is a Google ChromeCast device; otherwise, False.
+        """
+        return self._IsChromeCast
+    
+    @IsChromeCast.setter
+    def IsChromeCast(self, value:bool):
+        """ 
+        Sets the IsChromeCast property value.
+        """
+        if isinstance(value, bool):
+            self._IsChromeCast = value
 
 
     @property
@@ -436,6 +453,7 @@ class ZeroconfDiscoveryResult:
             'HostIpPort': self._HostIpPort,
             'HostTTL': self._HostTTL,
             'IsDynamicDevice': self.IsDynamicDevice,
+            'IsChromeCast': self._IsChromeCast,
             'Key': self._Key,
             'Name': self._Name,
             'Priority': self._Priority,
@@ -479,6 +497,7 @@ class ZeroconfDiscoveryResult:
         if self.HostIpAddress is not None: msg = '%s\n HostIpAddress="%s"' % (msg, str(self.HostIpAddress))
         if self._HostIpPort is not None: msg = '%s\n HostIpPort="%s"' % (msg, str(self._HostIpPort))
         if self._HostTTL is not None: msg = '%s\n HostTTL="%s"' % (msg, str(self._HostTTL))
+        if self._IsChromeCast is not None: msg = '%s\n IsChromeCast="%s"' % (msg, str(self._IsChromeCast))
         if self._Key is not None: msg = '%s\n Key="%s"' % (msg, str(self._Key))
         if self._Name is not None: msg = '%s\n Name="%s"' % (msg, str(self._Name))
         if self._Priority is not None: msg = '%s\n Priority="%s"' % (msg, str(self._Priority))

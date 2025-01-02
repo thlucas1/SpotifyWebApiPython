@@ -82,6 +82,16 @@ class SpotifyConnectDevice():
     
 
     @property
+    def IsChromeCast(self) -> bool:
+        """ 
+        True if the device is a Google ChromeCast device; otherwise, False.
+        """
+        if (self._DiscoveryResult is not None):
+            return self._DiscoveryResult.IsChromeCast
+        return False
+    
+
+    @property
     def Name(self) -> str:
         """ 
         Spotify Connect device name value (e.g. "Bose-ST10-1").
@@ -129,6 +139,7 @@ class SpotifyConnectDevice():
             'Name': self._Name,
             'Title': self.Title,
             'WasReConnected': self._WasReConnected,
+            'IsChromeCast': self.IsChromeCast,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),
         }
@@ -146,6 +157,7 @@ class SpotifyConnectDevice():
         msg:str = ''
         if includeTitle: 
             msg = 'Device: "%s" (%s)' % (self._Name, self._Id)
+            msg = '%s\n WasReConnected="%s"' % (msg, str(self._WasReConnected))
            
         # build result.
         msg = '%s\n %s\n' % (msg, str(self._DeviceInfo.ToString(True)))
