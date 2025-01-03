@@ -23,6 +23,7 @@ class ZeroconfDiscoveryResult:
         self._HostIpPort:int = None
         self._HostTTL:int = None
         self._IsChromeCast:bool = False
+        self._Id:str = None
         self._Key:str = None
         self._Name:str = None
         self._OtherTTL:int = None
@@ -161,6 +162,24 @@ class ZeroconfDiscoveryResult:
         """
         if isinstance(value, int):
             self._HostTTL = value
+
+
+    @property
+    def Id(self) -> str:
+        """ 
+        Result ID (e.g. "Bose-ST10-1" (192.168.1.81:8200)).
+
+        This is a helper property, and not part of the Zeroconf interface.
+        """
+        return self._Id
+    
+    @Id.setter
+    def Id(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        if isinstance(value, str):
+            self._Id = value
 
 
     @property
@@ -446,6 +465,7 @@ class ZeroconfDiscoveryResult:
         """
         result:dict = \
         {
+            'Id': self._Id,
             'DeviceName': self._DeviceName,
             'Domain': self._Domain,
             'HostIpAddress': self.HostIpAddress,
@@ -491,6 +511,7 @@ class ZeroconfDiscoveryResult:
         zeroconfApiEndpointResetUsers:str = self.ZeroconfApiEndpointResetUsers
         
         # build result.
+        if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._DeviceName is not None: msg = '%s\n DeviceName="%s"' % (msg, str(self._DeviceName))
         if self._Domain is not None: msg = '%s\n Domain="%s"' % (msg, str(self._Domain))
         if self._HostIpAddresses is not None: msg = '%s\n HostIpAddresses Count=%s' % (msg, str(len(self._HostIpAddresses)))

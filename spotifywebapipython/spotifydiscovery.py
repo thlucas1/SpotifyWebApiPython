@@ -3,6 +3,7 @@ try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
+import threading
 import time
 from zeroconf import Zeroconf, ServiceBrowser, ServiceInfo, ServiceStateChange, IPVersion
 
@@ -66,6 +67,7 @@ class SpotifyDiscovery:
         self._DiscoveryResults:list[ZeroconfDiscoveryResult] = []
         self._PrintToConsole:bool = printToConsole
         self._ZeroconfClient = zeroconfClient
+        self._Zeroconf_Lock = threading.Lock()
 
 
     def __getitem__(self, key):
@@ -87,6 +89,17 @@ class SpotifyDiscovery:
 
     def __str__(self) -> str:
         return self.ToString()
+
+
+    def ContainsId(self, value:str) -> bool:
+        """ 
+        Returns True if the `DiscoveryResults` collection contains the specified id value;
+        otherwise, False.
+        """
+        item:ZeroconfDiscoveryResult = self.GetResultById(value)
+        if item is not None:
+            return True
+        return False
 
 
     @property
@@ -113,6 +126,27 @@ class SpotifyDiscovery:
         return self._DiscoveryResults
 
 
+    def GetResultById(self, value:str) -> bool:
+        """ 
+        Returns a `ZeroconfDiscoveryResult` instance if the `DiscoveryResults` collection contains 
+        the specified device id value; otherwise, None.
+        """
+        result:ZeroconfDiscoveryResult = None
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+        
+        # process all discovered devices.
+        item:ZeroconfDiscoveryResult
+        for item in self._DiscoveryResults:
+            if (item.Id.lower() == value):
+                result = item
+                break
+        return result
+
+
     @property
     def ZeroconfClient(self) -> Zeroconf:
         """ 
@@ -121,38 +155,41 @@ class SpotifyDiscovery:
         return self._ZeroconfClient
     
 
-    def _OnServiceStateChange(self,
-                              zeroconf:Zeroconf, 
-                              service_type:str, 
-                              name:str, 
-                              state_change:ServiceStateChange
-                              ) -> None:
+    def _GetZeroconfDiscoveryResult(
+        self,
+        zeroconf:Zeroconf, 
+        serviceType:str, 
+        serviceName:str, 
+        serviceStateChange:ServiceStateChange,
+        serviceStateChangeDesc:str
+        ) -> ZeroconfDiscoveryResult:
         """
-        Called by the zeroconf ServiceBrowser when a service state has changed (e.g. added,
-        removed, or updated).  In our case, we only care about devices that were added.
-        
-        IMPORTANT - This method is executed on a different thread, so be careful about 
-        multi-threaded operations!
+        Builds a `ZeroconfDiscoveryResult` instance from Zeroconf Service Information data.
         """
-        serviceType:str = service_type
-        serviceName:str = name
-        serviceStateChange:ServiceStateChange = state_change
-        
-        # process by the state change value.
-        if (serviceStateChange is ServiceStateChange.Added):
-            _logsi.LogVerbose("Discovered Spotify Connect device service: '%s' (%s:%s)" % (serviceName, serviceType, serviceStateChange))
+        result:ZeroconfDiscoveryResult = None
+
+        try:
+
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug)
             
+            # get device service information instance; if none, then we are done.
             deviceName:str = (serviceName.split(".")[0])
-            serviceInfo:ServiceInfo = zeroconf.get_service_info(service_type, serviceName)
+            serviceInfo:ServiceInfo = zeroconf.get_service_info(serviceType, serviceName)
             if serviceInfo is None:
-                return
-            
-            # get list of displayable (parsed) ipv4 addresses that were detected; if none, then we are done.
+                _logsi.LogVerbose("Spotify Connect Zeroconf discovery service notification ignored: \"%s\" (%s:%s) - no serviceinfo data" % (serviceName, serviceType, serviceStateChange))
+                return result
+
+            # get list of displayable (parsed) ipv4 addresses; if none, then we are done.
             ipAddressList = serviceInfo.parsed_addresses(IPVersion.V4Only)
             if (ipAddressList is None):
-                return
+                _logsi.LogVerbose("Spotify Connect Zeroconf discovery service notification ignored: \"%s\" (%s:%s) - no IP address list" % (serviceName, serviceType, serviceStateChange))
+                return result
             
-            # create new result instance.
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "Spotify Connect Zeroconf service details: \"%s\" %s (serviceinfo object)" % (deviceName, ipAddressList), serviceInfo) 
+            
+            # create new discovery result instance.
             result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
             result.DeviceName = deviceName
             result.Domain = '.local'
@@ -169,14 +206,8 @@ class SpotifyDiscovery:
             result.ServiceInfo = serviceInfo
             result.ServiceType = serviceType
             result.Weight = serviceInfo.weight
-                
-            # formulate a unique key for this device.
-            deviceKey:str = "'%s' (%s:%i)" % (deviceName, result.HostIpAddress, result.HostIpPort)
-            _logsi.LogVerbose("Discovered Spotify Connect device: %s %s" % (deviceKey, result.HostIpAddresses))
-            if (self._PrintToConsole == True):
-                print("Discovered Spotify Connect device: %s [%s]" % (deviceKey, result.HostIpAddresses))
-            _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo: %s" % (deviceKey), serviceInfo) 
-                
+            result.Id = "\"%s\" (%s:%s)" % (result.DeviceName, result.HostIpAddress, result.HostIpPort)
+
             # process service info propertys.
             # note that the property keys and values must first be decoded to utf-8 encoding.
             if serviceInfo.properties is not None:
@@ -191,25 +222,156 @@ class SpotifyDiscovery:
                         result.SpotifyConnectCPath = valueStr
                     elif keyStr.lower() == 'version':
                         result.SpotifyConnectVersion = valueStr
-                _logsi.LogDictionary(SILevel.Verbose, "Discovered Spotify Connect device ServiceInfo.Properties: %s" % (deviceKey), dspProperties)                        
-
-            # add the device name to the list (if not already added).
-            if deviceKey not in self._DiscoveredDeviceNames.keys():
-                self._DiscoveredDeviceNames[deviceKey] = deviceName
-
-            # add the device result to the list.
-            self._DiscoveryResults.append(result)
+                _logsi.LogDictionary(SILevel.Verbose, "Spotify Connect Zeroconf service details: \"%s\" %s (serviceinfo properties)" % (deviceName, ipAddressList), dspProperties) 
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, "Discovered Spotify Connect device result: %s" % (deviceKey), result, excludeNonPublic=True)                        
+            _logsi.LogObject(SILevel.Verbose, "Spotify Connect Zeroconf Discovery Result: %s (object)" % (result.Id), result, excludeNonPublic=True)                        
 
-        elif (serviceStateChange is ServiceStateChange.Removed):
-            _logsi.LogVerbose("Discovered Spotify Connect device removal (ignored): '%s' (%s:%s)", serviceName, serviceType, serviceStateChange)
-            pass
+            # return discovery result.
+            return result
 
-        elif (serviceStateChange is ServiceStateChange.Updated):
-            _logsi.LogVerbose("Discovered Spotify Connect device update (ignored): '%s' (%s:%s)", serviceName, serviceType, serviceStateChange)
-            pass
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException("Could not load ZeroconfDiscoveryResult instance from Zeroconf serviceinfo object.", ex, logToSystemLogger=False)
+            
+            # ignore exception
+            return None
+            
+        finally:
+            
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug)
+
+
+    def _OnServiceStateChange(
+        self,
+        zeroconf:Zeroconf, 
+        service_type:str, 
+        name:str, 
+        state_change:ServiceStateChange
+        ) -> None:
+        """
+        Called by the zeroconf ServiceBrowser when a service state has changed (e.g. added,
+        removed, or updated).  In our case, we only care about devices that were added.
+        
+        IMPORTANT - This method is executed on a different thread, so be careful about 
+        multi-threaded operations!
+        """
+
+        # this method can be tested by issuing the following commands from an MS-DOS
+        # command prompt to simulate Zeroconf registration updates.
+
+        # - add a new Spotify Connect instance registration:
+        # > dns-sd -R "MyTestSC1" _spotify-connect._tcp. local 8080 cpath=/zcXXX version=1.0
+        
+        # - update a new Spotify Connect instance registration; 
+        # - if you change the name, service type, or port number, a NEW registration is created!
+        # - for updates, the only thing you can really update is the TXT record properties.
+        # > dns-sd -R "MyTestSC1" _spotify-connect._tcp. local 8080 cpath=/zcYYY version=1.0
+        
+        # - remove an existing Spotify Connect instance registration; 
+        # > the only way to remove an entry is to kill the process the entry was created under!
+        
+        # enter the following section one thread at a time (threadsafe).
+        with self._Zeroconf_Lock:
+
+            # copy passed parameters to thread-safe storage.
+            serviceType:str = service_type
+            serviceName:str = name
+            serviceStateChange:ServiceStateChange = state_change
+            serviceStateChangeDesc:str = None
+
+            try:
+
+                # trace.
+                _logsi.EnterMethod(SILevel.Debug)
+
+                # process by the state change value.
+                if (serviceStateChange is ServiceStateChange.Added) \
+                or (serviceStateChange is ServiceStateChange.Updated):
+
+                    # set service state change description.
+                    serviceStateChangeDesc = "Added"
+                    if (serviceStateChange is ServiceStateChange.Updated):
+                        serviceStateChangeDesc = "Updated"
+
+                    # trace.
+                    _logsi.LogVerbose("Spotify Connect Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, serviceStateChangeDesc))
+
+                    # build discovery result instance from service state information.
+                    # if nothing returned, then don't bother!
+                    result:ZeroconfDiscoveryResult = self._GetZeroconfDiscoveryResult(zeroconf, serviceType, serviceName, serviceStateChange, serviceStateChangeDesc)
+                    if (result is None):
+                        return
+
+                    # add device name to list of registered names.
+                    self._DiscoveredDeviceNames[result.Id] = result.DeviceName
+
+                    # add / update discovered results by a unique result ID value, which is comprised
+                    # of the name, ip address, and ip port of the service.  we use the unique ID value
+                    # since some manufacturers use random ip port numbers, which will ensure that we
+                    # remove (or update) the unique service entry.  in other words, we can't just rely 
+                    # on the name since a manufacturer could re-register the same name using a different 
+                    # ip port value.
+                    item:ZeroconfDiscoveryResult = self.GetResultById(result.Id)
+                    if (item is None):
+                        self._DiscoveryResults.append(result)
+                    else:
+                        item = result
+
+                    # trace.
+                    _logsi.LogVerbose("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
+                    if (self._PrintToConsole == True):
+                        print("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
+
+                elif (serviceStateChange is ServiceStateChange.Removed):
+
+                    # set service state change description.
+                    serviceStateChangeDesc = "Removed"
+
+                    # trace.
+                    _logsi.LogVerbose("Spotify Connect Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, serviceStateChangeDesc))
+
+                    # build discovery result instance from service state information.
+                    # if nothing returned, then don't bother!
+                    result:ZeroconfDiscoveryResult = self._GetZeroconfDiscoveryResult(zeroconf, serviceType, serviceName, serviceStateChange, serviceStateChangeDesc)
+                    if (result is None):
+                        return
+
+                    # remove device name from list of registered names.
+                    self._DiscoveredDeviceNames.pop(result.Id, None)
+
+                    # remove device from results collection;
+                    # the reversed() function creates an iterator that traverses the list in reverse order. 
+                    # This ensures that removing an element doesn't affect the indices of the subsequent 
+                    # elements we're going to iterate over.
+                    resultCompare:str = result.Id.lower()
+                    for i in reversed(range(len(self._DiscoveryResults))):
+                        if (self._DiscoveryResults[i].Id.lower() == resultCompare):
+
+                            # remove discovery result.
+                            result = self._DiscoveryResults.pop(i)
+
+                            # trace.
+                            _logsi.LogVerbose("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
+                            if (self._PrintToConsole == True):
+                                print("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
+
+                            break
+
+            except Exception as ex:
+            
+                # trace.
+                _logsi.LogException("Unhandled exception occured while processing Spotify Connect Zeroconf discovery service notification (%s)" % (serviceStateChange), ex, logToSystemLogger=False)
+            
+                # ignore exception
+                return None
+            
+            finally:
+            
+                # trace.
+                _logsi.LeaveMethod(SILevel.Debug)
 
 
     def DiscoverDevices(self, timeout:float=2) -> dict:

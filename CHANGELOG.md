@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.133 ] - 2025/01/04
+
+  * Modified `SpotifyDiscovery._OnServiceStateChange` method to process Zeroconf Update and Remove notifications.
+
 ###### [ 1.0.132 ] - 2025/01/02
 
   * Modified `ZeroconfConnect.GetInformation` method logic to automatically retry the connection (after 250ms, 2s max) to the Spotify Connect Zeroconf device service if a "connection refused" was returned while trying to get device information.  This was originally set to 10 seconds, which is far too long to wait for a device to become available.
