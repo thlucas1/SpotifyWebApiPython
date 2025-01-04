@@ -405,7 +405,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("username", username)
             apiMethodParms.AppendKeyValue("password (with mask)", passwordMaskString(password))
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect (ip=%s)" % self._HostIpAddress, apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Connecting device to Spotify Connect (ip=%s:%s)" % (self._HostIpAddress, self._HostIpPort), apiMethodParms)
 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
@@ -536,7 +536,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("info.TokenType", info.TokenType)
             apiMethodParms.AppendKeyValue("info.BrandDisplayName", info.BrandDisplayName)
             apiMethodParms.AppendKeyValue("info.ModelDisplayName", info.ModelDisplayName)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s)" % self._HostIpAddress, apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s:%s)" % (self._HostIpAddress, self._HostIpPort), apiMethodParms)
         
             # set request endpoint.
             endpoint:str = self.GetEndpoint('addUser')
@@ -1022,7 +1022,7 @@ class ZeroconfConnect:
             apiMethodParms.AppendKeyValue("Uri", self._Uri)
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("ignoreStatusResult", ignoreStatusResult)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Disconnecting device from Spotify Connect (ip=%s)" % self._HostIpAddress, apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Disconnecting device from Spotify Connect (ip=%s:%s)" % (self._HostIpAddress, self._HostIpPort), apiMethodParms)
             
             # validations.
             delay = validateDelay(delay, 0.50, 10)

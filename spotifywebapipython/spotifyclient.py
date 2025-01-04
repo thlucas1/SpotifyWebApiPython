@@ -6950,7 +6950,7 @@ class SpotifyClient:
                         # generate a 404 request response.
                         if (info.BrandDisplayName != 'librespot'):
 
-                            _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (scDevice.Title, deviceActiveUser))
+                            _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (scDevice.Title, deviceActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
                             zcfResult = zconn.Disconnect(delay)
                             status = status + 'disconnected from user context "%s"; ' % deviceActiveUser
 
@@ -6974,21 +6974,32 @@ class SpotifyClient:
                             rediscoverResult:ZeroconfDiscoveryResult
                             for rediscoverResult in rediscovery.DiscoveryResults:
                                 if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
-                                    if (rediscoverResult.HostIpAddress != scDevice.DiscoveryResult.HostIpAddress):
-                                        _logsi.LogVerbose("Spotify Connect device HostIpAddress changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpAddress, scDevice.DiscoveryResult.HostIpAddress))
-                                    if (rediscoverResult.HostIpPort != scDevice.DiscoveryResult.HostIpPort):
-                                        _logsi.LogVerbose("Spotify Connect device HostIpPort changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpPort, scDevice.DiscoveryResult.HostIpPort))
+
+                                    # update device discovery result in case it was changed.
                                     _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
                                     scDevice.DiscoveryResult = rediscoverResult
-                                    break
 
+                                    # did the host ip address or port change?
+                                    # if so, then we need to recreate the ZeroconfConnect instance
+                                    # in order to access the updated ip address and port.
+                                    if (rediscoverResult.HostIpAddress != zconn.HostIpAddress) \
+                                    or (rediscoverResult.HostIpPort != zconn.HostIpPort):
+
+                                        _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (rediscoverResult.Id, discoverResult.Id))
+                                        zconn = ZeroconfConnect(rediscoverResult.HostIpAddress, 
+                                                                rediscoverResult.HostIpPort, 
+                                                                rediscoverResult.SpotifyConnectCPath,
+                                                                useSSL=False,
+                                                                tokenStorageDir=self.TokenStorageDir,
+                                                                tokenStorageFile=self.TokenStorageFile)
+                                    break
                         else:
 
                             status = status + 'disconnect bypassed for librespot device; '
 
                         # connect the device to OUR Spotify Connect user context.
                         # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                        _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (scDevice.Title, self._SpotifyConnectLoginId))
+                        _logsi.LogVerbose("Issuing Connect to Spotify Connect device \"%s\" for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
                         zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId, delay=delay)
                         status = status + 'connected to user context "%s"; ' % self._SpotifyConnectLoginId
                         
@@ -9493,7 +9504,7 @@ class SpotifyClient:
                     # generate a 404 request response.
                     if (info.BrandDisplayName != 'librespot'):                       
 
-                        _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device '%s' for current user context '%s'" % (deviceResult.Title, deviceActiveUser))
+                        _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (deviceResult.Title, deviceActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
                         zcfResult = zconn.Disconnect(delay)
 
                         # delay just a little to give the device time to process the disconnect.
@@ -9516,17 +9527,29 @@ class SpotifyClient:
                         rediscoverResult:ZeroconfDiscoveryResult
                         for rediscoverResult in rediscovery.DiscoveryResults:
                             if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
-                                if (rediscoverResult.HostIpAddress != scDevice.DiscoveryResult.HostIpAddress):
-                                    _logsi.LogVerbose("Spotify Connect device HostIpAddress changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpAddress, scDevice.DiscoveryResult.HostIpAddress))
-                                if (rediscoverResult.HostIpPort != scDevice.DiscoveryResult.HostIpPort):
-                                    _logsi.LogVerbose("Spotify Connect device HostIpPort changed to \"%s\" from \"%s\" after disconnect" % (rediscoverResult.HostIpPort, scDevice.DiscoveryResult.HostIpPort))
+
+                                # update device discovery result in case it was changed.
                                 _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
                                 scDevice.DiscoveryResult = rediscoverResult
+
+                                # did the host ip address or port change?
+                                # if so, then we need to recreate the ZeroconfConnect instance
+                                # in order to access the updated ip address and port.
+                                if (rediscoverResult.HostIpAddress != zconn.HostIpAddress) \
+                                or (rediscoverResult.HostIpPort != zconn.HostIpPort):
+
+                                    _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (rediscoverResult.Id, discoverResult.Id))
+                                    zconn = ZeroconfConnect(rediscoverResult.HostIpAddress, 
+                                                            rediscoverResult.HostIpPort, 
+                                                            rediscoverResult.SpotifyConnectCPath,
+                                                            useSSL=False,
+                                                            tokenStorageDir=self.TokenStorageDir,
+                                                            tokenStorageFile=self.TokenStorageFile)
                                 break
                     
                     # connect the device to OUR Spotify Connect user context.
                     # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                    _logsi.LogVerbose("Issuing Connect to Spotify Connect device '%s' for user context '%s'" % (deviceResult.Title, self._SpotifyConnectLoginId))
+                    _logsi.LogVerbose("Issuing Connect to Spotify Connect device \"%s\" for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
                     zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId)
                     
                     # indicate device was reconnected.
