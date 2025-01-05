@@ -267,6 +267,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\oauthcli\__init__.py" />
     <Compile Include="spotifywebapipython\saappmessages.py" />
     <Compile Include="spotifywebapipython\sautils.py" />
+    <Compile Include="spotifywebapipython\spotifyconnectdeviceeventargs.py" />
     <Compile Include="spotifywebapipython\spotifydiscovery.py" />
     <Compile Include="spotifywebapipython\spotifywebapiauthenticationerror.py" />
     <Compile Include="spotifywebapipython\spotifyapierror.py" />

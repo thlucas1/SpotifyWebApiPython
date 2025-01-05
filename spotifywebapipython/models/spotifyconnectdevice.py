@@ -1,5 +1,4 @@
 # external package imports.
-from zeroconf import ServiceInfo
 
 # our package imports.
 from ..sautils import export

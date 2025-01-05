@@ -322,6 +322,28 @@ class SpotifyClient:
     
 
     @property
+    def SpotifyConnectLoginId(self) -> str:
+        """ 
+        Spotify Connect login id to login with (e.g. "31l77fd87g8h9j00k89f07jf87ge").  
+
+        This is also known as the canonical user id value.  
+        This MUST be the value that relates to the `SpotifyConnectUsername` property.  
+        """
+        return self._SpotifyConnectLoginId
+    
+
+    @property
+    def SpotifyConnectUsername(self) -> str:
+        """ 
+        Spotify Connect user name used to login to a Spotify Connect device.  
+
+        This MUST match the account name (or one of them) that was used to configure Spotify Connect 
+        on a manufacturer device.               
+        """
+        return self._SpotifyConnectUsername
+    
+
+    @property
     def TokenProfileId(self) -> str:
         """
         Profile identifier used when loading / storing an authorization token from / to disk.

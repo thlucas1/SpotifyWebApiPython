@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.135 ] - 2025/01/05
+
+  * Updated `SpotifyClient` class to include properties for `SpotifyConnectLoginId` and `SpotifyConnectUsername`.
+
 ###### [ 1.0.134 ] - 2025/01/04
 
   * Updated `SpotifyClient` methods `PlayerActivateDevices` and `GetSpotifyConnectDevice` to re-create the ZeroconfConnect connection instance if the device IP address or port changed after Zeroconf rediscovery on a Disconnect call sequence.

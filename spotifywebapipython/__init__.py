@@ -15,6 +15,7 @@ from spotifywebapipython.spotifyapierror import SpotifyApiError
 from spotifywebapipython.spotifyapimessage import SpotifyApiMessage
 from spotifywebapipython.spotifyauthtoken import SpotifyAuthToken
 from spotifywebapipython.spotifyclient import SpotifyClient
+from spotifywebapipython.spotifyconnectdeviceeventargs import SpotifyConnectDeviceEventArgs
 from spotifywebapipython.spotifydiscovery import SpotifyDiscovery
 from spotifywebapipython.spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from spotifywebapipython.spotifywebapierror import SpotifyWebApiError
@@ -26,6 +27,7 @@ __all__ = [
     'SpotifyApiMessage',
     'SpotifyAuthToken',
     'SpotifyClient',
+    'SpotifyConnectDeviceEventArgs',
     'SpotifyDiscovery',
     'SpotifyWebApiAuthenticationError',
     'SpotifyWebApiError',
