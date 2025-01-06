@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.138 ] - 2025/01/06
+
+  * Updated `SpotifyDiscovery._OnServiceStateChange` method to correctly update the Zeroconf DiscoveryResults instance.
+
 ###### [ 1.0.137 ] - 2025/01/06
 
   * Added `PlayerPlayState.IsEmpty` property setter.

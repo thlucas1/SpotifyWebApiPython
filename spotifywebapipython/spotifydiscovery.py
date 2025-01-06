@@ -126,6 +126,26 @@ class SpotifyDiscovery:
         return self._DiscoveryResults
 
 
+    def GetIndexById(self, value:str) -> int:
+        """ 
+        Returns the index of the `DiscoveryResults` collection that contains 
+        the specified device id value; otherwise, -1.
+        """
+        result:int = -1
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+
+        # process all discovered devices.
+        for i in range(len(self._DiscoveryResults)):
+            if (self._DiscoveryResults[i].Id.lower() == value):
+                result = i
+                break       
+        return result
+
+
     def GetResultById(self, value:str) -> bool:
         """ 
         Returns a `ZeroconfDiscoveryResult` instance if the `DiscoveryResults` collection contains 
@@ -314,11 +334,11 @@ class SpotifyDiscovery:
                     # remove (or update) the unique service entry.  in other words, we can't just rely 
                     # on the name since a manufacturer could re-register the same name using a different 
                     # ip port value.
-                    item:ZeroconfDiscoveryResult = self.GetResultById(result.Id)
-                    if (item is None):
-                        self._DiscoveryResults.append(result)
+                    idx:int = self.GetIndexById(result.Id)
+                    if (idx == -1):
+                        self._DiscoveryResults.append(result)  # add new result
                     else:
-                        item = result
+                        self._DiscoveryResults[idx] = result   # update existing result
 
                     # trace.
                     _logsi.LogVerbose("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
