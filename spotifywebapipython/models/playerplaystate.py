@@ -192,9 +192,20 @@ class PlayerPlayState:
         """ 
         True if Spotify playstate returned an empty response; otherwise, false.
 
+        Note that for Sonos devices, the Spotify Web API reports an empty playstate since 
+        the SoCo API is actually controlling player.
+
         This is a helper property, and is not part of the Spotify Web API specification.
         """
         return self._IsEmpty
+
+    @IsEmpty.setter
+    def IsEmpty(self, value:bool):
+        """ 
+        Sets the IsEmpty property value.
+        """
+        if isinstance(value, bool):
+            self._IsEmpty = value
 
 
     @property
