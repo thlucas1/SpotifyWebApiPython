@@ -24,7 +24,7 @@ class SpotifyConnectDevices():
 
 
     def __getitem__(self, key) -> SpotifyConnectDevice:
-        return self._Presets[key]
+        return self._Items[key]
 
 
     def __iter__(self) -> Iterator:

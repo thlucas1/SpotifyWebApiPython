@@ -11651,10 +11651,10 @@ class SpotifyClient:
             if (resolveDeviceId is None):
                 resolveDeviceId = True
 
-            # has the device id been resolved?
+            # does the device id need to be resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available.
+                # yes - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -11804,10 +11804,10 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # has the device id been resolved?
+            # does the device id need to be resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available.
+                # yes - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -11819,7 +11819,7 @@ class SpotifyClient:
                     deviceId = scDevice.Id
 
             # set desired shuffle mode.
-            if shuffle is not None:    
+            if (shuffle == True):
                 self.PlayerSetShuffleMode(shuffle, deviceId, delay)
 
             # play the tracks.
@@ -11932,10 +11932,10 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
         
-            # has the device id been resolved?
+            # does the device id need to be resolved?
             if (resolveDeviceId):
                 
-                # no - ensure the specified device id / name is active and available.
+                # yes - ensure the specified device id / name is active and available.
                 scDevice = self.GetSpotifyConnectDevice(
                     deviceId, 
                     refreshDeviceList=False, 
@@ -12847,6 +12847,25 @@ class SpotifyClient:
                 if scDevice.DeviceInfo.IsBrandSonos:
                     _logsi.LogVerbose('Sonos device detected; bypassing call to Spotify Web API Transfer Playback endpoint')
                     return
+
+            # before transferring playback to the device, we first need to check to see if anything
+            # is currently playing.  if nothing is playing then we have to start something, otherwise 
+            # the transfer playback will result in a `Restriction Violated` error!  
+
+            # get current player state.
+            playerState:PlayerPlayState = self.GetPlayerPlaybackState()
+            if playerState.IsEmpty:
+
+                # if nothing is playing, then start playing track favorites instead of transferring playback.
+                _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device '%s'; playing track favorites on selected device instead of transferring playback" % (deviceId))
+                tracks:TrackPageSaved = self.PlayerMediaPlayTrackFavorites(deviceId, False, resolveDeviceId=False, limitTotal=20)
+
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
+
+                return
 
             # build spotify web api request parameters.
             reqData:dict = \

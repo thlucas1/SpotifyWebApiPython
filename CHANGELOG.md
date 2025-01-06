@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.136 ] - 2025/01/05
+
+  * Updated `SpotifyClient.PlayerTransferPlayback` method to check player state before trying to transfer playback.  If nothing is playing, then issue a call to `PlayTrackFavorites` instead.  This will avoid the `Restriction violated` error which results from a transfer playback to the player when nothing is currently playing.
+
 ###### [ 1.0.135 ] - 2025/01/05
 
   * Updated `SpotifyClient` class to include properties for `SpotifyConnectLoginId` and `SpotifyConnectUsername`.
