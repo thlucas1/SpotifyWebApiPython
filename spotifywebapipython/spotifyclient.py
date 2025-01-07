@@ -6992,33 +6992,35 @@ class SpotifyClient:
                             rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
                             rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
 
+                            # trace.
+                            _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
+
                             # process all rediscovered devices, and update selected device.
                             rediscoverResult:ZeroconfDiscoveryResult
                             for rediscoverResult in rediscovery.DiscoveryResults:
+
+                                # add / update selected device discovery results by serviceinfo key value. 
                                 if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
 
                                     # save old discovery result id so we can log it later.
                                     oldDiscoveryResultId:str = discoverResult.Id
 
-                                    # update device discovery result in case it was changed.
-                                    # we do this regardless if the ip info changed or not, just in case
-                                    # other properties were changed (e.g. cpath, version, etc).
-                                    if (_logsi.IsOn(SILevel.Verbose)):
-                                        _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance original properties" % (oldDiscoveryResultId), discoverResult, excludeNonPublic=True)
-                                        _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
-                                        _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
+                                    # update selected device discovery result.
+                                    _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
+                                    _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
                                     scDevice.DiscoveryResult = rediscoverResult
+                                    discoverResult = rediscoverResult
 
                                     # did the host ip address or port change?
                                     # if so, then we need to recreate the ZeroconfConnect instance
                                     # in order to access the updated ip address and port.
-                                    if (rediscoverResult.HostIpAddress != zconn.HostIpAddress) \
-                                    or (rediscoverResult.HostIpPort != zconn.HostIpPort):
+                                    if (discoverResult.HostIpAddress != zconn.HostIpAddress) \
+                                    or (discoverResult.HostIpPort != zconn.HostIpPort):
 
-                                        _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (rediscoverResult.Id, oldDiscoveryResultId))
-                                        zconn = ZeroconfConnect(rediscoverResult.HostIpAddress, 
-                                                                rediscoverResult.HostIpPort, 
-                                                                rediscoverResult.SpotifyConnectCPath,
+                                        _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discoverResult.Id, oldDiscoveryResultId))
+                                        zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
+                                                                discoverResult.HostIpPort, 
+                                                                discoverResult.SpotifyConnectCPath,
                                                                 useSSL=False,
                                                                 tokenStorageDir=self.TokenStorageDir,
                                                                 tokenStorageFile=self.TokenStorageFile)
@@ -9554,33 +9556,35 @@ class SpotifyClient:
                         rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
                         rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
 
+                        # trace.
+                        _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
+
                         # process all rediscovered devices, and update selected device.
                         rediscoverResult:ZeroconfDiscoveryResult
                         for rediscoverResult in rediscovery.DiscoveryResults:
+
+                            # add / update selected device discovery results by serviceinfo key value. 
                             if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
 
                                 # save old discovery result id so we can log it later.
                                 oldDiscoveryResultId:str = discoverResult.Id
 
-                                # update device discovery result in case it was changed.
-                                # we do this regardless if the ip info changed or not, just in case
-                                # other properties were changed (e.g. cpath, version, etc).
-                                if (_logsi.IsOn(SILevel.Verbose)):
-                                    _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance original properties" % (oldDiscoveryResultId), discoverResult, excludeNonPublic=True)
-                                    _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
-                                    _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
+                                # update selected device discovery result.
+                                _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
+                                _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
                                 scDevice.DiscoveryResult = rediscoverResult
+                                discoverResult = rediscoverResult
 
                                 # did the host ip address or port change?
                                 # if so, then we need to recreate the ZeroconfConnect instance
                                 # in order to access the updated ip address and port.
-                                if (rediscoverResult.HostIpAddress != zconn.HostIpAddress) \
-                                or (rediscoverResult.HostIpPort != zconn.HostIpPort):
+                                if (discoverResult.HostIpAddress != zconn.HostIpAddress) \
+                                or (discoverResult.HostIpPort != zconn.HostIpPort):
 
-                                    _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (rediscoverResult.Id, oldDiscoveryResultId))
-                                    zconn = ZeroconfConnect(rediscoverResult.HostIpAddress, 
-                                                            rediscoverResult.HostIpPort, 
-                                                            rediscoverResult.SpotifyConnectCPath,
+                                    _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discoverResult.Id, oldDiscoveryResultId))
+                                    zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
+                                                            discoverResult.HostIpPort, 
+                                                            discoverResult.SpotifyConnectCPath,
                                                             useSSL=False,
                                                             tokenStorageDir=self.TokenStorageDir,
                                                             tokenStorageFile=self.TokenStorageFile)
@@ -9744,6 +9748,9 @@ class SpotifyClient:
                 _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
                 discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
                 discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+                # trace.
+                _logsi.LogDictionary(SILevel.Verbose, "DiscoveryResults collection after discovery", discovery.DiscoveryResults, prettyPrint=True)
 
                 # process all discovered devices.
                 discoverResult:ZeroconfDiscoveryResult

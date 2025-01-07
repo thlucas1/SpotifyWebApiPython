@@ -126,10 +126,10 @@ class SpotifyDiscovery:
         return self._DiscoveryResults
 
 
-    def GetIndexById(self, value:str) -> int:
+    def GetIndexByKey(self, value:str) -> int:
         """ 
         Returns the index of the `DiscoveryResults` collection that contains 
-        the specified device id value; otherwise, -1.
+        the specified device key value; otherwise, -1.
         """
         result:int = -1
         if value is None:
@@ -140,7 +140,7 @@ class SpotifyDiscovery:
 
         # process all discovered devices.
         for i in range(len(self._DiscoveryResults)):
-            if (self._DiscoveryResults[i].Id.lower() == value):
+            if (self._DiscoveryResults[i].Key.lower() == value):
                 result = i
                 break       
         return result
@@ -328,20 +328,19 @@ class SpotifyDiscovery:
                     # add device name to list of registered names.
                     self._DiscoveredDeviceNames[result.Id] = result.DeviceName
 
-                    # add / update discovered results by a unique result ID value, which is comprised
-                    # of the name, ip address, and ip port of the service.  we use the unique ID value
-                    # since some manufacturers use random ip port numbers, which will ensure that we
-                    # remove (or update) the unique service entry.  in other words, we can't just rely 
-                    # on the name since a manufacturer could re-register the same name using a different 
-                    # ip port value.
-                    idx:int = self.GetIndexById(result.Id)
+                    # add / update discovered results by serviceinfo key value. 
+                    # we use the serviceinfo KEY value (not SERVERKEY) since some manufacturers use random ip port 
+                    # numbers, and the port number could have been updated.  in this case, the key SHOULD remain the same.
+                    # note that a different serviceinfo key SHOULD be created for speaker groups; at least they are for BOSE devices.
+                    idx:int = self.GetIndexByKey(result.Key)
                     if (idx == -1):
                         self._DiscoveryResults.append(result)  # add new result
+                        _logsi.LogVerbose("Spotify Connect Zeroconf service discovery result was added: %s (%s)" % (result.Id, serviceStateChangeDesc))
                     else:
                         self._DiscoveryResults[idx] = result   # update existing result
+                        _logsi.LogVerbose("Spotify Connect Zeroconf service discovery result was updated: %s (%s)" % (result.Id, serviceStateChangeDesc))
 
                     # trace.
-                    _logsi.LogVerbose("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
                     if (self._PrintToConsole == True):
                         print("Spotify Connect Zeroconf service %s: %s" % (serviceStateChangeDesc, result.Id))
 
