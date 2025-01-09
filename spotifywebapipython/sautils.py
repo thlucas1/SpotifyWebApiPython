@@ -179,9 +179,14 @@ class Event:
     def fire(self, *args, **kargs):
         """
         Calls (i.e. "fires") all method handlers defined for this event.
+
+        Exceptions will be ignored for individual handlers.
         """
         for handler in self.handlers:
-            handler(*args, **kargs)
+            try:
+                handler(*args, **kargs)
+            except:
+                pass
 
     def getHandlerCount(self):
         """

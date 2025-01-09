@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.140 ] - 2025/01/09
+
+  * Updated `SpotifyConnectDevices.GetDeviceIndexByDiscoveryKey` method to return the index of the `Items` collection entry that contains the specified device Zeroconf discovery results key value, or -1 if not found.
+
 ###### [ 1.0.139 ] - 2025/01/07
 
   * Updated `SpotifyDiscovery._OnServiceStateChange` method to correctly update the Zeroconf DiscoveryResults instance.  The serviceinfo `Key` value must be used to update the device entry (not its `Id` value).
