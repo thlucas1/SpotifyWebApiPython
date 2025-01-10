@@ -120,7 +120,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the ActiveUser property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._ActiveUser = value
 
 
@@ -172,7 +172,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the BrandDisplayName property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._BrandDisplayName = value
 
 
@@ -202,7 +202,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the DeviceId property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._DeviceId = value
 
 
@@ -237,7 +237,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the DeviceType property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._DeviceType = value
 
 
@@ -318,7 +318,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the ModelDisplayName property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._ModelDisplayName = value
 
 
@@ -334,7 +334,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the ProductId property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._ProductId = value
 
 
@@ -353,7 +353,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the PublicKey property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._PublicKey = value
 
 
@@ -374,7 +374,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """ 
         Sets the RemoteName property value.
         """
-        if isinstance(value, str):
+        if (isinstance(value, str)) or (value is None):
             self._RemoteName = value
 
 
@@ -484,6 +484,50 @@ class ZeroconfGetInfo(ZeroconfResponse):
         """
         if isinstance(value, bool):
             self._IsInDeviceList = value
+
+
+    def Equals(self, obj) -> bool:
+        """
+        Returns true if the specified object instance contains the same argument
+        values as our object instance values; otherwise, False.
+
+        Args:
+            obj (ZeroconfGetInfo):
+                Object instance to compare.
+        """
+        result:bool = False
+        if (not isinstance(obj, type(self))):
+            return result
+
+        # compare attributes for equality.
+        if (self._AccountReq != obj._AccountReq): return result
+        if (self._ActiveUser != obj._ActiveUser): return result
+        if (self._Availability != obj._Availability): return result
+        if (self._BrandDisplayName != obj._BrandDisplayName): return result
+        if (self._ClientId != obj._ClientId): return result
+        if (self._DeviceId != obj._DeviceId): return result
+        if (self._DeviceType != obj._DeviceType): return result
+        if (self._GroupStatus != obj._GroupStatus): return result
+        if (self._LibraryVersion != obj._LibraryVersion): return result
+        if (self._ModelDisplayName != obj._ModelDisplayName): return result
+        if (self._ProductId != obj._ProductId): return result
+        if (self._PublicKey != obj._PublicKey): return result
+        if (self._RemoteName != obj._RemoteName): return result
+        if (self._ResolverVersion != obj._ResolverVersion): return result
+        if (self._Scope != obj._Scope): return result
+        if (self._SupportedCapabilities != obj._SupportedCapabilities): return result
+        if (self._TokenType != obj._TokenType): return result
+        if (self._Version != obj._Version): return result
+        if (self._VoiceSupport != obj._VoiceSupport): return result
+        if (self._IsActiveDevice != obj._IsActiveDevice): return result
+        if (self._IsInDeviceList != obj._IsInDeviceList): return result
+
+        # don't compare the following:
+        # self._Aliases:list[ZeroconfGetInfoAlias] = []
+        # self._SupportedDrmMediaFormats:list[ZeroconfGetInfoDrmMediaFormat] = []
+        
+        # objects attributes are equal.
+        return True
 
 
     def ToDictionary(self) -> dict:

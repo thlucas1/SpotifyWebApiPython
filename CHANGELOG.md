@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.142 ] - 2025/01/10
+
+  * Added `ZeroconfDiscoveryResult.Equals` method to compare object argument values to determine equality.
+  * Added `ZeroconfGetInfo.Equals` method to compare object argument values to determine equality.
+  * Added `SpotifyConnectDevice.Equals` method to compare object argument values to determine equality.
+
 ###### [ 1.0.141 ] - 2025/01/09
 
   * Added `SpotifyConnectDevices.GetDeviceByDiscoveryKey` method to return the device of the `Items` collection entry that contains the specified device Zeroconf discovery results key value, or null if not found.

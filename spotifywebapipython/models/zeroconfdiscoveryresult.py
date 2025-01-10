@@ -439,6 +439,47 @@ class ZeroconfDiscoveryResult:
         return self.GetEndpointUrl('resetUsers')
     
 
+    def Equals(self, obj) -> bool:
+        """
+        Returns true if the specified object instance contains the same argument
+        values as our object instance values; otherwise, False.
+
+        Args:
+            obj (ZeroconfDiscoveryResult):
+                Object instance to compare.
+        """
+        result:bool = False
+        if (not isinstance(obj, type(self))):
+            return result
+
+        # compare attributes for equality.
+        if (self._DeviceName != obj._DeviceName): return result
+        if (self._Domain != obj._Domain): return result
+        if (self.HostIpAddress != obj.HostIpAddress): return result
+        if (self._HostIpPort != obj._HostIpPort): return result
+        if (self._HostTTL != obj._HostTTL): return result
+        if (self._IsChromeCast != obj._IsChromeCast): return result
+        if (self._Id != obj._Id): return result
+        if (self._Key != obj._Key): return result
+        if (self._Name != obj._Name): return result
+        if (self._OtherTTL != obj._OtherTTL): return result
+        if (self._Priority != obj._Priority): return result
+        if (self._Server != obj._Server): return result
+        if (self._ServerKey != obj._ServerKey): return result
+        if (self._ServiceType != obj._ServiceType): return result
+        if (self._Weight != obj._Weight): return result
+        if (self._SpotifyConnectCPath != obj._SpotifyConnectCPath): return result
+        if (self._SpotifyConnectVersion != obj._SpotifyConnectVersion): return result
+        if (self._SpotifyConnectIsInDeviceList != obj._SpotifyConnectIsInDeviceList): return result
+
+        # don't compare the following:
+        # self._Properties:list = []
+        # self._ServiceInfo:ServiceInfo = None
+
+        # objects attributes are equal.
+        return True
+
+
     def GetEndpointUrl(self, action:str) -> str:
         """
         Gets a Spotify Zeroconf API endpoint url for the specified action key.

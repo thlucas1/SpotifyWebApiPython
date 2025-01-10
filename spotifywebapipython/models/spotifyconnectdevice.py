@@ -128,6 +128,29 @@ class SpotifyConnectDevice():
         self._WasReConnected = value
     
 
+    def Equals(self, obj) -> bool:
+        """
+        Returns true if the specified object instance contains the same argument
+        values as our object instance values; otherwise, False.
+
+        Args:
+            obj (SpotifyConnectDevice):
+                Object instance to compare.
+        """
+        result:bool = False
+        if (not isinstance(obj, type(self))):
+            return result
+
+        # compare attributes for equality.
+        if (self._Id != obj._Id): return result
+        if (self._Name != obj._Name): return result
+        if (not self._DeviceInfo.Equals(obj._DeviceInfo)): return result
+        if (not self._DiscoveryResult.Equals(obj._DiscoveryResult)): return result
+
+        # objects attributes are equal.
+        return True
+
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
@@ -157,6 +180,7 @@ class SpotifyConnectDevice():
         if includeTitle: 
             msg = 'Device: "%s" (%s)' % (self._Name, self._Id)
             msg = '%s\n WasReConnected="%s"' % (msg, str(self._WasReConnected))
+            msg = '%s\n' % (msg)
            
         # build result.
         msg = '%s\n %s\n' % (msg, str(self._DeviceInfo.ToString(True)))
