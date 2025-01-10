@@ -187,7 +187,29 @@ class SpotifyConnectDevices():
         return result
     
 
-    def GetDeviceById(self, value:str) -> bool:
+    def GetDeviceByDiscoveryKey(self, value:str) -> SpotifyConnectDevice:
+        """ 
+        Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
+        device zeroconf discovery results key value; otherwise, None.
+        """
+        result:SpotifyConnectDevice = None
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+
+        # process all devices, comparing discovery keys.
+        for i in range(len(self._Items)):
+            if (self._Items[i].DiscoveryResult is not None):
+                if (self._Items[i].DiscoveryResult.Key is not None):
+                    if (self._Items[i].DiscoveryResult.Key.lower() == value):
+                        result = self._Items[i]
+                        break       
+        return result
+
+
+    def GetDeviceById(self, value:str) -> SpotifyConnectDevice:
         """ 
         Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
         device id value; otherwise, None.
@@ -219,7 +241,7 @@ class SpotifyConnectDevices():
         return result
     
 
-    def GetDeviceByName(self, value:str) -> bool:
+    def GetDeviceByName(self, value:str) -> SpotifyConnectDevice:
         """ 
         Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
         device name value; otherwise, None.
