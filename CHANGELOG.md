@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.143 ] - 2025/01/10
+
+  * Added `SpotifyConnectDevices.GetDeviceIndexByDiscoveryName` method to return the index of the `Items` collection entry that contains the specified device Zeroconf discovery results name value, or -1 if not found.
+
 ###### [ 1.0.142 ] - 2025/01/10
 
   * Added `ZeroconfDiscoveryResult.Equals` method to compare object argument values to determine equality.
