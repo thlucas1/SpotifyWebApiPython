@@ -6,8 +6,19 @@ from typing import Iterator
 from ..sautils import export
 from .device import Device
 from .spotifyconnectdevice import SpotifyConnectDevice
+from .playerplaystate import PlayerPlayState
 from .zeroconfdiscoveryresult import ZeroconfDiscoveryResult
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfGetInfoAlias
+
+# get smartinspect logger reference; create a new session for this module name.
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+import logging
+
+_logsi:SISession = SIAuto.Si.GetSession(__name__)
+if (_logsi == None):
+    _logsi = SIAuto.Si.AddSession(__name__, True)
+_logsi.SystemLogger = logging.getLogger(__name__)
+
 
 @export
 class SpotifyConnectDevices():
@@ -85,13 +96,23 @@ class SpotifyConnectDevices():
         return 0
     
 
-    def AddDynamicDevice(self, device:Device, activeUser:str) -> None:
+    def AddDynamicDevice(
+        self, 
+        device:Device, 
+        activeUser:str
+        ) -> None:
         """ 
         Adds a new dynamic device entry to the `Items` collection.  
         
+        Args:
+            device (Device):
+                Device information to add.
+            activeUser (str):
+                Currently active user id.
+
         Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
-        process, but still exist in the player device list.  These are usually devices in
-        a Spotify Connect web or mobile player.
+        process, but still exist in the player device list.  These are usually Spotify Player
+        client devices (e.g. mobile / web / desktop players) that utilize temporary device id's.
         """
         # validations.
         if (device is None) or (not isinstance(device, Device)):
@@ -138,6 +159,94 @@ class SpotifyConnectDevices():
         scDevice.DeviceInfo = info
         scDevice.DiscoveryResult = discoverResult
         self._Items.append(scDevice)
+
+        # trace.
+        _logsi.LogVerbose("Added dynamic device \"%s\" (%s) to Spotify Connect Devices collection" % (scDevice.Name, scDevice.Id))
+
+
+    def UpdatePlayerDevices(
+        self, 
+        playerDevices:list[Device],
+        activeUser:str,
+        playerState:PlayerPlayState=None
+        ) -> None:
+        """ 
+        Adds a list of dynamic player device entries to the `Items` collection, removes any
+        existing dynamic devices from the collection that are not in the `playerDevices` list,
+        and updates the currently active device based on playerState.
+        
+        Args:
+            playerDevices (list[Device]):
+                List of current player devices obtained via a call to `GetPlayerDevices` method.
+            activeUser (str):
+                Currently active user id.
+            playerState (PlayerPlayState):
+                Current player state obtained via a call to `GetPlayerPlaybackState` method
+                which will be used to set the active device in the `Items` collection;
+                otherwise, null to bypass active device set.
+
+        Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+        process, but still exist in the player device list.  These are usually Spotify Player
+        client devices (e.g. mobile / web / desktop players) that utilize temporary device id's.
+        """
+        # validations
+        if (not isinstance(playerDevices, list)):
+            return
+
+        # add dynamic devices.
+        scDevice:SpotifyConnectDevice
+        device:Device
+        for device in playerDevices:
+
+            # is the player device present in the collection? if not, then add it.
+            if (not self.ContainsDeviceId(device.Id)):
+                self.AddDynamicDevice(device, activeUser)
+                        
+            # is the device in the available device list for this user context?
+            # if not, then set an indicator so we can re-activate it later if need be.
+            for scDevice in self._Items:
+                if (scDevice.DeviceInfo.DeviceId == device.Id):
+                    scDevice.DeviceInfo.IsInDeviceList = True
+                    break
+
+        # remove stale dynamic devices from results collection;
+        # the reversed() function creates an iterator that traverses the list in reverse order. 
+        # this ensures that removing an element doesn't affect the indices of the subsequent 
+        # elements we're going to iterate over.
+        for idx in reversed(range(len(self._Items))):
+
+            # only process dynamic devices.
+            scDevice = self._Items[idx]
+            if (scDevice.DiscoveryResult.IsDynamicDevice):
+
+                # process all player devices.
+                wasFound:bool = False
+                playerDevice:Device
+                for playerDevice in playerDevices:
+                    if (scDevice.Id == playerDevice.Id):
+                        wasFound = True
+                        break
+
+                # if collection entry was not found in the player device list then remove it.
+                if (not wasFound):
+                    _logsi.LogVerbose("Removed dynamic device \"%s\" (%s) from Spotify Connect Devices collection" % (scDevice.Name, scDevice.Id))
+                    self._Items.pop(idx)
+
+        # are we updating active device entry?
+        if (playerState is not None) and (isinstance(playerState, PlayerPlayState)):
+
+            # we do this in case the active device is a "restricted" device; if it is, then it may 
+            # not show up as the active device (common issue with Sonos devices).  
+            # in this case, it WILL show up in the player state device property as the active device.
+            # if it IS active, then we will set the active flag.        
+            # note that the PlayerPlayState device is a name and not a device id.
+            if playerState.Device is not None:
+                device = playerState.Device
+                for scDevice in self._Items:
+                    scDevice.DeviceInfo.IsActiveDevice = False
+                    if (device.Name == scDevice.Name):
+                        _logsi.LogVerbose("Spotify Connect active device detected: \"%s\" (%s)" % (device.Name, device.Id))
+                        scDevice.DeviceInfo.IsActiveDevice = True
 
 
     def ContainsDeviceId(self, value:str) -> bool:
