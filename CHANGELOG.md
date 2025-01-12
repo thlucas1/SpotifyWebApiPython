@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.145 ] - 2025/01/12
+
+  * Added `SpotifyConnectDevices.GetActiveDevice` method to return a Spotify Connect device if one is currently marked as the active device; otherwise, null if there is no active device.
+  * Updated `SpotifyConnectDevices.UpdatePlayerDevices` method to return the currently active Spotify Player device instance as determined by the Spotify Player PlayState if one was supplied; otherwise, null if not active device.
+
 ###### [ 1.0.144 ] - 2025/01/10
 
   * Added `SpotifyConnectDevices.UpdatePlayerDevices` method to add a list of dynamic player device entries to the `Items` collection, remove any existing dynamic devices from the collection that are not in the `playerDevices` list, and update the currently active device based on playerState.
