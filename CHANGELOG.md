@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.146 ] - 2025/01/12
+
+  * Added `SpotifyConnectDevices.RemoveDevice` method to remove existing device entry(s) from the `Items` collection by device id value.
+
 ###### [ 1.0.145 ] - 2025/01/12
 
   * Added `SpotifyConnectDevices.GetActiveDevice` method to return a Spotify Connect device if one is currently marked as the active device; otherwise, null if there is no active device.
