@@ -519,11 +519,11 @@ class ZeroconfGetInfo(ZeroconfResponse):
         if (self._TokenType != obj._TokenType): return result
         if (self._Version != obj._Version): return result
         if (self._VoiceSupport != obj._VoiceSupport): return result
-        if (self._IsActiveDevice != obj._IsActiveDevice): return result
-        if (self._IsInDeviceList != obj._IsInDeviceList): return result
 
         # don't compare the following:
         # self._Aliases:list[ZeroconfGetInfoAlias] = []
+        # self._IsActiveDevice:bool = None
+        # self._IsInDeviceList:bool = None
         # self._SupportedDrmMediaFormats:list[ZeroconfGetInfoDrmMediaFormat] = []
         
         # objects attributes are equal.

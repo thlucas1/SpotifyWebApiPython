@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+UpdateActiveDevice
+
+###### [ 1.0.147 ] - 2025/01/13
+
+  * Added `SpotifyConnectDevices.UpdateActiveDevice` method to update the currently active device based on playerState.
+  * Added `ZeroconfDiscoveryResult.Description` property that returns a basic description of the device, and how source info was obtained. This is a helper property, and not part of the Zeroconf ServiceInfo result.
+
 ###### [ 1.0.146 ] - 2025/01/12
 
   * Added `SpotifyConnectDevices.RemoveDevice` method to remove existing device entry(s) from the `Items` collection by device id value.

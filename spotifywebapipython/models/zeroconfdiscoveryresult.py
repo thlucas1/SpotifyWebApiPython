@@ -50,6 +50,21 @@ class ZeroconfDiscoveryResult:
 
 
     @property
+    def Description(self) -> bool:
+        """
+        Returns a basic description of the device, and how source info was obtained.
+
+        This is a helper property, and not part of the Zeroconf ServiceInfo result.
+        """
+        result:str = "Spotify Connect Zeroconf Device"
+        if (self.IsChromeCast):
+            result = "Chromecast Zeroconf Device"
+        elif (self.IsDynamicDevice):
+            result = "Dynamic Device"
+        return result
+
+
+    @property
     def DeviceName(self) -> str:
         """ 
         Device name (e.g. "Bose-ST10-1").
@@ -523,6 +538,7 @@ class ZeroconfDiscoveryResult:
             'ServerKey': self._ServerKey,
             'ServiceType': self._ServiceType,
             'Weight': self._Weight,
+            'Description': self.Description,
             'Properties': [ item.ToDictionary() for item in self._Properties ],
             'SpotifyConnectCPath': self._SpotifyConnectCPath,
             'SpotifyConnectIsInDeviceList': self._SpotifyConnectIsInDeviceList,
@@ -546,19 +562,23 @@ class ZeroconfDiscoveryResult:
         if includeTitle: 
             msg = 'ZeroconfDiscoveryResult:'
            
-        # get zeroconf api endpoint properties, as they are dynamically generated.
+        # get dynamically generated property values.
+        description:str = self.Description
+        hostIpAddress:str = self.HostIpAddress
+        isDynamicDevice:bool = self.IsDynamicDevice
         zeroconfApiEndpointAddUser:str = self.ZeroconfApiEndpointAddUser
         zeroconfApiEndpointGetInformation:str = self.ZeroconfApiEndpointGetInformation
         zeroconfApiEndpointResetUsers:str = self.ZeroconfApiEndpointResetUsers
-        
+
         # build result.
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._DeviceName is not None: msg = '%s\n DeviceName="%s"' % (msg, str(self._DeviceName))
         if self._Domain is not None: msg = '%s\n Domain="%s"' % (msg, str(self._Domain))
         if self._HostIpAddresses is not None: msg = '%s\n HostIpAddresses Count=%s' % (msg, str(len(self._HostIpAddresses)))
-        if self.HostIpAddress is not None: msg = '%s\n HostIpAddress="%s"' % (msg, str(self.HostIpAddress))
+        if hostIpAddress is not None: msg = '%s\n HostIpAddress="%s"' % (msg, str(hostIpAddress))
         if self._HostIpPort is not None: msg = '%s\n HostIpPort="%s"' % (msg, str(self._HostIpPort))
         if self._HostTTL is not None: msg = '%s\n HostTTL="%s"' % (msg, str(self._HostTTL))
+        if isDynamicDevice is not None: msg = '%s\n IsDynamicDevice="%s"' % (msg, str(isDynamicDevice))
         if self._IsChromeCast is not None: msg = '%s\n IsChromeCast="%s"' % (msg, str(self._IsChromeCast))
         if self._Key is not None: msg = '%s\n Key="%s"' % (msg, str(self._Key))
         if self._Name is not None: msg = '%s\n Name="%s"' % (msg, str(self._Name))
@@ -568,6 +588,7 @@ class ZeroconfDiscoveryResult:
         if self._ServerKey is not None: msg = '%s\n ServerKey="%s"' % (msg, str(self._ServerKey))
         if self._ServiceType is not None: msg = '%s\n ServiceType="%s"' % (msg, str(self._ServiceType))
         if self._Weight is not None: msg = '%s\n Weight="%s"' % (msg, str(self._Weight))
+        if description is not None: msg = '%s\n Description="%s"' % (msg, str(description))
         if self._Properties is not None: msg = '%s\n Properties Count=%s' % (msg, str(len(self._Properties)))
         if self._SpotifyConnectCPath is not None: msg = '%s\n SpotifyConnectCPath="%s"' % (msg, str(self._SpotifyConnectCPath))
         if self._SpotifyConnectIsInDeviceList is not None: msg = '%s\n SpotifyConnectIsInDeviceList="%s"' % (msg, str(self._SpotifyConnectIsInDeviceList))

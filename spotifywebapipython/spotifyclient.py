@@ -9846,7 +9846,6 @@ class SpotifyClient:
                     
                     # is this a dynamic device?
                     if not result.ContainsDeviceId(device.Id):
-                        _logsi.LogVerbose("Spotify Connect dynamic device detected: '%s' (%s)" % (device.Name, device.Id))
                         result.AddDynamicDevice(device, self.UserProfile.Id)
                         
                     # is the device in the available device list for this user context?
