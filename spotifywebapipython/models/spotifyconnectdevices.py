@@ -161,7 +161,7 @@ class SpotifyConnectDevices():
         self._Items.append(scDevice)
 
         # trace.
-        _logsi.LogVerbose("Added SpotifyConnectDevices collection entry: \"%s\" (dynamic device=%s)" % (scDevice.Title, discoverResult.IsDynamicDevice), colorValue=SIColors.ForestGreen)
+        _logsi.LogVerbose("Added SpotifyConnectDevices collection entry: \"%s\" - %s" % (scDevice.Title, scDevice.DiscoveryResult.Description), colorValue=SIColors.ForestGreen)
 
 
     def GetActiveDevice(

@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.148 ] - 2025/01/13
+
+  * Updated trace message to better reflect logic flow.
+
 ###### [ 1.0.147 ] - 2025/01/13
 
   * Added `SpotifyConnectDevices.UpdateActiveDevice` method to update the currently active device based on playerState.
