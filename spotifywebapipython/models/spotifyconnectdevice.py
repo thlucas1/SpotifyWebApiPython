@@ -3,7 +3,7 @@
 # our package imports.
 from ..sautils import export
 from .zeroconfdiscoveryresult import ZeroconfDiscoveryResult
-from spotifywebapipython.zeroconfapi.zeroconfgetinfo import ZeroconfGetInfo
+from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
 
 @export
 class SpotifyConnectDevice():
@@ -21,7 +21,11 @@ class SpotifyConnectDevice():
         self._DiscoveryResult:ZeroconfDiscoveryResult = None
         self._DeviceInfo:ZeroconfGetInfo = None
         self._Id:str = None
+        self._IsActiveDevice:bool = False
+        self._IsInDeviceList:bool = False
+        self._IsRestricted:bool = False
         self._Name:str = None
+        self._ZeroconfResponseInfo:ZeroconfResponse = ZeroconfResponse()
         self._WasReConnected:bool = False
 
 
@@ -81,6 +85,23 @@ class SpotifyConnectDevice():
     
 
     @property
+    def IsActiveDevice(self) -> bool:
+        """ 
+        Returns True if this device is the currently active Spotify Web API player device;
+        otherwise, False.
+        """
+        return self._IsActiveDevice
+    
+    @IsActiveDevice.setter
+    def IsActiveDevice(self, value:bool):
+        """ 
+        Sets the IsActiveDevice property value.
+        """
+        if isinstance(value, bool):
+            self._IsActiveDevice = value
+
+
+    @property
     def IsChromeCast(self) -> bool:
         """ 
         True if the device is a Google ChromeCast device; otherwise, False.
@@ -89,6 +110,40 @@ class SpotifyConnectDevice():
             return self._DiscoveryResult.IsChromeCast
         return False
     
+
+    @property
+    def IsInDeviceList(self) -> bool:
+        """ 
+        Returns True if this device is a member of the Spotify Web API player device list;
+        otherwise, False.
+        """
+        return self._IsInDeviceList
+    
+    @IsInDeviceList.setter
+    def IsInDeviceList(self, value:bool):
+        """ 
+        Sets the IsInDeviceList property value.
+        """
+        if isinstance(value, bool):
+            self._IsInDeviceList = value
+
+
+    @property
+    def IsRestricted(self) -> bool:
+        """ 
+        Returns True if this device is a member of the Spotify Web API player device list;
+        otherwise, False.
+        """
+        return self._IsRestricted
+    
+    @IsRestricted.setter
+    def IsRestricted(self, value:bool):
+        """ 
+        Sets the IsRestricted property value.
+        """
+        if isinstance(value, bool):
+            self._IsRestricted = value
+
 
     @property
     def Name(self) -> str:
@@ -108,9 +163,9 @@ class SpotifyConnectDevice():
     @property
     def Title(self) -> str:
         """ 
-        Spotify Connect device name and id value (e.g. '"Bose-ST10-1" (30fbc80e35598f3c242f2120413c943dfd9715fe)').
+        Spotify Connect device name and id value (e.g. "Bose-ST10-1" (30fbc80e35598f3c242f2120413c943dfd9715fe)).
         """
-        return '%s (%s)' % (self._Name, self._Id)
+        return "\"%s\" (%s)" % (self._Name, self._Id)
     
 
     @property
@@ -127,6 +182,22 @@ class SpotifyConnectDevice():
         """
         self._WasReConnected = value
     
+
+    @property
+    def ZeroconfResponseInfo(self) -> ZeroconfResponse:
+        """ 
+        Spotify Zeroconf API GetInfo response object.
+        """
+        return self._ZeroconfResponseInfo
+    
+    @ZeroconfResponseInfo.setter
+    def ZeroconfResponseInfo(self, value:ZeroconfResponse):
+        """ 
+        Sets the ZeroconfResponseInfo property value.
+        """
+        if isinstance(value, ZeroconfResponse):
+            self._ZeroconfResponseInfo = value
+
 
     def Equals(self, obj) -> bool:
         """
@@ -160,10 +231,14 @@ class SpotifyConnectDevice():
             'Id': self._Id,
             'Name': self._Name,
             'Title': self.Title,
-            'WasReConnected': self._WasReConnected,
+            'IsActiveDevice': self._IsActiveDevice,
             'IsChromeCast': self.IsChromeCast,
+            'IsInDeviceList': self._IsInDeviceList,
+            'IsRestricted': self._IsRestricted,
+            'WasReConnected': self._WasReConnected,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),
+            'ZeroconfResponseInfo': self._ZeroconfResponseInfo.ToDictionary(),
         }
         return result
         
@@ -179,10 +254,15 @@ class SpotifyConnectDevice():
         msg:str = ''
         if includeTitle: 
             msg = 'Device: "%s" (%s)' % (self._Name, self._Id)
+            msg = '%s\n IsActiveDevice="%s"' % (msg, str(self._IsActiveDevice))
+            msg = '%s\n IsChromecast="%s"' % (msg, str(self.IsChromeCast))
+            msg = '%s\n IsInDeviceList="%s"' % (msg, str(self._IsInDeviceList))
+            msg = '%s\n IsRestricted="%s"' % (msg, str(self._IsRestricted))
             msg = '%s\n WasReConnected="%s"' % (msg, str(self._WasReConnected))
             msg = '%s\n' % (msg)
            
         # build result.
         msg = '%s\n %s\n' % (msg, str(self._DeviceInfo.ToString(True)))
         msg = '%s\n %s\n' % (msg, str(self._DiscoveryResult.ToString(True)))
+        msg = '%s\n %s\n' % (msg, str(self._ZeroconfResponseInfo.ToString(True)))
         return msg 

@@ -53,7 +53,7 @@ setup(
     ],
     
     # set minimum python version requirement.
-    python_requires='>3.5.1',
+    python_requires='>3.11.0',
     
     # set minimum dependencies requirements.
     # note that urllib3 version must be less than 2!
@@ -61,9 +61,10 @@ setup(
         'lxml>=5.2.0',
         'oauthlib>=3.2.2',
         'platformdirs>=4.1.0',
+        'PyChromecast>=14.0.5',
         'requests>=2.31.0',
         'requests_oauthlib>=1.3.1',
-        'smartinspectPython>=3.0.33',
+        'smartinspectPython>=3.0.34',
         'urllib3>=1.21.1,<1.27',
         'zeroconf>=0.132.2'
     ],
@@ -84,7 +85,7 @@ setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Multimedia :: Sound/Audio :: Players',
         'Natural Language :: English',
-        'License :: Free To Use But Restricted',
+        'License :: OSI Approved :: MIT License'
     ],
     
     # provide some links to list on the Pypi.org site.

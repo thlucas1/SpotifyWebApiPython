@@ -31,7 +31,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         self._Availability:str = ""
         self._BrandDisplayName:str = None
         self._ClientId:str = None
-        self._DeviceId:str = None
+        self._DeviceId:str = ""
         self._DeviceType:str = None
         self._GroupStatus:str = None
         self._LibraryVersion:str = None
@@ -47,10 +47,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
         self._Version:str = None
         self._VoiceSupport:str = None
         
-        # non-Spotify properties.
-        self._IsActiveDevice:bool = None
-        self._IsInDeviceList:bool = None
-        
         if (root is None):
 
             pass
@@ -62,7 +58,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
             self._Availability = root.get('availability', "")
             self._BrandDisplayName = root.get('brandDisplayName', None)
             self._ClientId = root.get('clientID', None)
-            self._DeviceId = root.get('deviceID', None)
+            self._DeviceId = root.get('deviceID', "")
             self._DeviceType = root.get('deviceType', None)
             self._GroupStatus = root.get('groupStatus', None)
             self._LibraryVersion = root.get('libraryVersion', None)
@@ -121,7 +117,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Sets the ActiveUser property value.
         """
         if (isinstance(value, str)) or (value is None):
-            self._ActiveUser = value
+            self._ActiveUser = value or ""
 
 
     @property
@@ -203,7 +199,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Sets the DeviceId property value.
         """
         if (isinstance(value, str)) or (value is None):
-            self._DeviceId = value
+            self._DeviceId = value or ""
 
 
     @property
@@ -448,44 +444,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
         return self._VoiceSupport
 
 
-    # non-Spotify properties.
-
-    @property
-    def IsActiveDevice(self) -> bool:
-        """ 
-        Returns True if this device is the currently active device;
-        otherwise, False.
-        """
-        return self._IsActiveDevice
-    
-    @IsActiveDevice.setter
-    def IsActiveDevice(self, value:bool):
-        """ 
-        Sets the IsActiveDevice property value.
-        """
-        if isinstance(value, bool):
-            self._IsActiveDevice = value
-
-
-    @property
-    def IsInDeviceList(self) -> bool:
-        """ 
-        Returns the status of active device list verification:  
-        * None - device list verification has not been performed for this device.  
-        * True - device is a member of the active device list.  
-        * False - device is NOT a member of the active device list.  
-        """
-        return self._IsInDeviceList
-    
-    @IsInDeviceList.setter
-    def IsInDeviceList(self, value:bool):
-        """ 
-        Sets the IsInDeviceList property value.
-        """
-        if isinstance(value, bool):
-            self._IsInDeviceList = value
-
-
     def Equals(self, obj) -> bool:
         """
         Returns true if the specified object instance contains the same argument
@@ -522,8 +480,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
         # don't compare the following:
         # self._Aliases:list[ZeroconfGetInfoAlias] = []
-        # self._IsActiveDevice:bool = None
-        # self._IsInDeviceList:bool = None
         # self._SupportedDrmMediaFormats:list[ZeroconfGetInfoDrmMediaFormat] = []
         
         # objects attributes are equal.
@@ -566,8 +522,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
             'HasAliases': self.HasAliases,
             'IsAvailable': self.IsAvailable,
             'IsBrandSonos': self.IsBrandSonos,
-            'IsActiveDevice': self._IsActiveDevice,
-            'IsInDeviceList': self._IsInDeviceList,
         }
         
         # combine base class results with these results.
@@ -614,6 +568,4 @@ class ZeroconfGetInfo(ZeroconfResponse):
         if self._TokenType is not None: msg = '%s\n TokenType="%s"' % (msg, str(self._TokenType))
         if self._Version is not None: msg = '%s\n Version="%s"' % (msg, str(self._Version))
         if self._VoiceSupport is not None: msg = '%s\n VoiceSupport="%s"' % (msg, str(self._VoiceSupport))
-        if self._IsActiveDevice is not None: msg = '%s\n IsActiveDevice="%s"' % (msg, str(self._IsActiveDevice))
-        if self._IsInDeviceList is not None: msg = '%s\n IsInDeviceList="%s"' % (msg, str(self._IsInDeviceList))
         return msg 

@@ -79,7 +79,6 @@ def export(fn):
     
 
 def validateDelay(
-        self, 
         delay:float, 
         default:float=0.5, 
         maxDelay:float=10

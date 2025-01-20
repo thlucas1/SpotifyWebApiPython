@@ -8,6 +8,19 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.149 ] - 2025/01/20
+
+  * Added support for Google Chromecast Spotify Connect devices.
+  * Added namespace `spotifyconnect` that contains support for Spotify Connect device discovery.
+  * Removed function `SpotifyClient.AddPlayerQueueItem` - use `AddPlayerQueueItems` instead.
+  * Removed function `SpotifyClient.PlayerActivateDevices` - playback is auto-transferred to some devices when they are activated (Sonos, Chromecast, etc).  This method is no longer needed, as devices are automatically resolved / activated now.
+  * Removed function `SpotifyClient.PlayerVerifyDeviceDefault` - devices are automatically resolved / verified now.
+  * Removed function `SpotifyClient.VerifyPlayerActiveDeviceId` - devices are automatically resolved / verified now.
+  * Added `PyChromecast` package requirement, >= 14.0.5.
+  * Updated underlying `smartinspectPython` package requirement to version 3.0.34.
+  * Updated Python from v3.9 to v3.11.
+  * Updated minimum python version requirement from v3.5.1+ to v3.11.0+
+  
 ###### [ 1.0.148 ] - 2025/01/13
 
   * Updated trace message to better reflect logic flow.

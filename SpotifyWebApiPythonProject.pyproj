@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\testVS_SpotifyDiscovery.py</StartupFile>
+    <StartupFile>test\test_SpotifyConnectZeroconf.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -42,7 +42,6 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetShow_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetSpotifyConnectDevice.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetTrack_NowPlaying.py" />
-    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerActivateDevices.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetSpotifyConnectDevices.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumFavorites_AutoPaging.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumNewReleases_AutoPaging.py" />
@@ -84,8 +83,6 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetShuffleMode.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerSetVolume.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerTransferPlayback.py" />
-    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerConvertDeviceNameToId.py" />
-    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerVerifyDeviceDefault.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerPlaybackState.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerNowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerDevices.py" />
@@ -185,6 +182,14 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbumFavorites.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbums.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\AddDynamicDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\GetActiveDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\GetDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\GetDevices.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\GetPlayerDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\RefreshDynamicDevices.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\UpdateActiveDevice.py" />
+    <Compile Include="docs\include\samplecode\SpotifyConnectDirectoryTask\UpdatePlayerDevices.py" />
     <Compile Include="docs\include\samplecode\SpotifyDiscovery\DiscoverDevices.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\AuthTokenGenerator.py" />
     <Compile Include="docs\include\samplecode\ZeroconfConnect\Connect_SPOTIFYD.py" />
@@ -267,7 +272,14 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\oauthcli\__init__.py" />
     <Compile Include="spotifywebapipython\saappmessages.py" />
     <Compile Include="spotifywebapipython\sautils.py" />
-    <Compile Include="spotifywebapipython\spotifyconnectdeviceeventargs.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectdeviceeventargs.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectdirectorytask.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastapptask.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastcontroller.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfexceptions.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastlistener.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconflistener.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\__init__.py" />
     <Compile Include="spotifywebapipython\spotifydiscovery.py" />
     <Compile Include="spotifywebapipython\spotifywebapiauthenticationerror.py" />
     <Compile Include="spotifywebapipython\spotifyapierror.py" />
@@ -275,6 +287,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\spotifyapimessage.py" />
     <Compile Include="spotifywebapipython\spotifyauthtoken.py" />
     <Compile Include="spotifywebapipython\spotifyclient.py" />
+    <Compile Include="spotifywebapipython\spotifywebplayertoken.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\authenticationtypes.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\blobbuilder.py" />
     <Compile Include="spotifywebapipython\zeroconfapi\credentials.py" />
@@ -303,6 +316,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\testVS_SpotifyClient_Artists.py" />
     <Compile Include="test\testVS_SpotifyClient_Albums.py" />
     <Compile Include="test\testVS_AuthTokens.py" />
+    <Compile Include="test\testVS_SpotifyConnect.py" />
     <Compile Include="test\testVS_ZeroconfConnect.py" />
     <Compile Include="test\testVS_SpotifyDiscovery.py" />
     <Compile Include="test\testVS_SpotifyClient_Users.py" />
@@ -311,6 +325,8 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />
     <Compile Include="test\test_SampleCode_PREMIUM.py" />
+    <Compile Include="test\test_SampleCode_SpotifyConnect.py" />
+    <Compile Include="test\test_SpotifyConnectZeroconf.py" />
     <Compile Include="test\test_SSDP_Discovery2.py" />
     <Compile Include="test\test_SSDP_Discovery.py" />
     <Compile Include="test\test_AuthToken_OAuth2Token.py" />
@@ -338,6 +354,7 @@ PYTHONWARNINGS=always</Environment>
     <Folder Include="docs\" />
     <Folder Include="docs\include\" />
     <Folder Include="docs\include\samplecode\" />
+    <Folder Include="docs\include\samplecode\SpotifyConnectDirectoryTask\" />
     <Folder Include="docs\include\samplecode\ZeroconfConnect\" />
     <Folder Include="docs\include\samplecode\SpotifyDiscovery\" />
     <Folder Include="docs\include\samplecode\SpotifyClient\" />
@@ -345,6 +362,7 @@ PYTHONWARNINGS=always</Environment>
     <Folder Include="spotifywebapipython\" />
     <Folder Include="spotifywebapipython\models\" />
     <Folder Include="spotifywebapipython\oauthcli\" />
+    <Folder Include="spotifywebapipython\spotifyconnect\" />
     <Folder Include="spotifywebapipython\zeroconfapi\" />
     <Folder Include="test\" />
     <Folder Include="test\testdata\" />
@@ -398,8 +416,8 @@ PYTHONWARNINGS=always</Environment>
   <ItemGroup>
     <Interpreter Include="env\">
       <Id>env</Id>
-      <Version>3.9</Version>
-      <Description>env (Python 3.9 (64-bit))</Description>
+      <Version>3.11</Version>
+      <Description>env (Python 3.11 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>

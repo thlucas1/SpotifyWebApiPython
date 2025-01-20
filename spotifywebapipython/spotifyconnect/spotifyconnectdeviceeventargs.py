@@ -1,5 +1,5 @@
 # our package imports.
-from .models import SpotifyConnectDevice
+from spotifywebapipython.models import SpotifyConnectDevice
 
 
 class SpotifyConnectDeviceEventArgs:

@@ -1,6 +1,3 @@
-# external package imports.
-from zeroconf import ServiceInfo
-
 # our package imports.
 from ..sautils import export
 from .zeroconfproperty import ZeroconfProperty
@@ -31,14 +28,12 @@ class ZeroconfDiscoveryResult:
         self._Properties:list = []
         self._Server:str = None
         self._ServerKey:str = None
-        self._ServiceInfo:ServiceInfo = None
         self._ServiceType:str = None
         self._Weight:int = None
 
         # Spotify Connect specific properties:
         self._SpotifyConnectCPath:str = None
         self._SpotifyConnectVersion:str = None
-        self._SpotifyConnectIsInDeviceList:bool = False
 
 
     def __repr__(self) -> str:
@@ -331,22 +326,6 @@ class ZeroconfDiscoveryResult:
 
 
     @property
-    def ServiceInfo(self) -> ServiceInfo:
-        """ 
-        Zeroconf Service info object.
-        """
-        return self._ServiceInfo
-    
-    @ServiceInfo.setter
-    def ServiceInfo(self, value:ServiceInfo):
-        """ 
-        Sets the ServiceInfo property value.
-        """
-        if isinstance(value, ServiceInfo):
-            self._ServiceInfo = value
-
-
-    @property
     def ServiceType(self) -> str:
         """ 
         Service type, which should match the one passed in during the query name (e.g. "_spotify-connect._tcp.").
@@ -395,22 +374,6 @@ class ZeroconfDiscoveryResult:
         """
         if isinstance(value, str):
             self._SpotifyConnectCPath = value
-
-
-    @property
-    def SpotifyConnectIsInDeviceList(self) -> bool:
-        """ 
-        True if the device is in the Spotify Player active device list; otherwise, False.
-        """
-        return self._SpotifyConnectIsInDeviceList
-    
-    @SpotifyConnectIsInDeviceList.setter
-    def SpotifyConnectIsInDeviceList(self, value:bool):
-        """ 
-        Sets the SpotifyConnectIsInDeviceList property value.
-        """
-        if isinstance(value, bool):
-            self._SpotifyConnectIsInDeviceList = value
 
 
     @property
@@ -485,11 +448,9 @@ class ZeroconfDiscoveryResult:
         if (self._Weight != obj._Weight): return result
         if (self._SpotifyConnectCPath != obj._SpotifyConnectCPath): return result
         if (self._SpotifyConnectVersion != obj._SpotifyConnectVersion): return result
-        if (self._SpotifyConnectIsInDeviceList != obj._SpotifyConnectIsInDeviceList): return result
 
         # don't compare the following:
         # self._Properties:list = []
-        # self._ServiceInfo:ServiceInfo = None
 
         # objects attributes are equal.
         return True
@@ -541,7 +502,6 @@ class ZeroconfDiscoveryResult:
             'Description': self.Description,
             'Properties': [ item.ToDictionary() for item in self._Properties ],
             'SpotifyConnectCPath': self._SpotifyConnectCPath,
-            'SpotifyConnectIsInDeviceList': self._SpotifyConnectIsInDeviceList,
             'SpotifyConnectVersion': self._SpotifyConnectVersion,
             'ZeroconfApiEndpointAddUser': self.ZeroconfApiEndpointAddUser,
             'ZeroconfApiEndpointGetInformation': self.ZeroconfApiEndpointGetInformation,
@@ -591,7 +551,6 @@ class ZeroconfDiscoveryResult:
         if description is not None: msg = '%s\n Description="%s"' % (msg, str(description))
         if self._Properties is not None: msg = '%s\n Properties Count=%s' % (msg, str(len(self._Properties)))
         if self._SpotifyConnectCPath is not None: msg = '%s\n SpotifyConnectCPath="%s"' % (msg, str(self._SpotifyConnectCPath))
-        if self._SpotifyConnectIsInDeviceList is not None: msg = '%s\n SpotifyConnectIsInDeviceList="%s"' % (msg, str(self._SpotifyConnectIsInDeviceList))
         if self._SpotifyConnectVersion is not None: msg = '%s\n SpotifyConnectVersion="%s"' % (msg, str(self._SpotifyConnectVersion))
         if zeroconfApiEndpointAddUser is not None: msg = '%s\n ZeroconfApiEndpointAddUser="%s"' % (msg, zeroconfApiEndpointAddUser)
         if zeroconfApiEndpointGetInformation is not None: msg = '%s\n ZeroconfApiEndpointGetInformation="%s"' % (msg, zeroconfApiEndpointGetInformation)

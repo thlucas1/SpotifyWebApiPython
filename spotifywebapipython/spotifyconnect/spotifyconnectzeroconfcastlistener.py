@@ -1,0 +1,316 @@
+# external package imports.
+from pychromecast import CastInfo
+from pychromecast.discovery import AbstractCastListener
+import threading
+from uuid import UUID
+
+# our package imports.
+from spotifywebapipython.models import ZeroconfProperty, ZeroconfDiscoveryResult
+# note - cannot reference `SpotifyConnectDirectoryTask` due to circular import!
+# from .spotifyconnectdirectorytask import SpotifyConnectDirectoryTask
+
+# get smartinspect logger reference; create a new session for this module name.
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+import logging
+
+_logsi:SISession = SIAuto.Si.GetSession(__name__)
+if (_logsi == None):
+    _logsi = SIAuto.Si.AddSession(__name__, True)
+_logsi.SystemLogger = logging.getLogger(__name__)
+
+ZEROCONF_SERVICETYPE_GOOGLECAST:str = "_googlecast._tcp.local."
+"""
+Googlecast Zeroconf service type identifier.
+"""
+
+
+class SpotifyConnectZeroconfCastListener(AbstractCastListener):
+    """
+    Google Chromecast Zeroconf Listener class.
+    
+    Listens for Chromecast device connection updates for devices that
+    support Spotify Connect.
+    """
+
+    def __init__(
+        self, 
+        parentDirectory,
+        zeroconf_Lock:threading.Lock,
+        ) -> None:
+        """
+        Initializes a new instance of the class.
+
+        Args:
+            parentDirectory (SpotifyConnectDirectoryTask):
+                Parent SpotifyConnectDirectoryTask instance.
+            zeroconf_Lock (threading.Lock):
+                Lock object used to enforce thread-safe updates.
+        """
+        # invoke base class method.
+        super().__init__()
+
+        # initialize storage.
+        self._ParentDirectory = parentDirectory
+        self._Zeroconf_Lock:threading.Lock = zeroconf_Lock
+
+
+    def _GetZeroconfDiscoveryResult(
+        self,
+        uuid:UUID, 
+        serviceName:str,
+        castInfo_removed:CastInfo = None
+        ) -> ZeroconfDiscoveryResult:
+        """
+        Builds a `ZeroconfDiscoveryResult` instance from Zeroconf CastInfo data
+        when an add or update service state change takes place.
+
+        Args:
+            uuid (UUID):
+                The cast's uuid, which is the dictionary key to find the chromecast 
+                metadata in CastBrowser.devices collection.
+            serviceName (str):
+                First known MDNS service name or host:port.
+            castInfo_removed (CastInfo):
+                CastInfo for the service to aid cleanup; only supplied for removal
+                requests since the CastBrowser.services collection no longer contains
+                a CastInfo object for the specified uuid.
+        """
+        result:ZeroconfDiscoveryResult = None
+
+        try:
+
+            # is this an MDNSServiceInfo service record?  we only want discovery results
+            # that contain MDNSServiceInfo service information.
+            if (serviceName.find(ZEROCONF_SERVICETYPE_GOOGLECAST) == -1):
+                _logsi.LogDebug("Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, "ignored; not MDNSInfo"))
+                return None
+
+            # get chromecast info.
+            castInfo:CastInfo = castInfo_removed
+            if (castInfo is None):
+                castInfo:CastInfo = self._ParentDirectory._CastBrowser.services[uuid]
+
+            # trace.
+            _logsi.LogObject(SILevel.Debug, "Chromecast Zeroconf service details: \"%s\" (%s) (CastInfo object)" % (castInfo.friendly_name, serviceName), castInfo) 
+
+            # TODO we may need to expand this check based on cast_type value ...
+            # Regular chromecast, supports video/audio
+            #CAST_TYPE_CHROMECAST = "cast"
+            # Cast Audio device, supports only audio
+            #CAST_TYPE_AUDIO = "audio"
+            # Cast Audio group device, supports only audio
+            #CAST_TYPE_GROUP = "group"        
+            if (castInfo.cast_type != "audio"):
+                _logsi.LogDebug("Chromecast device does not support 'audio'; ignoring: \"%s\" (%s)" % (castInfo.friendly_name, serviceName))
+                return None
+            
+            # create new discovery result instance.
+            result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
+            result.DeviceName = castInfo.friendly_name
+            result.Domain = ".local"
+            result.HostIpAddresses = [castInfo.host]
+            result.HostIpPort = castInfo.port
+            result.HostTTL = 120
+            result.IsChromeCast = True
+            result.Key = str(uuid)
+            result.Name = serviceName
+            result.Priority = 0
+            result.OtherTTL = 4500
+            result.Server = serviceName
+            result.ServerKey = serviceName
+            result.ServiceType = ZEROCONF_SERVICETYPE_GOOGLECAST
+            result.Weight = 0
+            result.Properties.append(ZeroconfProperty("CPath","/na"))
+            result.Properties.append(ZeroconfProperty("VERSION","1.0"))
+            result.SpotifyConnectCPath = "/na"
+            result.SpotifyConnectVersion = "1.0"
+            result.Id = "\"%s\" (%s:%s)" % (result.DeviceName, result.HostIpAddress, result.HostIpPort)
+
+            # trace.
+            _logsi.LogObject(SILevel.Debug, "Chromecast Zeroconf Discovery Result: %s (object)" % (result.Id), result, excludeNonPublic=True)                        
+
+            # return discovery result.
+            return result
+
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException("Could not load ZeroconfDiscoveryResult instance from Chromecast Zeroconf service details", ex, logToSystemLogger=False)
+            
+            # ignore exception
+            return None
+            
+
+    def add_cast(
+        self, 
+        uuid:UUID, 
+        serviceName:str
+        ) -> None:
+        """
+        Called when a new cast has been discovered.
+
+        Args:
+            uuid (UUID):
+                The cast's uuid, which is the dictionary key to find the chromecast 
+                metadata in CastBrowser.devices collection.
+            serviceName (str):
+                First known MDNS service name or host:port.
+        """
+        # use lock, as multiple threads could be calling this method simultaneously.
+        with self._Zeroconf_Lock:
+
+            # copy passed parameters to thread-safe storage.
+            argsUuid:UUID = uuid
+            argsServiceName:str = serviceName
+                
+            apiMethodName:str = "add_cast"
+            apiMethodParms:SIMethodParmListContext = None
+
+            try:
+
+                # trace.
+                apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+                apiMethodParms.AppendKeyValue("uuid", argsUuid)
+                apiMethodParms.AppendKeyValue("serviceName", argsServiceName)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (argsServiceName, apiMethodName), apiMethodParms)
+
+                # build discovery result instance from service state information.
+                # if nothing returned, then don't bother!
+                result:ZeroconfDiscoveryResult = self._GetZeroconfDiscoveryResult(argsUuid, argsServiceName, None)
+                if (result is None):
+                    return
+
+                # let the parent handle the event.
+                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName)
+
+            except Exception as ex:
+            
+                # trace.
+                _logsi.LogException("Unhandled exception occured while processing Chromecast Zeroconf service browser ServiceStateChange notification (%s)" % (apiMethodName), ex, logToSystemLogger=False)
+            
+                # ignore exception, as nothing can be done about it.
+
+            finally:
+
+                # trace.
+                _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def remove_cast(
+        self, 
+        uuid:UUID, 
+        serviceName:str, 
+        castInfo:CastInfo
+        ) -> None:
+        """
+        Called when a cast has been lost (MDNS info expired or host down).
+
+        Args:
+            uuid (UUID):
+                The cast's uuid, which is the dictionary key to find the chromecast 
+                metadata in CastBrowser.devices collection.
+            serviceName (str):
+                Last valid MDNS service name or host:port.
+            castInfo (CastInfo):
+                CastInfo for the service to aid cleanup.
+        """
+        # use lock, as multiple threads could be calling this method simultaneously.
+        with self._Zeroconf_Lock:
+                
+            # copy passed parameters to thread-safe storage.
+            argsUuid:UUID = uuid
+            argsServiceName:str = serviceName
+            argsCastInfo:CastInfo = castInfo
+                
+            apiMethodName:str = "remove_cast"
+            apiMethodParms:SIMethodParmListContext = None
+
+            try:
+
+                # trace.
+                apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+                apiMethodParms.AppendKeyValue("uuid", argsUuid)
+                apiMethodParms.AppendKeyValue("serviceName", argsServiceName)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (argsServiceName, apiMethodName), apiMethodParms)
+
+                # for service removal notifications, there will be no zeroconf service info.
+                # build discovery result instance from service state information.
+                # if nothing returned, then it's ok - build a minimal discovery instance that
+                # will contain the necessary details to remove the device entry.
+                result:ZeroconfDiscoveryResult = self._GetZeroconfDiscoveryResult(argsUuid, argsServiceName, argsCastInfo)
+                if (result is None):
+                    result = ZeroconfDiscoveryResult()
+                    result.DeviceName = castInfo.friendly_name
+                    result.Key = str(uuid)
+                    result.Name = serviceName
+                    result.ServiceType = ZEROCONF_SERVICETYPE_GOOGLECAST
+
+                # let the parent handle the event.
+                self._ParentDirectory.OnServiceInfoRemovedChromecast(result, argsUuid, argsServiceName, argsCastInfo)
+
+            except Exception as ex:
+            
+                # trace.
+                _logsi.LogException("Unhandled exception occured while processing Chromecast Zeroconf service browser ServiceStateChange notification (%s)" % (apiMethodName), ex, logToSystemLogger=False)
+            
+                # ignore exception, as nothing can be done about it.
+
+            finally:
+
+                # trace.
+                _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def update_cast(
+        self, 
+        uuid:UUID, 
+        serviceName:str
+        ) -> None:
+        """
+        Called when a cast has been updated (MDNS info renewed or changed).
+
+        Args:
+            uuid (UUID):
+                The cast's uuid, which is the dictionary key to find the chromecast 
+                metadata in CastBrowser.devices collection.
+            serviceName (str):
+                MDNS service name or host:port.
+        """
+        # use lock, as multiple threads could be calling this method simultaneously.
+        with self._Zeroconf_Lock:
+                
+            # copy passed parameters to thread-safe storage.
+            argsUuid:UUID = uuid
+            argsServiceName:str = serviceName
+                
+            apiMethodName:str = "update_cast"
+            apiMethodParms:SIMethodParmListContext = None
+
+            try:
+
+                # trace.
+                apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+                apiMethodParms.AppendKeyValue("uuid", argsUuid)
+                apiMethodParms.AppendKeyValue("serviceName", argsServiceName)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (str(argsUuid), apiMethodName), apiMethodParms)
+
+                # build discovery result instance from service state information.
+                # if nothing returned, then don't bother!
+                result:ZeroconfDiscoveryResult = self._GetZeroconfDiscoveryResult(argsUuid, argsServiceName, None)
+                if (result is None):
+                    return
+
+                # let the parent handle the event.
+                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName)
+
+            except Exception as ex:
+            
+                # trace.
+                _logsi.LogException("Unhandled exception occured while processing Chromecast Zeroconf service browser ServiceStateChange notification (%s)" % (apiMethodName), ex, logToSystemLogger=False)
+            
+                # ignore exception, as nothing can be done about it.
+
+            finally:
+
+                # trace.
+                _logsi.LeaveMethod(SILevel.Debug, apiMethodName)

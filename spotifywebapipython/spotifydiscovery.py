@@ -223,7 +223,6 @@ class SpotifyDiscovery:
             result.Priority = serviceInfo.priority
             result.Server = serviceInfo.server
             result.ServerKey = serviceInfo.server_key
-            result.ServiceInfo = serviceInfo
             result.ServiceType = serviceType
             result.Weight = serviceInfo.weight
             result.Id = "\"%s\" (%s:%s)" % (result.DeviceName, result.HostIpAddress, result.HostIpPort)

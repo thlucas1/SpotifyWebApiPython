@@ -53,6 +53,14 @@ class ZeroconfResponse:
         """
         return self._ResponseSource
 
+    @ResponseSource.setter
+    def ResponseSource(self, value:str):
+        """ 
+        Sets the ResponseSource property value.
+        """
+        if (isinstance(value, str)) or (value is None):
+            self._ResponseSource = value or ""
+
 
     @property
     def SpotifyError(self) -> int:

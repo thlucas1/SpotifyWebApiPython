@@ -17,6 +17,7 @@ from zeroconf import Zeroconf
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
+from .spotifyconnect import SpotifyConnectDirectoryTask
 from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText, validateDelay
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
@@ -59,7 +60,7 @@ SPOTIFY_DJ_PLAYLIST_ID = "37i9dqzf1eykqdzj48dyyq"
 SPOTIFY_ONLINE_LINK_PREFIX = "https://open.spotify.com"
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SISourceId, SIColors
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -84,17 +85,19 @@ class SpotifyClient:
     """ Url base name used to access tthe Spotify Web API. """
     
     
-    def __init__(self, 
-                 manager:PoolManager=None,
-                 tokenStorageDir:str=None,
-                 tokenStorageFile:str=None,
-                 tokenUpdater:Callable=None,
-                 zeroconfClient:Zeroconf=None,
-                 spotifyConnectUsername:str=None,
-                 spotifyConnectPassword:str=None,
-                 spotifyConnectLoginId:str=None,
-                 spotifyConnectDiscoveryTimeout:float=2.0
-                 ) -> None:
+    def __init__(
+        self, 
+        manager:PoolManager=None,
+        tokenStorageDir:str=None,
+        tokenStorageFile:str=None,
+        tokenUpdater:Callable=None,
+        zeroconfClient:Zeroconf=None,
+        spotifyConnectUsername:str=None,
+        spotifyConnectPassword:str=None,
+        spotifyConnectLoginId:str=None,
+        spotifyConnectDiscoveryTimeout:float=2.0,
+        spotifyConnectDirectoryEnabled:bool=True,
+        ) -> None:
         """
         Initializes a new instance of the class.
         
@@ -129,7 +132,12 @@ class SpotifyClient:
                 This MUST be the value that relates to the `spotifyConnectUsername` argument.  
             spotifyConnectDiscoveryTimeout (float):
                 Maximum amount of time to wait (in seconds) for the Spotify Connect discovery to complete.  
+                Specify a value of zero (0) to disable Spotify Connect Zeroconf browsing features.
                 Default is 2 seconds.
+            spotifyConnectDirectoryEnabled (bool):
+                True to enable the Spotify Connect Directory task features.
+                otherwise, False to disable the Directory.
+                Default is True.
                 
         The `spotifyConnectUsername`, `spotifyConnectPassword` and `spotifyConnectLoginId` arguments are only used
         when a Spotify Connect account switch is performed on a selected player device.  Note that these credentials
@@ -141,10 +149,23 @@ class SpotifyClient:
         ZeroConf Connect service; use the [Spotify Set Device Password](https://www.spotify.com/uk/account/set-device-password/) 
         page to define a device password.  You will then use your Spotify username and the device password as your 
         Spotify Connect credentials.
+
+        If the Spotify Connect Directory task Zeroconf feature is disabled (e.g. `spotifyConnectDiscoveryTimeout=0`), then the
+        various player functions that utilize Spotify Connect device entries will fail (e.g. PlayerTransferPlayback, etc) if
+        the device does not appear in the Spotify Web API player device list.  Chromecast devices will also fail to start, as
+        they are controlled via Zeroconf functionality.
+
+        If the Spotify Connect Directory task is disabled (e.g. `spotifyConnectDirectoryEnabled=False`), then the
+        various player functions that utilize Spotify Connect device entries will fail (e.g. PlayerTransferPlayback, etc)
+        since Spotify Connect devices are not being tracked.  It is recommended that you disable the Directory task if
+        you only wish to access methods that retrieve Spotify catalog information, as it speeds up the startup time of the
+        client initialization and does not consume extra resources.
         """
         # validations.
         if zeroconfClient is not None and (not isinstance(zeroconfClient, Zeroconf)):
             raise SpotifyApiError(SAAppMessages.ARGUMENT_TYPE_ERROR % ("__init__", 'zeroconfClient', 'Zeroconf', type(zeroconfClient).__name__), logsi=_logsi)
+        if (not isinstance(spotifyConnectDirectoryEnabled, bool)):
+            spotifyConnectDirectoryEnabled = True
 
         # timeout value needs to be a float.
         if (spotifyConnectDiscoveryTimeout is None):
@@ -171,6 +192,8 @@ class SpotifyClient:
         self._SpotifyConnectPassword:str = spotifyConnectPassword
         self._SpotifyConnectLoginId:str = spotifyConnectLoginId
         self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
+        self._SpotifyConnectDirectory:SpotifyConnectDirectoryTask = None
+        self._SpotifyConnectDirectoryEnabled:bool = spotifyConnectDirectoryEnabled
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenStorageFile:str = tokenStorageFile
         self._TokenUpdater:Callable = tokenUpdater
@@ -197,7 +220,19 @@ class SpotifyClient:
             self._ZeroconfClient = Zeroconf()
         else:
             _logsi.LogObject(SILevel.Verbose, "Using existing Zeroconf instance for discovery", zeroconfClient)
+
         
+    # Destructor 
+    def __del__(self): 
+        """
+        Finalizes the instance of the class.
+        """
+        try:
+            self.StopSpotifyConnectDirectoryTask()
+        except:
+            # ignore exceptions since we are shutting down.
+            pass
+    
         
     def __enter__(self) -> 'SpotifyClient':
         # if called via a context manager (e.g. "with" statement).
@@ -206,7 +241,11 @@ class SpotifyClient:
 
     def __exit__(self, etype, value, traceback) -> None:
         # if called via a context manager (e.g. "with" statement).
-        pass
+        try:
+            self.StopSpotifyConnectDirectoryTask()
+        except:
+            # ignore exceptions since we are shutting down.
+            pass
     
 
     def __getitem__(self, key:str):
@@ -311,6 +350,15 @@ class SpotifyClient:
 
 
     @property
+    def SpotifyConnectDirectoryEnabled(self) -> bool:
+        """ 
+        Returns true if the Spotify Connect Directory is active and tracking Zeroconf
+        Spotify Connect devices; otherwise, false.
+        """
+        return self._SpotifyConnectDirectoryEnabled
+    
+
+    @property
     def Manager(self) -> PoolManager:
         """ 
         The request PoolManager object to use for http requests to the Spotify Web API.
@@ -319,6 +367,15 @@ class SpotifyClient:
             The `Manager` property value.
         """
         return self._Manager
+    
+
+    @property
+    def SpotifyConnectDirectory(self) -> SpotifyConnectDirectoryTask:
+        """ 
+        Spotify Connect Directory task is used to discover Spotify Connect devices, as well
+        as maintain the active device list.
+        """
+        return self._SpotifyConnectDirectory
     
 
     @property
@@ -401,13 +458,14 @@ class SpotifyClient:
         return self._ZeroconfClient
     
 
-    def _CheckForNextPageWithOffset(self, 
-                                    pageObj:PageObject,
-                                    resultItemsCount,
-                                    limit:int,
-                                    limitTotal:int,
-                                    urlParms:dict,
-                                    ) -> bool:
+    def _CheckForNextPageWithOffset(
+        self, 
+        pageObj:PageObject,
+        resultItemsCount,
+        limit:int,
+        limitTotal:int,
+        urlParms:dict,
+        ) -> bool:
         """
         Modifies paging object and urlParms to point to the next page of data using
         an offset value, if one can be accessed.
@@ -446,13 +504,14 @@ class SpotifyClient:
         return True
     
 
-    def _CheckForNextPageWithCursor(self, 
-                                    pageObj:PageObject,
-                                    resultItemsCount,
-                                    limit:int,
-                                    limitTotal:int,
-                                    urlParms:dict,
-                                    ) -> bool:
+    def _CheckForNextPageWithCursor(
+        self, 
+        pageObj:PageObject,
+        resultItemsCount,
+        limit:int,
+        limitTotal:int,
+        urlParms:dict,
+        ) -> bool:
         """
         Modifies paging object and urlParms to point to the next page of data using
         a cursor value, if one can be accessed.
@@ -491,7 +550,11 @@ class SpotifyClient:
         return True
     
 
-    def _CheckResponseForErrors(self, msg:SpotifyApiMessage, response:HTTPResponse) -> None:
+    def _CheckResponseForErrors(
+        self, 
+        msg:SpotifyApiMessage, 
+        response:HTTPResponse
+        ) -> None:
         """
         Checks the Spotify Web API response for errors.  
         
@@ -668,9 +731,183 @@ class SpotifyClient:
         msg.ResponseData = responseData
 
 
-    def _ValidateMarket(self, 
-                        market:str,
-                        ) -> str:
+    def _ResolveDeviceObject(
+        self,
+        device:str | SpotifyConnectDevice
+        ) -> SpotifyConnectDevice:
+        """
+        Resolves a SpotifyConnectDevice object from a device identifier, name, or 
+        SpotifyConnectDevice object argument value.  An exception will be raised
+        if the `device` argument could not be resolved or activated.
+
+        Args:
+            device (str|SpotifyConnectDevice):
+                A device identifier, name, or a SpotifyConnectDevice object.
+
+        Returns:
+            A SpotifyConnectDevice object for the specified device.
+
+        Raises:
+            SpotifyApiError: 
+                If `device` could not be resolved to a valid device instance.
+                If `device` was resolved, but could not be activated.
+                If the method fails for any other reason.
+
+        A device is already considered resolved if a SpotifyConnectDevice object
+        is passed for the `device` argument.
+        """
+        scDevice:SpotifyConnectDevice = None
+
+        # has deviceId been resolved?
+        if (isinstance(device, SpotifyConnectDevice)):
+
+            # yes - just return the device object.
+            scDevice = device
+
+        else:
+
+            # no - ensure the specified device id / name is active and available,
+            # and return the SpotifyConnectDevice object.
+            # an exception will be thrown if the device id could not be activated.
+            scDevice = self.GetSpotifyConnectDevice(
+                device, 
+                refreshDeviceList=True, 
+                activateDevice=True)
+
+        return scDevice
+
+
+    def _RestartSpotifyConnectDirectoryTask(self) -> None:
+        """
+        Restarts the Spotify Connect Directory task, which is used to 
+        maintain a list of Spotify Connect devices on the local network.
+        """
+        # is the task running?  if so, then stop it.
+        if (self._SpotifyConnectDirectory is not None):
+            self.StopSpotifyConnectDirectoryTask()
+
+        # start the task.
+        self._StartSpotifyConnectDirectoryTask()
+
+
+    def _StartSpotifyConnectDirectoryTask(self) -> None:
+        """
+        Starts the Spotify Connect Directory task, which is used to 
+        maintain a list of Spotify Connect devices on the local network.
+        """
+        apiMethodName:str = '_StartSpotifyConnectDirectoryTask'
+        
+        try:
+            
+            # trace.
+            _logsi.LogVerbose("SpotifyClient is initializing Spotify Connect Directory task")
+
+            # if user profile is not set, then it denotes a token has not been assigned yet!
+            # an authorization token MUST be assigned before we can start processing
+            # Spotify Connect Directory requests!
+            if (self._UserProfile is None):
+                raise SpotifyApiError("Authorization token must be set and a user profile established before starting the Spotify Connect Directory task", None, logsi=_logsi)
+
+            # loginId is required in order to activate Spotify Connect devices.
+            # if not supplied, then use the value from authorization user profile.
+            if (self._SpotifyConnectLoginId is None) or (len(self._SpotifyConnectLoginId.strip()) == 0):
+                _logsi.LogVerbose("Spotify Connect LoginId not specified on class constructor; using Spotify UserProfile ID value \"%s\"" % (self._UserProfile.Id), colorValue=SIColors.Coral)
+                self._SpotifyConnectLoginId = self._UserProfile.Id
+                #raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("spotifyConnectLoginId"), logsi=_logsi)  #TODO REMOVEME
+
+            # create new Spotify Connect Directory instance.
+            self._SpotifyConnectDirectory = SpotifyConnectDirectoryTask(self, self._ZeroconfClient, self._SpotifyConnectDiscoveryTimeout)
+            self._SpotifyConnectDirectory.daemon = True
+
+            # if user profile is a public access user, then there is no user-id associated
+            # with the account.  in this case, we will not start the Spotify Connect Directory
+            # task since the user cannot access anything related to Spotify Connect.
+            if (self._UserProfile.Id is None) or (self._UserProfile.Id == 'unknown'):
+                _logsi.LogVerbose("Spotify Connect Directory task will not be started due to public access user token", colorValue=SIColors.Coral)
+                return
+
+            # is Spotify Connect Directory task enabled?
+            if (not self._SpotifyConnectDirectoryEnabled):
+                _logsi.LogVerbose("Spotify Connect Directory task will not be started due to disabled status at initialization", colorValue=SIColors.Coral)
+                return
+
+            # is Spotify Connect Directory task Zeroconf browsers enabled?
+            if (self._SpotifyConnectDiscoveryTimeout == 0):
+                _logsi.LogVerbose("Spotify Connect Zeroconf discovery is disabled; only Spotify Web API player devices will be recognized", colorValue=SIColors.Coral)
+
+            # start the task.
+            _logsi.LogVerbose("SpotifyClient is starting Spotify Connect Directory task")
+            self._SpotifyConnectDirectory.start()
+
+            # wait for task to fully initialize; when set, this indicates that
+            # all zeroconf update threads are active and actively processing
+            # Spotify Connect devices on the local network.  
+            self._SpotifyConnectDirectory.WaitForInitComplete.wait()
+
+            # trace.
+            _logsi.LogVerbose("Spotify Connect Directory task was started and initialized successfully")
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+
+    def StopSpotifyConnectDirectoryTask(
+        self,
+        timeout:float=3.0,
+        ) -> None:
+        """
+        Stops the Spotify Connect Directory task.
+
+        Args:
+            timeout (float):
+                Time to wait (in seconds) for the task to stop.
+        """
+        apiMethodName:str = 'StopSpotifyConnectDirectoryTask'
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Stopping Spotify Connect Directory task", apiMethodParms)
+
+            # ensure the object exists.
+            if (self._SpotifyConnectDirectory is not None):
+
+                # is the task alive?
+                if (self._SpotifyConnectDirectory.is_alive()):
+
+                    # yes - inform task we want it to stop.
+                    self._SpotifyConnectDirectory.IsStopRequested = True
+
+                    # wait for task to stop.
+                    _logsi.LogVerbose("Waiting for Spotify Connect Directory task to stop")
+                    self._SpotifyConnectDirectory.join(timeout)
+
+            # trace.
+            _logsi.LogVerbose("Spotify Connect Directory task was stopped")
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+
+            # release resources.
+            self._SpotifyConnectDirectory = None
+
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def _ValidateMarket(
+        self, 
+        market:str,
+        ) -> str:
         """
         Validates that a market (aka country code) value has either been supplied, or exists
         in the UserProfile.Country value and returns a value of 'US' if not supplied; otherwise,
@@ -697,7 +934,11 @@ class SpotifyClient:
         return SPOTIFY_DEFAULT_MARKET
 
 
-    def MakeRequest(self, method:str, msg:SpotifyApiMessage) -> int:
+    def MakeRequest(
+        self, 
+        method:str, 
+        msg:SpotifyApiMessage
+        ) -> int:
         """
         Performs a generic Spotify Web API request.
         
@@ -878,95 +1119,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def AddPlayerQueueItem(self, 
-                           uri:str,
-                           deviceId:str=None
-                           ) -> None:
-        """
-        DEPRECATED - use `AddPlayerQueueItems` method instead.
-        
-        Add an item to the end of the user's current playback queue. 
-        
-        This method requires the `user-modify-playback-state` scope.
-
-        Args:
-            uri (str):
-                The uri of the item to add to the queue; must be a track or an episode uri.  
-                Example: `spotify:track:4iV5W9uYEdYUVa79Axb7Rh`
-            deviceId (str):
-                The id or name of the device this command is targeting.  
-                If not supplied, the user's currently active device is the target.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
-                Example: `Web Player (Chrome)`  
-                
-        Raises:
-            SpotifyWebApiError: 
-                If the Spotify Web API request was for a non-authorization service 
-                and the response contains error information.
-            SpotifApiError: 
-                If the method fails for any other reason.
-
-        This API only works for users who have Spotify Premium. 
-        
-        The order of execution is not guaranteed when you use this API with other Player API endpoints.
-        """
-        apiMethodName:str = 'AddPlayerQueueItem'
-        apiMethodParms:SIMethodParmListContext = None
-        
-        try:
-            
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("uri", uri)
-            apiMethodParms.AppendKeyValue("deviceId", deviceId)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Add item to playback queue", apiMethodParms)
-                
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'uri': uri
-            }
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
-
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('POST', msg)
-            
-            # process results.
-            # no results to process - this is pass or fail.
-            return
-
-        except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-
     def AddPlayerQueueItems(
-            self, 
-            uris:str,
-            deviceId:str=None,
-            verifyDeviceId:bool=True,
-            delay:float=0.15,
-            ) -> None:
+        self, 
+        uris:str,
+        deviceId:str=None,
+        verifyDeviceId:bool=True,
+        delay:float=0.15,
+        ) -> None:
         """
         Add one or more items to the end of the user's current playback queue. 
         
@@ -999,7 +1158,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -1044,14 +1203,8 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
                 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if verifyDeviceId:    
-                if deviceId is None:
-                    deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            if verifyDeviceId:    
-                deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
                 
             # process all uri's.
             for idx in range(0, len(arrUris)):
@@ -1061,8 +1214,7 @@ class SpotifyClient:
                 {
                     'uri': arrUris[idx]
                 }
-                if deviceId is not None:
-                    urlParms['device_id'] = deviceId
+                urlParms['device_id'] = scDevice.Id
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
@@ -1094,10 +1246,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def AddPlaylistCoverImage(self, 
-                              playlistId:str, 
-                              imagePath:str
-                              ) -> None:
+    def AddPlaylistCoverImage(
+        self, 
+        playlistId:str, 
+        imagePath:str
+        ) -> None:
         """
         Replace the image used to represent a specific playlist.
         
@@ -1116,7 +1269,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1180,11 +1333,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def AddPlaylistItems(self, 
-                         playlistId:str, 
-                         uris:str=None,
-                         position:int=None,
-                         ) -> str:
+    def AddPlaylistItems(
+        self, 
+        playlistId:str, 
+        uris:str=None,
+        position:int=None,
+        ) -> str:
         """
         Add one or more items to a user's playlist.
         
@@ -1214,7 +1368,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1284,14 +1438,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def ChangePlaylistDetails(self, 
-                              playlistId:str, 
-                              name:str=None,
-                              description:str=None,
-                              public:bool=None,
-                              collaborative:bool=None,
-                              imagePath:str=None
-                              ) -> None:
+    def ChangePlaylistDetails(
+        self, 
+        playlistId:str, 
+        name:str=None,
+        description:str=None,
+        public:bool=None,
+        collaborative:bool=None,
+        imagePath:str=None
+        ) -> None:
         """
         Change a playlist's details (name, description, and public / private state).  
         
@@ -1326,7 +1481,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Setting the `public` argument to true will publish the playlist on the user's profile,
@@ -1413,9 +1568,9 @@ class SpotifyClient:
 
 
     def CheckAlbumFavorites(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check if one or more albums is already saved in the current Spotify user's 
         'Your Library'.
@@ -1437,7 +1592,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1508,9 +1663,9 @@ class SpotifyClient:
 
 
     def CheckArtistsFollowing(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check to see if the current user is following one or more artists.
         
@@ -1531,7 +1686,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1607,9 +1762,9 @@ class SpotifyClient:
 
 
     def CheckAudiobookFavorites(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check if one or more audiobooks is already saved in the current Spotify user's 
         'Your Library'.
@@ -1631,7 +1786,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1702,9 +1857,9 @@ class SpotifyClient:
 
 
     def CheckEpisodeFavorites(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check if one or more episodes is already saved in the current Spotify user's 
         'Your Library'.
@@ -1726,7 +1881,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1797,10 +1952,10 @@ class SpotifyClient:
 
 
     def CheckPlaylistFollowers(
-            self, 
-            playlistId:str,
-            userIds:str=None,
-            ) -> dict:
+        self, 
+        playlistId:str,
+        userIds:str=None,
+        ) -> dict:
         """
         Check to see if the current user is following a specified playlist.
         
@@ -1822,7 +1977,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         As of (at least) 2024/10/07, Spotify has deprecated the userId's argument; 
@@ -1895,9 +2050,9 @@ class SpotifyClient:
 
 
     def CheckShowFavorites(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check if one or more shows is already saved in the current Spotify user's 
         'Your Library'.
@@ -1919,7 +2074,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -1990,9 +2145,9 @@ class SpotifyClient:
 
 
     def CheckTrackFavorites(
-            self, 
-            ids:str=None,
-            ) -> dict:
+        self, 
+        ids:str=None,
+        ) -> dict:
         """
         Check if one or more tracks is already saved in the current Spotify user's 
         'Your Library'.
@@ -2014,7 +2169,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2084,9 +2239,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CheckUsersFollowing(self, 
-                            ids:str,
-                            ) -> dict:
+    def CheckUsersFollowing(
+        self, 
+        ids:str,
+        ) -> dict:
         """
         Check to see if the current user is following one or more users.
         
@@ -2106,7 +2262,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2199,9 +2355,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def ClearPlaylistItems(self, 
-                           playlistId:str
-                           ) -> str:
+    def ClearPlaylistItems(
+        self, 
+        playlistId:str
+        ) -> str:
         """
         Removes (clears) all items from a user's playlist.
         
@@ -2220,7 +2377,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2274,14 +2431,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def CreatePlaylist(self, 
-                       userId:str, 
-                       name:str=None,
-                       description:str=None,
-                       public:bool=True,
-                       collaborative:bool=False,
-                       imagePath:str=None
-                       ) -> Playlist:
+    def CreatePlaylist(
+        self, 
+        userId:str, 
+        name:str=None,
+        description:str=None,
+        public:bool=True,
+        collaborative:bool=False,
+        imagePath:str=None
+        ) -> Playlist:
         """
         Create an empty playlist for a Spotify user.  
         
@@ -2335,7 +2493,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2419,9 +2577,9 @@ class SpotifyClient:
 
 
     def FollowArtists(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Add the current user as a follower of one or more artists.
 
@@ -2438,7 +2596,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No exception is raised if an artist is already followed.
@@ -2505,10 +2663,10 @@ class SpotifyClient:
 
 
     def FollowPlaylist(
-            self, 
-            playlistId:str=None,
-            public:bool=True
-            ) -> None:
+        self, 
+        playlistId:str=None,
+        public:bool=True
+        ) -> None:
         """
         Add the current user as a follower of a playlist.
 
@@ -2528,7 +2686,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         <details>
@@ -2590,9 +2748,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def FollowUsers(self, 
-                    ids:str,
-                    ) -> None:
+    def FollowUsers(
+        self, 
+        ids:str,
+        ) -> None:
         """
         Add the current user as a follower of one or more users.
 
@@ -2608,7 +2767,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No exception is raised if a user is already followed.
@@ -2667,10 +2826,10 @@ class SpotifyClient:
 
 
     def GetAlbum(
-            self, 
-            albumId:str=None, 
-            market:str=None,
-            ) -> Album:
+        self, 
+        albumId:str=None, 
+        market:str=None,
+        ) -> Album:
         """
         Get Spotify catalog information for a single album.
         
@@ -2696,7 +2855,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2766,13 +2925,13 @@ class SpotifyClient:
 
 
     def GetAlbumFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> AlbumPageSaved:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> AlbumPageSaved:
         """
         Get a list of the albums saved in the current Spotify user's 'Your Library'.
         
@@ -2813,7 +2972,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -2941,13 +3100,13 @@ class SpotifyClient:
 
 
     def GetAlbumNewReleases(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            country:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> AlbumPageSimplified:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        country:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> AlbumPageSimplified:
         """
         Get a list of new album releases featured in Spotify (shown, for example, on a 
         Spotify player's "Browse" tab).
@@ -2984,7 +3143,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3106,10 +3265,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAlbums(self, 
-                  ids:str, 
-                  market:str=None,
-                  ) -> list[Album]:
+    def GetAlbums(
+        self, 
+        ids:str, 
+        market:str=None,
+        ) -> list[Album]:
         """
         Get Spotify catalog information for multiple albums.
         
@@ -3134,7 +3294,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3198,13 +3358,13 @@ class SpotifyClient:
 
 
     def GetAlbumTracks(
-            self, 
-            albumId:str=None, 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None
-            ) -> TrackPageSimplified:
+        self, 
+        albumId:str=None, 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None
+        ) -> TrackPageSimplified:
         """
         Get Spotify catalog information about an album's tracks.  
         
@@ -3245,7 +3405,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3372,9 +3532,9 @@ class SpotifyClient:
 
 
     def GetArtist(
-            self, 
-            artistId:str=None, 
-            ) -> Artist:
+        self, 
+        artistId:str=None, 
+        ) -> Artist:
         """
         Get Spotify catalog information for a single artist identified by their unique Spotify ID.
         
@@ -3392,7 +3552,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3452,15 +3612,15 @@ class SpotifyClient:
 
 
     def GetArtistAlbums(
-            self, 
-            artistId:str=None, 
-            include_groups:str='album', 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> AlbumPageSimplified:
+        self, 
+        artistId:str=None, 
+        include_groups:str='album', 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> AlbumPageSimplified:
         """
         Get Spotify catalog information about an artist's albums.
         
@@ -3508,7 +3668,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3643,9 +3803,9 @@ class SpotifyClient:
         
 
     def GetArtistInfo(
-            self, 
-            artistId:str=None, 
-            ) -> ArtistInfo:
+        self, 
+        artistId:str=None, 
+        ) -> ArtistInfo:
         """
         Get artist about information from the Spotify Artist Biography page for the
         specified Spotify artist ID.
@@ -3664,7 +3824,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -3949,10 +4109,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def _GetArtistInfoAboutLink(self, 
-                                doc:Element,
-                                linkTitle:str, 
-                                ) -> str:
+    def _GetArtistInfoAboutLink(
+        self, 
+        doc:Element,
+        linkTitle:str, 
+        ) -> str:
         """
         Searches artist about page for the specified link title and returns the HREF 
         attribute value if found; otherwise, null is returned.
@@ -3977,10 +4138,10 @@ class SpotifyClient:
                 
 
     def GetArtistRelatedArtists(
-            self, 
-            artistId:str=None, 
-            sortResult:bool=True,
-            ) -> list[Artist]:
+        self, 
+        artistId:str=None, 
+        sortResult:bool=True,
+        ) -> list[Artist]:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -4010,7 +4171,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4081,9 +4242,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetArtists(self, 
-                   ids:list[str], 
-                   ) -> list[Artist]:
+    def GetArtists(
+        self, 
+        ids:list[str], 
+        ) -> list[Artist]:
         """
         Get Spotify catalog information for several artists based on their Spotify IDs.
         
@@ -4100,7 +4262,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4158,12 +4320,12 @@ class SpotifyClient:
 
 
     def GetArtistsFollowed(
-            self, 
-            after:str=None,
-            limit:int=20, 
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> ArtistPage:
+        self, 
+        after:str=None,
+        limit:int=20, 
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> ArtistPage:
         """
         Get the current user's followed artists.
         
@@ -4194,7 +4356,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4321,11 +4483,11 @@ class SpotifyClient:
 
 
     def GetArtistTopTracks(
-            self, 
-            artistId:str=None, 
-            market:str=None, 
-            sortResult:bool=True,
-            ) -> list[Track]:
+        self, 
+        artistId:str=None, 
+        market:str=None, 
+        sortResult:bool=True,
+        ) -> list[Track]:
         """
         Get Spotify catalog information about an artist's top tracks by country.
         
@@ -4355,7 +4517,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4434,10 +4596,10 @@ class SpotifyClient:
 
 
     def GetAudiobook(
-            self, 
-            audiobookId:str=None, 
-            market:str=None,
-            ) -> Audiobook:
+        self, 
+        audiobookId:str=None, 
+        market:str=None,
+        ) -> Audiobook:
         """
         Get Spotify catalog information for a single audiobook.  
         
@@ -4465,7 +4627,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -4540,13 +4702,13 @@ class SpotifyClient:
 
 
     def GetAudiobookChapters(
-            self, 
-            audiobookId:str=None, 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None
-            ) -> ChapterPageSimplified:
+        self, 
+        audiobookId:str=None, 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None
+        ) -> ChapterPageSimplified:
         """
         Get Spotify catalog information about an audiobook's chapters.
         
@@ -4587,7 +4749,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4714,12 +4876,12 @@ class SpotifyClient:
 
 
     def GetAudiobookFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> AudiobookPageSimplified:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> AudiobookPageSimplified:
         """
         Get a list of the audiobooks saved in the current Spotify user's 'Your Library'.
         
@@ -4752,7 +4914,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -4869,10 +5031,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetAudiobooks(self, 
-                      ids:str, 
-                      market:str=None,
-                      ) -> list[AudiobookSimplified]:
+    def GetAudiobooks(
+        self, 
+        ids:str, 
+        market:str=None,
+        ) -> list[AudiobookSimplified]:
         """
         Get Spotify catalog information for several audiobooks based on their Spotify IDs.
         
@@ -4897,7 +5060,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -4965,12 +5128,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetBrowseCategory(self, 
-                          categoryId:str, 
-                          country:str=None, 
-                          locale:str=None,
-                          refresh:bool=True,
-                          ) -> Playlist:
+    def GetBrowseCategory(
+        self, 
+        categoryId:str, 
+        country:str=None, 
+        locale:str=None,
+        refresh:bool=True,
+        ) -> Playlist:
         """
         Get a single category used to tag items in Spotify.
         
@@ -5007,7 +5171,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -5089,14 +5253,14 @@ class SpotifyClient:
 
 
     def GetBrowseCategorys(
-            self, 
-            limit:int=20,
-            offset:int=0,
-            country:str=None,
-            locale:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> CategoryPage:
+        self, 
+        limit:int=20,
+        offset:int=0,
+        country:str=None,
+        locale:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> CategoryPage:
         """
         Get categories used to tag items in Spotify.
         
@@ -5142,7 +5306,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -5267,11 +5431,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetBrowseCategorysList(self, 
-                               country:str=None,
-                               locale:str=None,
-                               refresh:bool=True,
-                               ) -> list[Category]:
+    def GetBrowseCategorysList(
+        self, 
+        country:str=None,
+        locale:str=None,
+        refresh:bool=True,
+        ) -> list[Category]:
         """
         Get a sorted list of ALL categories used to tag items in Spotify.
         
@@ -5302,7 +5467,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -5372,14 +5537,14 @@ class SpotifyClient:
 
 
     def GetCategoryPlaylists(
-            self, 
-            categoryId:str,
-            limit:int=20, 
-            offset:int=0,
-            country:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> Tuple[PlaylistPageSimplified, str]:
+        self, 
+        categoryId:str,
+        limit:int=20, 
+        offset:int=0,
+        country:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> Tuple[PlaylistPageSimplified, str]:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -5427,7 +5592,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         The following are special undocumented category ID's that I have found:  
@@ -5568,11 +5733,11 @@ class SpotifyClient:
 
 
     def GetChapter(
-            self, 
-            chapterId:str=None, 
-            market:str=None,
-            ignoreResponseErrors:bool=False,
-            ) -> Chapter:
+        self, 
+        chapterId:str=None, 
+        market:str=None,
+        ignoreResponseErrors:bool=False,
+        ) -> Chapter:
         """
         Get Spotify catalog information for a single audiobook chapter identified by its unique Spotify ID.
         
@@ -5603,7 +5768,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -5679,10 +5844,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetChapters(self, 
-                    ids:str, 
-                    market:str=None,
-                    ) -> list[Chapter]:
+    def GetChapters(
+        self, 
+        ids:str, 
+        market:str=None,
+        ) -> list[Chapter]:
         """
         Get Spotify catalog information for several chapters based on their Spotify IDs.
         
@@ -5707,7 +5873,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -5911,10 +6077,10 @@ class SpotifyClient:
    
 
     def GetEpisode(
-            self, 
-            episodeId:str=None, 
-            market:str=None,
-            ) -> Episode:
+        self, 
+        episodeId:str=None, 
+        market:str=None,
+        ) -> Episode:
         """
         Get Spotify catalog information for a single episode identified by its unique Spotify ID.
         
@@ -5942,7 +6108,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -6013,12 +6179,12 @@ class SpotifyClient:
 
 
     def GetEpisodeFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> EpisodePageSaved:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> EpisodePageSaved:
         """
         Get a list of the episodes saved in the current Spotify user's 'Your Library'.
         
@@ -6051,7 +6217,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -6172,10 +6338,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetEpisodes(self, 
-                    ids:str, 
-                    market:str=None,
-                    ) -> list[Episode]:
+    def GetEpisodes(
+        self, 
+        ids:str, 
+        market:str=None,
+        ) -> list[Episode]:
         """
         Get Spotify catalog information for several episodes based on their Spotify IDs.
         
@@ -6200,7 +6367,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -6269,15 +6436,15 @@ class SpotifyClient:
 
 
     def GetFeaturedPlaylists(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            country:str=None,
-            locale:str=None,
-            timestamp:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> Tuple[PlaylistPageSimplified, str]:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        country:str=None,
+        locale:str=None,
+        timestamp:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> Tuple[PlaylistPageSimplified, str]:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -6340,7 +6507,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -6473,9 +6640,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetGenres(self,
-                  refresh:bool=True
-                  ) -> list[str]:
+    def GetGenres(
+        self,
+        refresh:bool=True
+        ) -> list[str]:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -6498,7 +6666,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -6569,8 +6737,9 @@ class SpotifyClient:
 
 
     @staticmethod
-    def GetIdFromUri(uri:str, 
-                     ) -> str:
+    def GetIdFromUri(
+        uri:str, 
+        ) -> str:
         """
         Get the id portion from a Spotify uri value.
         
@@ -6606,9 +6775,10 @@ class SpotifyClient:
             return None
 
 
-    def GetMarkets(self, 
-                   refresh:bool=True
-                   ) -> list[str]:
+    def GetMarkets(
+        self, 
+        refresh:bool=True
+        ) -> list[str]:
         """
         Get the list of markets (country codes) where Spotify is available.
 
@@ -6624,7 +6794,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -6691,61 +6861,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def VerifyPlayerActiveDeviceId(self) -> str:
-        """
-        Verifies that there is an active Spotify player device id, and returns the `DefaultDeviceId` 
-        value if there is not; otherwise, a null is returned to indicate that the currently active
-        Spotify player will be used.
-
-        Note that if there is no active player and there was no `DefaultDeviceId` defined, then 
-        subsequent calls to the Spotify Web API player endpoints will probably fail with a 
-        "No Active Device" exception.
-    
-        Returns:
-            A device id or null value.
-        """
-        apiMethodName:str = 'VerifyPlayerActiveDeviceId'
-        
-        try:
-            
-            # trace.
-            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
-            _logsi.LogVerbose("Verifying active Spotify player device id")
-
-            # get current playback state.
-            playState:PlayerPlayState = self.GetPlayerPlaybackState()
-        
-            # is there an active device?
-            if (playState.Device.Id is None):
-            
-                # no - use the `DefaultDeviceId` property value so the Spotify Web API can 
-                # re-activate it prior to playing.
-                if self._DefaultDeviceId is not None:
-                    _logsi.LogVerbose("Active Spotify player device was not found - using DefaultDeviceId value: '%s'" % self._DefaultDeviceId)
-                    return self._DefaultDeviceId
-                
-            # otherwise return null, which will use the active Spotify player device for 
-            # subsequent calls to the Spotify Web API player endpoints.
-            return None
-    
-        except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-
-    def GetPlayerDevice(self, 
-                        deviceId:str, 
-                        refresh:bool=True
-                        ) -> Device:
+    def GetPlayerDevice(
+        self, 
+        deviceId:str, 
+        refresh:bool=True
+        ) -> Device:
         """
         Get information about a user's available Spotify Connect player device. 
         
@@ -6766,7 +6886,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -6805,16 +6925,18 @@ class SpotifyClient:
             # loop through the results looking for the specified device id.
             item:Device
             for item in devices:
-                if deviceId == item.Id.lower():
-                    result = item
-                    break
+                if item.Id is not None:
+                    if deviceId == item.Id.lower():
+                        result = item
+                        break
                 
             # if no match by id, then try to match by device name.
             if result is None:
                 for item in devices:
-                    if deviceId == item.Name.lower():
-                        result = item
-                        break
+                    if item.Name is not None:
+                        if deviceId == item.Name.lower():
+                            result = item
+                            break
                 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'Device'), result, excludeNonPublic=True)
@@ -6834,238 +6956,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerActivateDevices(
-            self, 
-            verifyUserContext:bool=False,
-            delay:float=0.25
-            ) -> str:
-        """
-        Activates all static Spotify Connect player devices, and (optionally) switches the active user
-        context to the current user context.
-        
-        Args:
-            verifyUserContext (bool):
-                If True, the active user context of the resolved device is checked to ensure it
-                matches the user context specified on the class constructor.
-                If False, the user context will not be checked.
-                Default is False.
-            delay (float):
-                Time delay (in seconds) to wait AFTER issuing the final Connect command (if necessary).
-                This delay will give the spotify web api time to process the device list change before 
-                another command is issued.  
-                Default is 0.25; value range is 0 - 10.
-                
-        Returns:
-            A string that contains status text.
-                
-        Raises:
-            SpotifyWebApiError: 
-                If the Spotify Web API request was for a non-authorization service 
-                and the response contains error information.
-            SpotifyZeroconfApiError:
-                If any Spotify Zeroconf API request failed.  
-            SpotifApiError: 
-                If the `spotifyConnectLoginId` argument was not specified for the class contructor.  
-                If the `spotifyConnectUsername` argument was not specified for the class contructor.  
-                If the `spotifyConnectPassword` argument was not specified for the class contructor.  
-                If the method fails for any other reason.
-
-        A Zeroconf discovery process is initiated to search for all Spotify Connect devices connected 
-        to the local network.  It will then iterate through the returned devices and perform the 
-        following on each one:  
-        - call Spotify Zeroconf API `getInfo` endpoint to retrieve device information.  
-        - call Spotify Zeroconf API `resetUsers` endpoint to disconnect the device.  This step is omitted 
-        for dynamic devices (see note below).  Note that this will force any users that are connected to 
-        the device off of the device.  
-        - call Spotify Zeroconf API `addUser` endpoint to connect the device.  This step is omitted for 
-        dynamic devices (see note below).  This should "re-awaken" the device if necessary, and make it 
-        ready for immediate use.  
-
-        Dynamic Spotify Connect devices are not processed by this method, as they are temporary devices and 
-        are already active and in the device list.  These devices are not found in Zeroconf discovery process, 
-        and only exist in the player device list.  These are usually Spotify Connect web or mobile players 
-        with temporary device id's.  
-
-        Note that the SpotifyConnectUsername, SpotifyConnectPassword, and SpotifyConnectLoginId arguments must 
-        be specified on the class contructor in order to use this method.  They are all required in order to 
-        reactivate a Spotify Connect device.
-                
-        <details>
-          <summary>Sample Code</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerActivateDevices.py
-        ```
-        </details>
-        """
-        apiMethodName:str = 'PlayerActivateDevices'
-        apiMethodParms:SIMethodParmListContext = None
-        result:str = ""
-
-        MSG_RESULT:str = '- Device Name="%s", ID="%s", ActiveUser="%s", Status=%s'
-
-        try:
-            
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("verifyUserContext (deprecated)", verifyUserContext)
-            apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Activating Spotify Connect Player Devices", apiMethodParms)
-
-            # validations.
-            delay = validateDelay(delay, 0.25, 10)
-            if (not isinstance(verifyUserContext, bool)):
-                verifyUserContext = False
-
-            deviceActiveUser:str = None
-            deviceIdResult:str = None
-            discoverResult:ZeroconfDiscoveryResult
-            info:ZeroconfGetInfo
-            scDevice:SpotifyConnectDevice
-            
-            # get all Spotify Connect available devices on the network.
-            scDevices:SpotifyConnectDevices = self.GetSpotifyConnectDevices()
-
-            # process all discovered devices.
-            for scDevice in scDevices:
-                
-                discoverResult = scDevice.DiscoveryResult
-                info = scDevice.DeviceInfo
-
-                # store the currently active user of the device, in case we need to switch users later on.
-                deviceActiveUser = info.ActiveUser.lower()
-                deviceIdResult = info.DeviceId
-
-                status:str = "INACTIVE, "
-                if (info.HasActiveUser):
-                    status = "ACTIVE, "
-                
-                # did we resolve the device id?
-                if deviceIdResult is not None:
-    
-                    # reset device reconnected flag.
-                    scDevice.WasReConnected = False
-
-                    # is this a dynamic device?  if so, then there is no need to activate it as it's already active.
-                    if (discoverResult.IsDynamicDevice):
-                        
-                        _logsi.LogVerbose("Activation not required for dynamic Spotify Connect device: '%s'" % (scDevice.Title))
-                        status = status + "dynamic device, cannot switch user context; "
-                    
-                    else:
-                        
-                        zcfResult:ZeroconfResponse
-
-                        # create a ZeroconfConnect object to access the device.
-                        # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
-                        # the "Server" property is an alias, which must be resolved via a DNS lookup under
-                        # the covers and adds a significant delay (2-3 seconds!) to the activation time.
-                        zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                                discoverResult.HostIpPort, 
-                                                                discoverResult.SpotifyConnectCPath,
-                                                                useSSL=False,
-                                                                tokenStorageDir=self.TokenStorageDir,
-                                                                tokenStorageFile=self.TokenStorageFile)
-                    
-                        # disconnect the device.
-                        # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
-                        # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
-                        # generate a 404 request response.
-                        if (info.BrandDisplayName != 'librespot'):
-
-                            _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (scDevice.Title, deviceActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
-                            zcfResult = zconn.Disconnect(delay)
-                            status = status + 'disconnected from user context "%s"; ' % deviceActiveUser
-
-                            # delay just a little to give the device time to process the disconnect.
-                            # some devices only support a single connection on the spotify connect 
-                            # zeroconf webserver, so we have to give it a little time to process the 
-                            # disconnect command before we try to call the Connect method.
-                            _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
-                            time.sleep(DELAY_DISCONNECT)
-
-                            # some manufactureres will reset the device host ip port after a disconnect (e.g. "Denon", etc).
-                            # due to this, we must issue a call to zeroconf to re-discover the device,
-                            # and update the device results with the updated discovery details.
-
-                            # re-discover Spotify Connect devices on the network.
-                            _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
-                            rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-                            rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
-
-                            # trace.
-                            _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
-
-                            # process all rediscovered devices, and update selected device.
-                            rediscoverResult:ZeroconfDiscoveryResult
-                            for rediscoverResult in rediscovery.DiscoveryResults:
-
-                                # add / update selected device discovery results by serviceinfo key value. 
-                                if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
-
-                                    # save old discovery result id so we can log it later.
-                                    oldDiscoveryResultId:str = discoverResult.Id
-
-                                    # update selected device discovery result.
-                                    _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
-                                    _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
-                                    scDevice.DiscoveryResult = rediscoverResult
-                                    discoverResult = rediscoverResult
-
-                                    # did the host ip address or port change?
-                                    # if so, then we need to recreate the ZeroconfConnect instance
-                                    # in order to access the updated ip address and port.
-                                    if (discoverResult.HostIpAddress != zconn.HostIpAddress) \
-                                    or (discoverResult.HostIpPort != zconn.HostIpPort):
-
-                                        _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discoverResult.Id, oldDiscoveryResultId))
-                                        zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                                discoverResult.HostIpPort, 
-                                                                discoverResult.SpotifyConnectCPath,
-                                                                useSSL=False,
-                                                                tokenStorageDir=self.TokenStorageDir,
-                                                                tokenStorageFile=self.TokenStorageFile)
-                                    break
-
-                        else:
-
-                            status = status + 'disconnect bypassed for librespot device; '
-
-                        # connect the device to OUR Spotify Connect user context.
-                        # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                        _logsi.LogVerbose("Issuing Connect to Spotify Connect device \"%s\" for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
-                        zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId, delay=delay)
-                        status = status + 'connected to user context "%s"; ' % self._SpotifyConnectLoginId
-                        
-                        # indicate device was reconnected.
-                        scDevice.WasReConnected = True
-
-                        # trace.
-                        _logsi.LogVerbose("User context switched from '%s' to '%s' for Spotify Connect device '%s'" % (deviceActiveUser, self._SpotifyConnectLoginId, scDevice.Title))
-
-                # append device status to results.
-                result = "%s%s\n" % (result, MSG_RESULT % (info.RemoteName, info.DeviceId, info.ActiveUser, status))
-
-            # return results.
-            _logsi.LogText(SILevel.Verbose, "Spotify Connect Player Device activation results", result)    
-            return result
-
-        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
-        except SpotifyApiError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-
-    def PlayerConvertDeviceNameToId(self, 
-                                    value:str, 
-                                    refresh:bool=False
-                                    ) -> str:
+    def PlayerConvertDeviceNameToId(
+        self, 
+        value:str, 
+        refresh:bool=False
+        ) -> str:
         """
         Converts a Spotify Connect player device name to it's equivalent id value if
         the value is a device name.  If the value is a device id, then the value is 
@@ -7093,7 +6988,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The id for the first match found on the device name will be returned if multiple devices 
@@ -7127,40 +7022,20 @@ class SpotifyClient:
             # validations.
             if (refresh is None):
                 refresh = False
-                
-            # if nothing specified then just use it as-is.
-            if (value is None) or (len(value.strip()) == 0):
-                _logsi.LogVerbose("Device ID not specified; active device will be used")
-                return value
 
             try:
-            
-                # is this a hex string value (e.g. device id)?
-                intValue:int = int(str(value), 16)
-            
-                # if it IS a hex string, then it should have been converted to a number.
-                # at this point we can assume it's a device id.  in this case, just return it.
-                # note that we will NOT perform a lookup in the device list.
-                _logsi.LogVerbose("Device id '%s' was specified, and will be used as-is" % value)
-                if intValue is not None:
-                    return value
-                return value
+
+                # resolve the device id from the specified device value.
+                # an exception will be raised if the device could not be resolved!
+                scDevice = self._SpotifyConnectDirectory.GetDevice(value, refreshDynamicDevices=refresh)
+                return scDevice.Id
             
             except Exception:
             
-                # the above will fail if it's a device name.
-                pass
-
-            # try resolving the device name to a device id value.
-            device:Device = self.GetPlayerDevice(value, refresh)
-            if device is not None:
-                _logsi.LogVerbose("Converted device name '%s' to device id '%s'" % (value, device.Id))
-                return device.Id
-
-            # if a name could not be found in the Spotify Connect Player devices then just 
-            # return the value as-is.
-            _logsi.LogVerbose("Device name '%s' could not be found in the Spotify Connect Device list; subsequent actions will probably fail using this device name" % value)
-            return value
+                # if a name could not be found in the Spotify Connect Player devices then just 
+                # return the value as-is.
+                _logsi.LogVerbose("Device name '%s' could not be found in the Spotify Connect Device list; subsequent actions will probably fail using this device name" % value)
+                return value
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
@@ -7177,10 +7052,10 @@ class SpotifyClient:
 
 
     def GetPlayerDevices(
-            self, 
-            refresh:bool=True,
-            sortResult:bool=True,
-            ) -> list[Device]:
+        self, 
+        refresh:bool=True,
+        sortResult:bool=True,
+        ) -> list[Device]:
         """
         Get information about a user's available Spotify Connect player devices. 
         
@@ -7204,7 +7079,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that this method will only return the devices for which the current user
@@ -7286,10 +7161,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlayerNowPlaying(self, 
-                            market:str=None, 
-                            additionalTypes:str=None
-                            ) -> PlayerPlayState:
+    def GetPlayerNowPlaying(
+        self, 
+        market:str=None, 
+        additionalTypes:str=None
+        ) -> PlayerPlayState:
         """
         Get the object currently being played on the user's Spotify account.
         
@@ -7320,7 +7196,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -7449,10 +7325,10 @@ class SpotifyClient:
     
 
     def GetPlayerNowPlayingAudiobookUri(
-            self,
-            market:str=None,
-            ignoreResponseErrors:bool=False,
-            ) -> str:
+        self,
+        market:str=None,
+        ignoreResponseErrors:bool=False,
+        ) -> str:
         """
         Returns the audiobook uri value of the currently playing media if something is
         playing; otherwise, null is returned.
@@ -7554,9 +7430,9 @@ class SpotifyClient:
     
 
     def GetPlayerNowPlayingUri(
-            self,
-            additionalTypes:str=None,
-            ) -> str:
+        self,
+        additionalTypes:str=None,
+        ) -> str:
         """
         Returns the uri value of the currently playing media type if something is
         playing; otherwise, null is returned.
@@ -7599,10 +7475,11 @@ class SpotifyClient:
         return result
     
 
-    def GetPlayerPlaybackState(self, 
-                               market:str=None, 
-                               additionalTypes:str=None
-                               ) -> PlayerPlayState:
+    def GetPlayerPlaybackState(
+        self, 
+        market:str=None, 
+        additionalTypes:str=None
+        ) -> PlayerPlayState:
         """
         Get information about the user's current playback state, including track or episode, progress, 
         and active device.
@@ -7634,7 +7511,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -7728,7 +7605,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -7774,12 +7651,13 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetPlayerRecentTracks(self, 
-                              limit:int=50,
-                              after:int=None,
-                              before:int=None,
-                              limitTotal:int=None
-                              ) -> PlayHistoryPage:
+    def GetPlayerRecentTracks(
+        self, 
+        limit:int=50,
+        after:int=None,
+        before:int=None,
+        limitTotal:int=None
+        ) -> PlayHistoryPage:
         """
         Get tracks from the current user's recently played tracks.  
         Note: Currently doesn't support podcast episodes.
@@ -7826,7 +7704,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -7961,12 +7839,12 @@ class SpotifyClient:
 
 
     def GetPlaylist(
-            self, 
-            playlistId:str=None, 
-            market:str=None,
-            fields:str=None,
-            additionalTypes:str=None
-            ) -> Playlist:
+        self, 
+        playlistId:str=None, 
+        market:str=None,
+        fields:str=None,
+        additionalTypes:str=None
+        ) -> Playlist:
         """
         Get a playlist owned by a Spotify user.
         
@@ -8011,7 +7889,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -8108,9 +7986,9 @@ class SpotifyClient:
 
 
     def GetPlaylistCoverImage(
-            self, 
-            playlistId:str=None, 
-            ) -> ImageObject:
+        self, 
+        playlistId:str=None, 
+        ) -> ImageObject:
         """
         Get the current image associated with a specific playlist.
         
@@ -8127,7 +8005,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -8187,15 +8065,15 @@ class SpotifyClient:
 
 
     def GetPlaylistItems(
-            self, 
-            playlistId:str=None, 
-            limit:int=50,
-            offset:int=0,
-            market:str=None,
-            fields:str=None,
-            additionalTypes:str=None,
-            limitTotal:int=None
-            ) -> PlaylistPage:
+        self, 
+        playlistId:str=None, 
+        limit:int=50,
+        offset:int=0,
+        market:str=None,
+        fields:str=None,
+        additionalTypes:str=None,
+        limitTotal:int=None
+        ) -> PlaylistPage:
         """
         Get full details of the items of a playlist owned by a Spotify user.
         
@@ -8256,7 +8134,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         * Notes regarding `limit_total` processing.  
@@ -8397,12 +8275,12 @@ class SpotifyClient:
 
 
     def GetPlaylistFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> PlaylistPageSimplified:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by the current Spotify user.
 
@@ -8435,7 +8313,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         As of 2024/11/27, the Spotify Web API will only return user-defined playlists in the results. It will 
@@ -8558,13 +8436,13 @@ class SpotifyClient:
 
 
     def GetPlaylistsForUser(
-            self, 
-            userId:str,
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> PlaylistPageSimplified:
+        self, 
+        userId:str,
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by a Spotify user.
         
@@ -8600,7 +8478,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -8720,10 +8598,10 @@ class SpotifyClient:
 
 
     def GetShow(
-            self, 
-            showId:str=None, 
-            market:str=None,
-            ) -> Show:
+        self, 
+        showId:str=None, 
+        market:str=None,
+        ) -> Show:
         """
         Get Spotify catalog information for a single show identified by its unique Spotify ID.
         
@@ -8749,7 +8627,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -8824,13 +8702,13 @@ class SpotifyClient:
 
 
     def GetShowEpisodes(
-            self, 
-            showId:str=None, 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None
-            ) -> EpisodePageSimplified:
+        self, 
+        showId:str=None, 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None
+        ) -> EpisodePageSimplified:
         """
         Get Spotify catalog information about a show's episodes.
         
@@ -8871,7 +8749,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -8998,13 +8876,13 @@ class SpotifyClient:
 
 
     def GetShowFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            excludeAudiobooks:bool=True,
-            ) -> ShowPageSaved:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        excludeAudiobooks:bool=True,
+        ) -> ShowPageSaved:
         """
         Get a list of the shows saved in the current Spotify user's 'Your Library'.
         
@@ -9041,7 +8919,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         For some reason, Spotify Web API returns audiobooks AND podcasts with the `/me/shows` service.
@@ -9184,10 +9062,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetShows(self, 
-                 ids:str, 
-                 market:str=None,
-                 ) -> list[ShowSimplified]:
+    def GetShows(
+        self, 
+        ids:str, 
+        market:str=None,
+        ) -> list[ShowSimplified]:
         """
         Get Spotify catalog information for several shows based on their Spotify IDs.
         
@@ -9212,7 +9091,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Important policy notes:  
@@ -9281,14 +9160,14 @@ class SpotifyClient:
 
 
     def GetSpotifyConnectDevice(
-            self, 
-            deviceValue:str, 
-            verifyUserContext:bool=True,
-            verifyTimeout:float=5.0,
-            refreshDeviceList:bool=False,
-            activateDevice:bool=True,
-            delay:float=0.25
-            ) -> Device:
+        self, 
+        deviceValue:str, 
+        verifyUserContext:bool=True,    # DEPRECATED
+        verifyTimeout:float=5.0,
+        refreshDeviceList:bool=False,
+        activateDevice:bool=True,
+        delay:float=0.25
+        ) -> Device:
         """
         Get information about a specific Spotify Connect player device, and (optionally)
         activate the device if it requires it.
@@ -9296,13 +9175,14 @@ class SpotifyClient:
         This method requires the `user-read-playback-state` scope.
         
         Resolves a Spotify Connect device from a specified device id, name, alias id,
-        or alias name.  This will ensure that the device can be found on the network, as well 
-        as connect to the device if necessary with the current user context.  
+        or alias name.  This will ensure that the device can be found on the network, and that
+        playback can be immediately transferred to the device.
         
         Args:
             deviceValue (str):
                 The device id / name value to check.
             verifyUserContext (bool):
+                DEPRECATED - no longer used, but left here to maintain compatibility.
                 If True, the active user context of the resolved device is checked to ensure it
                 matches the user context specified on the class constructor.
                 If False, the user context will not be checked.
@@ -9326,7 +9206,7 @@ class SpotifyClient:
                 Default is 0.25; value range is 0 - 10.
                 
         Returns:
-            A `SpotifyConnectDevice` object for the deviceValue if one could be resolved; 
+            A `SpotifyConnectDevice` object for the deviceValue if one could be resolved.
             otherwise, a null value with the understanding that subsequent operations will probably 
             fail since it's not in the Spotify Connect discovery list.  
                 
@@ -9336,7 +9216,8 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyZeroconfApiError:
                 If any Spotify Zeroconf API request failed.
-            SpotifApiError: 
+            SpotifyApiError: 
+                If the `deviceValue` could not be resolved to a valid device instance.
                 If the `spotifyConnectLoginId` argument was not specified for the class contructor.  
                 If the `spotifyConnectUsername` argument was not specified for the class contructor.  
                 If the `spotifyConnectPassword` argument was not specified for the class contructor.  
@@ -9344,12 +9225,10 @@ class SpotifyClient:
 
         The Spotify Connect discovery list is searched for the specified device value; the search will 
         match on either a Device ID or RemoteName as well as any alias ID's or Names that are in use.
-        The cached Spotify Connect discovery list will be used if the `refreshDeviceList` argument is
-        False, or if the cache is empty; otherwise, Spotify Connect discovery list will be refreshed
-        and the cache updated prior to the search.
+        The cached Spotify Connect Directory will be used to resolve the device object.
         
-        The `SpotifyConnectDevice` object is returned if a match is found; otherwise, a null value is 
-        returned.
+        The `SpotifyConnectDevice` object is returned if a match is found; otherwise, an exception is
+        raised to indicate an unknown device which would be returned anyway by Spotify Web API.
 
         A Spotify Connect Zeroconf Disconnect (e.g. `resetUsers`) will be issued if the `activateDevice`
         argument is True, AND the device is not a dynamic device.  This will temporarily remove the device
@@ -9365,284 +9244,235 @@ class SpotifyClient:
         """
         apiMethodName:str = 'GetSpotifyConnectDevice'
         apiMethodParms:SIMethodParmListContext = None
-        deviceResultId:str = None
-        deviceResult:SpotifyConnectDevice = None
+        scDevice:SpotifyConnectDevice = None
         
         try:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceValue", deviceValue)
-            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)
+            apiMethodParms.AppendKeyValue("verifyUserContext", verifyUserContext)   # DEPRECATED
             apiMethodParms.AppendKeyValue("verifyTimeout", verifyTimeout)
             apiMethodParms.AppendKeyValue("refreshDeviceList", refreshDeviceList)
             apiMethodParms.AppendKeyValue("activateDevice", activateDevice)
             apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Retrieving Spotify Connect Device", apiMethodParms)
-
-            # if device value not specified then we are done.
-            if (deviceValue is None) or (len(deviceValue.strip()) == 0):
-                _logsi.LogVerbose("deviceValue not specified; active Spotify Player will be used")
-                return None
-            
-            # was a Spotify Connect loginId specified on the class constructor?
-            # if not, then we cannot re-activate devices!
-            if (self._SpotifyConnectLoginId is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Connect Device object for deviceValue \"%s\"" % (deviceValue), apiMethodParms)
 
             # validations.
             delay = validateDelay(delay, 0.25, 10)
             verifyTimeout = validateDelay(verifyTimeout, 5, 10)
-            if (not isinstance(verifyUserContext, bool)):
-                verifyUserContext = True
             if (activateDevice is None):
                 activateDevice = True
             if (refreshDeviceList is None):
                 refreshDeviceList = False
 
-            # determine if the device value specified is a name (e.g. "Bose-ST10-1") or 
-            # an id (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe", "48b677ca-ef9b-516f-b702-93bf2e8c67ba").
-            isDeviceId:bool = SpotifyClient.IsDeviceId(deviceValue)
+            # resolve the device id from the specified device value.
+            # an exception will be raised if the device could not be resolved!
+            scDevice = self._SpotifyConnectDirectory.GetDevice(deviceValue, refreshDynamicDevices=True)
+            discovery:ZeroconfDiscoveryResult = scDevice.DiscoveryResult
+            info:ZeroconfGetInfo = scDevice.DeviceInfo
+            scDevice.WasReConnected = False
 
-            deviceValueCompare:str = deviceValue.lower()
-            deviceActiveUser:str = None
-            discoverResult:ZeroconfDiscoveryResult
-            info:ZeroconfGetInfo
-            scDevice:SpotifyConnectDevice
+            # is the device already active? if so, then we are done.
+            if (scDevice.IsActiveDevice):
+                _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
+                return scDevice
 
-            # get all available Spotify Connect devices on the network.
-            scDevices:SpotifyConnectDevices = self.GetSpotifyConnectDevices(refresh=refreshDeviceList)
+            # is the device in the player device list? if so, then it's already to be selected.  note that
+            # if another user is controlling the device, then it will not be in the active device list
+            # for the current user.
+            if (scDevice.IsInDeviceList):
+                _logsi.LogVerbose("Spotify Connect device %s is already in the available device list; no need to re-activate" % (scDevice.Title))
+                return scDevice
+
+            # chromecast devices always require activation if they are not the active device.
+            # note that `transferPlayback=false`, as transfer should be done after we return to caller.
+            if (scDevice.IsChromeCast):
+
+                # activate the spotify cast application on the device.
+                _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s" % (scDevice.Title))
+                self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Name, transferPlayback=False)
+                scDevice.WasReConnected = True
+
+                # re-fetch device instance, as it has updated Zeroconf Response data.
+                # do not need to refresh from Spotify Web API, as only zeroconf data was changed.
+                scDevice = self._SpotifyConnectDirectory.GetDevice(deviceValue, refreshDynamicDevices=False)
+
+                # return device to caller.
+                return scDevice
+
+            # if this is a Sonos device and there is no Spotify Client Application token then don't bother.
+            # in this case, we will exit and let the calling method switch to the Sonos device and play 
+            # using the Sonos local queue.
+            if (info.IsBrandSonos):
+                        
+                # check if the Spotify Desktop Application Client oauth2 token is defined.
+                hasToken:bool = AuthClient.HasTokenForKey(
+                    clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
+                    tokenProviderId='SpotifyWebApiAuthCodePkce',
+                    tokenProfileId=self._SpotifyConnectLoginId,
+                    tokenStorageDir=self.TokenStorageDir,
+                    tokenStorageFile=self.TokenStorageFile,
+                )
+                
+                # if no token, then just return the device and hope it works.
+                if not hasToken:
+                    _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LoginId: '%s'" % (self._SpotifyConnectLoginId))
+                    return scDevice
+
+            # at this point, we will try to activate the device.
+                    
+            # was device activation requested?  if not, then we are done.
+            if (not activateDevice):
+                _logsi.LogVerbose("Activation not requested for Spotify Connect device: %s" % (scDevice.Title))
+                return scDevice
             
-            # if we refreshed the device list, then give the device(s) a little time to disconnect so that
-            # a new connection can be established (if required).
-            if (refreshDeviceList):
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
-                time.sleep(DELAY_DISCONNECT)
+            zcfResult:ZeroconfResponse
 
-            # process all discovered devices.
-            for scDevice in scDevices:
+            # store the currently active user of the device, in case we need to switch users later on.
+            oldActiveUser:str = info.ActiveUser.lower()
                 
-                discoverResult = scDevice.DiscoveryResult
-                info = scDevice.DeviceInfo
+            # create a ZeroconfConnect object to access the device.
+            # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
+            # the "Server" property is an alias, which must be resolved via a DNS lookup under
+            # the covers and adds a significant delay (2-3 seconds!) to the activation time.
+            zconn:ZeroconfConnect = ZeroconfConnect(
+                discovery.HostIpAddress, 
+                discovery.HostIpPort, 
+                discovery.SpotifyConnectCPath,
+                useSSL=False,
+                tokenStorageDir=self.TokenStorageDir,
+                tokenStorageFile=self.TokenStorageFile)
+            
+            # what if we DON'T disconnect the device?  
+            # will `Connect` switch the user context?
 
-                # are aliases being used (RemoteName is null if so)?
-                if info.HasAliases:
-                    
-                    # if aliases are defined for the device, then we have to check each alias for a match.
-                    infoAlias:ZeroconfGetInfoAlias
-                    for infoAlias in info.Aliases:
+            # # disconnect the device.
+            # # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
+            # # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
+            # # generate a 404 request response.
+            # if (info.BrandDisplayName != 'librespot'):                       
 
-                        # if input deviceValue is a device id then compare the id; otherwise, compare the name.
-                        if isDeviceId:
-                            if (infoAlias.Id.lower() == deviceValueCompare):
-                                _logsi.LogVerbose("Device value '%s' was matched to device Alias: %s" % (deviceValue, infoAlias.Title))
-                                deviceResultId = infoAlias.Id
-                                deviceResult = scDevice
-                                break  # alias processing loop
-                        else:
-                            if (infoAlias.Name.lower() == deviceValueCompare):
-                                _logsi.LogVerbose("Device value '%s' was matched to device Alias: %s" % (deviceValue, infoAlias.Title))
-                                deviceResultId = infoAlias.Id
-                                deviceResult = scDevice
-                                break  # alias processing loop
-                
-                else:
+            #     _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (scDevice.Title, oldActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
+            #     zcfResult = zconn.Disconnect(delay)
 
-                    # if input deviceValue is a device id then compare the id; otherwise, compare the name.
-                    if isDeviceId:
-                        if (scDevice.Id.lower() == deviceValueCompare):
-                            _logsi.LogVerbose("Device value '%s' was matched to device: '%s'" % (deviceValue, scDevice.Title))
-                            deviceResultId = scDevice.Id
-                            deviceResult = scDevice
-                    else:
-                        if (scDevice.Name.lower() == deviceValueCompare):
-                            _logsi.LogVerbose("Device value '%s' was matched to device: '%s'" % (deviceValue, scDevice.Title))
-                            deviceResultId = scDevice.Id
-                            deviceResult = scDevice
-                    
-                # did we resolve the device id?
-                if deviceResult is not None:
-                    
-                    # at this point, we will try to activate the device if it requires it
-                    # of if the caller forces us to do so (e.g. `activateDevice=True`).
-                    
-                    # reset device reconnected flag.
-                    scDevice.WasReConnected = False
+            #     # delay just a little to give the device time to process the disconnect.
+            #     # some devices only support a single connection on the spotify connect 
+            #     # zeroconf webserver, so we have to give it a little time to process the 
+            #     # disconnect command before we try to call the Connect method.
+            #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
+            #     time.sleep(DELAY_DISCONNECT)
 
-                    # create a ZeroconfConnect object to access the device.
-                    # note that we are using the "HostIpAddress" property value here, with "Server" as a fallback.
-                    # the "Server" property is an alias, which must be resolved via a DNS lookup under
-                    # the covers and adds a significant delay (2-3 seconds!) to the activation time.
-                    zconn:ZeroconfConnect = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                            discoverResult.HostIpPort, 
-                                                            discoverResult.SpotifyConnectCPath,
-                                                            useSSL=False,
-                                                            tokenStorageDir=self.TokenStorageDir,
-                                                            tokenStorageFile=self.TokenStorageFile)
+            #     # some manufacturers will reset the device host ip port after a disconnect (e.g. "Denon", etc).
+            #     # due to this, the device will de-register itself via zeroconf and then re-register itself.
+            #     # we will now wait for the device to be re-discovered by zeroconf.
+            #     loopTotalDelay:float = 0
+            #     LOOP_DELAY:float = 0.25
+            #     while True:
 
-                    # if we did not refresh the device list, then query the device for real-time status; just in
-                    # case the device was disconnected after the last cache refresh.  note that we only do this
-                    # if this is NOT a dynamic device - dynamic devices cannot be queried (no zeroconf info).
-                    if not refreshDeviceList:
-                        if not discoverResult.IsDynamicDevice:
-                            _logsi.LogVerbose("Getting real-time status information for Spotify Connect device: '%s'" % (deviceResult.Title))
-                            info = zconn.GetInformation()
-                    
-                    # if this is a Sonos device and there is no Spotify Client Application token then don't bother.
-                    # in this case, we will exit and let the calling method switch to the Sonos device and play 
-                    # using the Sonos local queue.
-                    if info.IsBrandSonos:
+            #         # wait just a bit between available device list queries.
+            #         _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
+            #         time.sleep(LOOP_DELAY)
+            #         loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+            #         with self._SpotifyConnectDirectory._Zeroconf_Lock:
+
+            #         # check for the device in the available device list.
+            #         # if we find it, then we are done.
+
+            #         device:Device = self.GetPlayerDevice(deviceResultId, True)
+            #         if device is not None:
+            #             _logsi.LogVerbose("Spotify Connect device \"%s\" is now in the available device list; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+            #             break
                         
-                        # check if the Spotify Desktop Application Client oauth2 token is defined.
-                        hasToken:bool = AuthClient.HasTokenForKey(
-                            clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
-                            tokenProviderId='SpotifyWebApiAuthCodePkce',
-                            tokenProfileId=self._SpotifyConnectLoginId,
-                            tokenStorageDir=self.TokenStorageDir,
-                            tokenStorageFile=self.TokenStorageFile,
-                        )
+
+            #     # re-discover Spotify Connect devices on the network
+            #     _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
+            #     rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
+            #     rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+
+            #     # trace.
+            #     _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
+
+            #     # process all rediscovered devices, and update selected device.
+            #     rediscovery:ZeroconfDiscoveryResult
+            #     for rediscovery in rediscovery.DiscoveryResults:
+
+            #         # add / update selected device discovery results by serviceinfo key value. 
+            #         if (rediscovery.Key == scDevice.DiscoveryResult.Key):
+
+            #             # save old discovery result id so we can log it later.
+            #             oldDiscoveryResultId:str = discovery.Id
+
+            #             # update selected device discovery result.
+            #             _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscovery.Id), rediscovery, excludeNonPublic=True)
+            #             _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
+            #             scDevice.DiscoveryResult = rediscovery
+            #             discovery = rediscovery
+
+            #             # did the host ip address or port change?
+            #             # if so, then we need to recreate the ZeroconfConnect instance
+            #             # in order to access the updated ip address and port.
+            #             if (discovery.HostIpAddress != zconn.HostIpAddress) \
+            #             or (discovery.HostIpPort != zconn.HostIpPort):
+
+            #                 _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discovery.Id, oldDiscoveryResultId))
+            #                 zconn = ZeroconfConnect(discovery.HostIpAddress, 
+            #                                         discovery.HostIpPort, 
+            #                                         discovery.SpotifyConnectCPath,
+            #                                         useSSL=False,
+            #                                         tokenStorageDir=self.TokenStorageDir,
+            #                                         tokenStorageFile=self.TokenStorageFile)
+            #             break
+                    
+            # connect the device to OUR Spotify Connect user context.
+            # note that the result here only indicates that the connect was submitted - NOT that it was successful!
+            _logsi.LogVerbose("Issuing Connect to Spotify Connect device %s for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
+            zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId)
+                    
+            # indicate device was reconnected.
+            scDevice.WasReConnected = True
+                    
+            # trace.
+            _logsi.LogVerbose("User context switched from \"%s\" to \"%s\" for Spotify Connect device %s" % (oldActiveUser, self._SpotifyConnectLoginId, scDevice.Title))
+
+            loopTotalDelay:float = 0
+            LOOP_DELAY:float = 0.350
+            while True:
                         
-                        if not hasToken:
-                            _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LoginId: '%s'" % (self._SpotifyConnectLoginId))
-                            break
+                # wait just a bit between available device list queries.
+                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
+                time.sleep(LOOP_DELAY)
+                loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
-                    # store the currently active user of the device, in case we need to switch users later on.
-                    deviceActiveUser = info.ActiveUser.lower()
+                # refresh the player device list, and return the active device.
+                scActiveDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.RefreshDynamicDevices()
 
-                    # is this a dynamic device?  if so, then there is no need to activate it as it's already active.
-                    if (discoverResult.IsDynamicDevice):
-                        _logsi.LogVerbose("Activation not required for dynamic Spotify Connect device: '%s'" % (deviceResult.Title))
+                # is the device the active player device?
+                # sometimes restricted devices will not appear in the player device list (e.g. Sonos),
+                # so we need to check the active player device as well.
+                if (scActiveDevice is not None):
+                    if (scActiveDevice.Name == scDevice.Name) or (scActiveDevice.Id == scDevice.Id):
+                        _logsi.LogVerbose("Spotify Connect device %s is now the active player device; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+                        scDevice = scActiveDevice
                         break
-                    
-                    # was device activation requested?  if not, then we are done.
-                    if (not activateDevice):
-                        _logsi.LogVerbose("Activation not requested for Spotify Connect device: '%s'" % (deviceResult.Title))
-                        break
-                    
-                    # does the device need to be activated?
-                    # check for the device in the available device list.
-                    # if we find it, then there is no need to activate it and we are done.
-                    # note - if another user is controlling the device, then it will not be in the active device list
-                    # for the current user!
-                    device:Device = self.GetPlayerDevice(deviceResultId, refresh=True)
-                    if device is not None:
-                        _logsi.LogVerbose("Spotify Connect device '%s' is already in the available device list; no need to re-activate" % (deviceResult.Title))
-                        break
-                    
-                    zcfResult:ZeroconfResponse
-                                          
-                    # disconnect the device.
-                    # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
-                    # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
-                    # generate a 404 request response.
-                    if (info.BrandDisplayName != 'librespot'):                       
 
-                        _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (deviceResult.Title, deviceActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
-                        zcfResult = zconn.Disconnect(delay)
-
-                        # delay just a little to give the device time to process the disconnect.
-                        # some devices only support a single connection on the spotify connect 
-                        # zeroconf webserver, so we have to give it a little time to process the 
-                        # disconnect command before we try to call the Connect method.
-                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
-                        time.sleep(DELAY_DISCONNECT)
-
-                        # some manufactureres will reset the device host ip port after a disconnect (e.g. "Denon", etc).
-                        # due to this, we must issue a call to zeroconf to re-discover the device,
-                        # and update the device results with the updated discovery details.
-
-                        # re-discover Spotify Connect devices on the network
-                        _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
-                        rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-                        rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
-
-                        # trace.
-                        _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
-
-                        # process all rediscovered devices, and update selected device.
-                        rediscoverResult:ZeroconfDiscoveryResult
-                        for rediscoverResult in rediscovery.DiscoveryResults:
-
-                            # add / update selected device discovery results by serviceinfo key value. 
-                            if (rediscoverResult.Key == scDevice.DiscoveryResult.Key):
-
-                                # save old discovery result id so we can log it later.
-                                oldDiscoveryResultId:str = discoverResult.Id
-
-                                # update selected device discovery result.
-                                _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscoverResult.Id), rediscoverResult, excludeNonPublic=True)
-                                _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
-                                scDevice.DiscoveryResult = rediscoverResult
-                                discoverResult = rediscoverResult
-
-                                # did the host ip address or port change?
-                                # if so, then we need to recreate the ZeroconfConnect instance
-                                # in order to access the updated ip address and port.
-                                if (discoverResult.HostIpAddress != zconn.HostIpAddress) \
-                                or (discoverResult.HostIpPort != zconn.HostIpPort):
-
-                                    _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discoverResult.Id, oldDiscoveryResultId))
-                                    zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                            discoverResult.HostIpPort, 
-                                                            discoverResult.SpotifyConnectCPath,
-                                                            useSSL=False,
-                                                            tokenStorageDir=self.TokenStorageDir,
-                                                            tokenStorageFile=self.TokenStorageFile)
-                                break
-                    
-                    # connect the device to OUR Spotify Connect user context.
-                    # note that the result here only indicates that the connect was submitted - NOT that it was successful!
-                    _logsi.LogVerbose("Issuing Connect to Spotify Connect device \"%s\" for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
-                    zcfResult = zconn.Connect(self._SpotifyConnectUsername, self._SpotifyConnectPassword, self._SpotifyConnectLoginId)
-                    
-                    # indicate device was reconnected.
-                    deviceResult.WasReConnected = True
-                    
-                    # trace.
-                    _logsi.LogVerbose("User context switched from '%s' to '%s' for Spotify Connect device: '%s'" % (deviceActiveUser, self._SpotifyConnectLoginId, deviceResult.Title))
-
-                    loopTotalDelay:float = 0
-                    LOOP_DELAY:float = 0.25
-                    while True:
+                # was the device added to the player device list?
+                # note that we already refreshed dynamic devices above, so no need to do it again.
+                scPlayerDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetPlayerDevice(scDevice.Name, refresh=False)
+                if (scPlayerDevice is not None):
+                    _logsi.LogVerbose("Spotify Connect device %s is now in the available device list; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+                    scDevice = scPlayerDevice
+                    break
                         
-                        # wait just a bit between available device list queries.
-                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
-                        time.sleep(LOOP_DELAY)
-                        loopTotalDelay = loopTotalDelay + LOOP_DELAY
-
-                        # check for the device in the available device list.
-                        # if we find it, then we are done.
-                        device:Device = self.GetPlayerDevice(deviceResultId, True)
-                        if device is not None:
-                            _logsi.LogVerbose("Spotify Connect device '%s' is now in the available device list; device found within %f seconds of Connect" % (deviceResult.Title, loopTotalDelay))
-                            break
-                        
-                        # check if the active device is restricted; if it is, then it may not show up in the
-                        # available device list of devices (common issue with Sonos devices).  in this case,
-                        # it WILL show up in the player state device property as the active device.
-                        # note that the PlayerPlayState device is a name and not a device id.
-                        playerState:PlayerPlayState = self.GetPlayerPlaybackState()
-                        if playerState.Device is not None:
-                            device = playerState.Device
-                            if (device.Id == deviceResultId) or (device.Name == deviceResultId):
-                                _logsi.LogVerbose("Spotify Connect device '%s' is now the active device; device found within %f seconds of Connect" % (deviceResult.Title, loopTotalDelay))
-                                break
-                        
-                        # only check so many times before we give up;
-                        # we will keep checking until we find the device, or we exceed the verifyTimeout value.
-                        if (loopTotalDelay > verifyTimeout):
-                            _logsi.LogWarning("Verification timeout waiting for Spotify Connect device '%s' to be added to the available device list; device not found within %f seconds of Connect" % (deviceResult.Title, verifyTimeout))
-                            break
-
-                    # end the device processing loop.
+                # only check so many times before we give up;
+                # we will keep checking until we find the device, or we exceed the verifyTimeout value.
+                if (loopTotalDelay > verifyTimeout):
+                    _logsi.LogWarning("Verification timeout waiting for Spotify Connect device %s to be added to the player device list; device not found within %f seconds of Connect" % (scDevice.Title, verifyTimeout))
                     break
 
-            # did we resolve the device id?
-            if deviceResult is None:
-                _logsi.LogWarning("Spotify Connect device '%s' could not be resolved; please ensure that the specified device is powered on and available on the local network" % (deviceValue))
-
-            # return the resolved device id.
-            return deviceResult
+            # return the device instance.
+            return scDevice
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
         except SpotifyApiError: raise  # pass handled exceptions on thru
@@ -9658,10 +9488,10 @@ class SpotifyClient:
 
 
     def GetSpotifyConnectDevices(
-            self, 
-            refresh:bool=True,
-            sortResult:bool=True,
-            ) -> SpotifyConnectDevices:
+        self, 
+        refresh:bool=True,
+        sortResult:bool=True,
+        ) -> SpotifyConnectDevices:
         """
         Get information about all available Spotify Connect player devices.
         
@@ -9669,44 +9499,35 @@ class SpotifyClient:
         
         Args:
             refresh (bool):
-                True (default) to return real-time information from the spotify zeroconf api and
-                update the cache; otherwise, False to just return the cached value.
+                True (default) to return real-time information about devices and update the cache;
+                otherwise, False to just return the cached value.
             sortResult (bool):
+                DEPRECATED - no longer used, as the collection is always sorted by default.
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
         
         Returns:
-            A `SpotifyConnectDevices` object that contain the discovery results
-            as well as the `getInfo` result for each found device.
+            A `SpotifyConnectDevices` object that contain Spotify Connect devices that are registered
+            with Zeroconf on the local network, as well as dynamic devices that are only known to the
+            Spotify Web API.
                 
         Raises:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifyZeroconfApiError:
-                If the Spotify Zeroconf API request faild for any reason.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
-        This method is similar to the `GetPlayerDevices` method, but it contains ALL
-        available Spotify Connect devices that are known to the local network (versus
-        just the devices known to a specific user).
+        The current list of devices is copied from the Zeroconf Directory task master device list, which
+        contains a real-time update of Spotify Connect Zeroconf devices.
         
-        It first queries Zeroconf to retrieve a list of all known Spotify Connect devices on
-        the local network.  It will then query each one of the found device instances to obtain
-        information about the device.  It will try to reach the device by its direct HostIpAddress 
-        first; if that fails, then it will try to reach the device by its Server alias; if that 
-        fails, then it will log a warning that the device could not be reached and ignore it.
-                        
-        It will also call the `GetPlayerDevices` method, in case we have any dynamic devices.
-        Dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
+        If the `refresh` argument is true, a real-time query of the Spotify Web API is also performed 
+        to retrieve the active player (from playerState) as well as player dynamic devices.
+        
+        Dynamic devices are Spotify Connect devices that are not found in the Zeroconf discovery
         process, but still exist in the player device list.  These are usually Spotify Connect
         web or mobile players with temporary device id's.
-                        
-        The `ConfigurationCache` is updated with the results of this method.  Use the
-        `refresh` argument (with False value) to retrieve the cached value and avoid
-        the spotify web api request.  This results in better performance.
 
         <details>
           <summary>Sample Code</summary>
@@ -9725,170 +9546,31 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("refresh", refresh)
-            apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("sortResult", sortResult) # DEPRECATED
             _logsi.LogMethodParmList(SILevel.Verbose, "Get available Spotify Connect devices", apiMethodParms)
 
             # validations.
             if refresh is None:
                 refresh = True
-            if sortResult is None: 
-                sortResult = True
 
-            # can we use the cached value?
-            if (not refresh) and (apiMethodName in self._ConfigurationCache):
-                
-                result = self._ConfigurationCache[apiMethodName]
-                cacheDesc = CACHE_SOURCE_CACHED
+            # give zeroconf threads a chance to catch up if needed.
+            time.sleep(0.25)
 
-            else:
-                
-                # discover Spotify Connect devices on the network, waiting up to the specified timeout 
-                # for all devices to be discovered.  this will return all Spotify Connect devices that
-                # are currently powered on, and are registered to Zeroconf / mDNS.
-                _logsi.LogVerbose("Discovering Spotify Connect devices on the local network")
-                discovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-                discovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
+            # if requested, refresh dynamic devices and the active player.
+            if (refresh):
+                self._SpotifyConnectDirectory.RefreshDynamicDevices()
 
-                # trace.
-                _logsi.LogDictionary(SILevel.Verbose, "DiscoveryResults collection after discovery", discovery.DiscoveryResults, prettyPrint=True)
+            # get devices from Spotify Connect Directory task.
+            # note that collection is already sorted as devices are added.
+            result = self._SpotifyConnectDirectory.GetDevices()
 
-                # process all discovered devices.
-                discoverResult:ZeroconfDiscoveryResult
-                for discoverResult in discovery.DiscoveryResults:
+            # update cache.
+            self._ConfigurationCache[apiMethodName] = result
 
-                    # have we already called zeroconf API getInfo endpoint for this device?
-                    # this can happen for devices that are part of a group.
-                    # for example, the "Bose-ST10-1" and "Bose-ST10-2" are grouped as a stereo pair;
-                    # there will be 2 zeroconf discovery result entries with different instance names,
-                    # but their zeroconf getInfo endpoint url will be the same.  when this happens, it
-                    # causes the values to show up as duplicates if we process both (or more) of them.
-                    urlGetInfo:str = discoverResult.ZeroconfApiEndpointGetInformation
-                    if result.ContainsZeroconfEndpointGetInformation(urlGetInfo):
-        
-                        # trace.
-                        _logsi.LogObject(SILevel.Verbose, 'Spotify Connect Zeroconf GetInformation call was already processed for Instance Name: "%s" (%s)' % (discoverResult.DeviceName, urlGetInfo), discoverResult)
-                    
-                    else:
-                        
-                        # get the id from the device via the zeroconf API getInfo endpoint, as the id is not 
-                        # returned in the zeroconf discovery result.
-                        # we will try to reach the device by its direct HostIpAddress first;
-                        # if that fails, then we will try to reach the device by its Server alias;
-                        # if that fails, then we will log a warning that the device could not be reached and press on.
-                        # note that the "Server" property is an alias, which must be resolved via a DNS lookup 
-                        # adds a significant delay (2-3 seconds!) to the discovery time.
-                        zconn:ZeroconfConnect = None
-                        info:ZeroconfGetInfo = None
-                        
-                        try:
-                            
-                            # get device information from the direct ip address.
-                            # this is usually 1-3 seconds faster than using the alias, due to DNS resolution.
-                            zconn = ZeroconfConnect(discoverResult.HostIpAddress, 
-                                                    discoverResult.HostIpPort, 
-                                                    discoverResult.SpotifyConnectCPath,
-                                                    useSSL=False,
-                                                    tokenStorageDir=self.TokenStorageDir,
-                                                    tokenStorageFile=self.TokenStorageFile)
-                            info = zconn.GetInformation()
-                    
-                        except Exception as ex:
-                            
-                            # trace.
-                            _logsi.LogWarning('Spotify Connect Zeroconf GetInformation call failed for Instance Name "%s" (%s); retrying with Zeroconf DNS server alias "%s"' % (discoverResult.DeviceName, discoverResult.HostIpAddress, discoverResult.Server))
-
-                            try:
-                            
-                                # get device information using the server DNS alias.
-                                zconn = ZeroconfConnect(discoverResult.Server, 
-                                                        discoverResult.HostIpPort, 
-                                                        discoverResult.SpotifyConnectCPath,
-                                                        useSSL=False,
-                                                        tokenStorageDir=self.TokenStorageDir,
-                                                        tokenStorageFile=self.TokenStorageFile)
-                                info = zconn.GetInformation()
-                                
-                                # update HostIpAddress in discovery result so it knows to use the alias
-                                # instead of the ip address.
-                                _logsi.LogVerbose('Spotify Connect Zeroconf GetInformation call for Instance Name "%s" (%s) was resolved using the Server alias; the HostIpAddress will be updated with the resolved address' % (discoverResult.DeviceName, discoverResult.Server))
-                                resolvedIpAddress = socket.gethostbyname(discoverResult.Server)
-                                discoverResult.HostIpAddress = resolvedIpAddress
-                            
-                            except Exception as ex:
-                            
-                                # trace, and log warning message.
-                                _logsi.LogWarning('Spotify Connect Zeroconf GetInformation call failed for Instance Name "%s" (%s); instance will be ignored, as it is either powered off or not reachable via the local network' % (discoverResult.DeviceName, discoverResult.Server))
-                    
-                        # did we find device information?
-                        if info is not None:
-                            
-                            # reset the `IsInDeviceList` indicator, as we will verify later in this method.
-                            info.IsInDeviceList = False
-
-                            # create new spotify connect device object.
-                            scDevice:SpotifyConnectDevice = SpotifyConnectDevice()
-                            scDevice.Id = info.DeviceId
-                            scDevice.Name = info.RemoteName
-                            scDevice.DiscoveryResult = discoverResult
-                            scDevice.DeviceInfo = info
-                            result.Items.append(scDevice)
-                
-                # at this point we have processed all zeroconf discovery results.
-                # we will now call the GetPlayerDevices method, in case we have any dynamic devices.
-                # dynamic devices are Spotify Connect devices that are not found in Zeroconf discovery
-                # process, but exist in the player device list.  these are usually Spotify Connect
-                # web or mobile players with temporary device id's.
-                devices:list[Device] = self.GetPlayerDevices(True)
-          
-                scDevice:SpotifyConnectDevice
-                device:Device
-                for device in devices:
-                    
-                    # is this a dynamic device?
-                    if not result.ContainsDeviceId(device.Id):
-                        result.AddDynamicDevice(device, self.UserProfile.Id)
-                        
-                    # is the device in the available device list for this user context?
-                    # if not, then set an indicator so we can re-activate it later if need be.
-                    scDevice:SpotifyConnectDevice
-                    for scDevice in result:
-                        if (scDevice.DeviceInfo.DeviceId == device.Id):
-                            scDevice.DeviceInfo.IsInDeviceList = True
-                            scDevice.DeviceInfo.IsActiveDevice = device.IsActive
-                            break
-                        
-                # get the currently active device (if any).  
-                # we do this in case the active device is a "restricted" device; if it is, then it may 
-                # not show up as the active device (common issue with Sonos devices).  
-                # in this case, it WILL show up in the player state device property as the active device.
-                # if it IS active, then we will set the active flag.        
-                # note that the PlayerPlayState device is a name and not a device id.
-                playerState:PlayerPlayState = self.GetPlayerPlaybackState()
-                if playerState.Device is not None:
-                    device = playerState.Device
-                    scDevice:SpotifyConnectDevice
-                    for scDevice in result:
-                        if (device.Name == scDevice.Name):
-                            _logsi.LogVerbose("Spotify Connect active device detected: '%s' (%s)" % (device.Name, device.Id))
-                            scDevice.DeviceInfo.IsActiveDevice = True
-                            break
-                            
-                # update cache.
-                self._ConfigurationCache[apiMethodName] = result
-
-            # sort result items.
-            if (len(result.Items) > 0):
-                if (sortResult is True):
-                    result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
-        
-            # update last refresh date.
-            result.DateLastRefreshed = datetime.utcnow().timestamp()
-            
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
             return result
 
-        except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -9902,9 +9584,9 @@ class SpotifyClient:
 
 
     def GetTrack(
-            self, 
-            trackId:str=None, 
-            ) -> Track:
+        self, 
+        trackId:str=None, 
+        ) -> Track:
         """
         Get Spotify catalog information for a single track identified by its unique Spotify ID.
         
@@ -9922,7 +9604,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -9982,9 +9664,9 @@ class SpotifyClient:
 
 
     def GetTrackAudioFeatures(
-            self, 
-            trackId:str=None, 
-            ) -> AudioFeatures:
+        self, 
+        trackId:str=None, 
+        ) -> AudioFeatures:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -10009,7 +9691,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -10068,13 +9750,13 @@ class SpotifyClient:
 
 
     def GetTrackFavorites(
-            self, 
-            limit:int=20, 
-            offset:int=0,
-            market:str=None,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> TrackPageSaved:
+        self, 
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> TrackPageSaved:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'.
         
@@ -10115,7 +9797,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -10242,10 +9924,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTracks(self, 
-                  ids:list[str], 
-                  market:str=None,
-                  ) -> list[Track]:
+    def GetTracks(
+        self, 
+        ids:list[str], 
+        market:str=None,
+        ) -> list[Track]:
         """
         Get Spotify catalog information for multiple tracks based on their Spotify IDs.
         
@@ -10270,7 +9953,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -10333,9 +10016,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTracksAudioFeatures(self, 
-                               ids:list[str], 
-                               ) -> list[AudioFeatures]:
+    def GetTracksAudioFeatures(
+        self, 
+        ids:list[str], 
+        ) -> list[AudioFeatures]:
         """
         Get audio features for multiple tracks based on their Spotify IDs.
         
@@ -10352,7 +10036,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -10409,27 +10093,28 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetTrackRecommendations(self, 
-                                limit:int=50, 
-                                market:str=None, 
-                                seedArtists:str=None, 
-                                seedGenres:str=None, 
-                                seedTracks:str=None, 
-                                minAcousticness:float=None, maxAcousticness:float=None, targetAcousticness:float=None, 
-                                minDanceability:float=None, maxDanceability:float=None, targetDanceability:float=None, 
-                                minDurationMS:int=None, maxDurationMS:int=None, targetDurationMS:int=None, 
-                                minEnergy:float=None, maxEnergy:float=None, targetEnergy:float=None, 
-                                minInstrumentalness:float=None, maxInstrumentalness:float=None, targetInstrumentalness:float=None, 
-                                minKey:int=None, maxKey:int=None, targetKey:int=None, 
-                                minLiveness:float=None, maxLiveness:float=None, targetLiveness:float=None, 
-                                minLoudness:float=None, maxLoudness:float=None, targetLoudness:float=None, 
-                                minMode:float=None, maxMode:float=None, targetMode:float=None, 
-                                minPopularity:int=None, maxPopularity:int=None, targetPopularity:int=None, 
-                                minSpeechiness:float=None, maxSpeechiness:float=None, targetSpeechiness:float=None, 
-                                minTempo:int=None, maxTempo:int=None, targetTempo:int=None, 
-                                minTimeSignature:int=None, maxTimeSignature:int=None, targetTimeSignature:int=None, 
-                                minValence:float=None, maxValence:float=None, targetValence:float=None
-                                ) -> TrackRecommendations:
+    def GetTrackRecommendations(
+        self, 
+        limit:int=50, 
+        market:str=None, 
+        seedArtists:str=None, 
+        seedGenres:str=None, 
+        seedTracks:str=None, 
+        minAcousticness:float=None, maxAcousticness:float=None, targetAcousticness:float=None, 
+        minDanceability:float=None, maxDanceability:float=None, targetDanceability:float=None, 
+        minDurationMS:int=None, maxDurationMS:int=None, targetDurationMS:int=None, 
+        minEnergy:float=None, maxEnergy:float=None, targetEnergy:float=None, 
+        minInstrumentalness:float=None, maxInstrumentalness:float=None, targetInstrumentalness:float=None, 
+        minKey:int=None, maxKey:int=None, targetKey:int=None, 
+        minLiveness:float=None, maxLiveness:float=None, targetLiveness:float=None, 
+        minLoudness:float=None, maxLoudness:float=None, targetLoudness:float=None, 
+        minMode:float=None, maxMode:float=None, targetMode:float=None, 
+        minPopularity:int=None, maxPopularity:int=None, targetPopularity:int=None, 
+        minSpeechiness:float=None, maxSpeechiness:float=None, targetSpeechiness:float=None, 
+        minTempo:int=None, maxTempo:int=None, targetTempo:int=None, 
+        minTimeSignature:int=None, maxTimeSignature:int=None, targetTimeSignature:int=None, 
+        minValence:float=None, maxValence:float=None, targetValence:float=None
+        ) -> TrackRecommendations:
         """
         <span class="deprecated">
             DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
@@ -10593,7 +10278,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Recommendations are generated based on the available information for a given seed entity and matched 
@@ -10823,8 +10508,9 @@ class SpotifyClient:
 
 
     @staticmethod
-    def GetTypeFromUri(uri:str, 
-                      ) -> str:
+    def GetTypeFromUri(
+        uri:str, 
+        ) -> str:
         """
         Get the type portion from a Spotify uri value.
         
@@ -10865,9 +10551,10 @@ class SpotifyClient:
             return None
 
 
-    def GetUsersCurrentProfile(self,
-                               refresh:bool=True
-                               ) -> UserProfileCurrentUser:
+    def GetUsersCurrentProfile(
+        self,
+        refresh:bool=True
+        ) -> UserProfileCurrentUser:
         """
         Get detailed profile information about the current user (including the current user's username).
         
@@ -10885,7 +10572,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `ConfigurationCache` is updated with the results of this method.  Use the
@@ -10951,9 +10638,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def GetUsersPublicProfile(self,
-                              userId:str,
-                              ) -> UserProfileSimplified:
+    def GetUsersPublicProfile(
+        self,
+        userId:str,
+        ) -> UserProfileSimplified:
         """
         Get public profile information about a Spotify user.
        
@@ -10969,7 +10657,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -11017,13 +10705,13 @@ class SpotifyClient:
 
 
     def GetUsersTopArtists(
-            self, 
-            timeRange:str='medium_term',
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> ArtistPage:
+        self, 
+        timeRange:str='medium_term',
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> ArtistPage:
         """
         Get the current user's top artists based on calculated affinity.
         
@@ -11062,7 +10750,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -11184,13 +10872,13 @@ class SpotifyClient:
 
 
     def GetUsersTopTracks(
-            self, 
-            timeRange:str='medium_term',
-            limit:int=20, 
-            offset:int=0,
-            limitTotal:int=None,
-            sortResult:bool=True,
-            ) -> TrackPage:
+        self, 
+        timeRange:str='medium_term',
+        limit:int=20, 
+        offset:int=0,
+        limitTotal:int=None,
+        sortResult:bool=True,
+        ) -> TrackPage:
         """
         Get the current user's top tracks based on calculated affinity.
         
@@ -11229,7 +10917,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -11351,10 +11039,10 @@ class SpotifyClient:
 
 
     def IsChapterEpisode(
-            self, 
-            episodeId:str=None, 
-            market:str=None,
-            ) -> bool:
+        self, 
+        episodeId:str=None, 
+        market:str=None,
+        ) -> bool:
         """
         Returns true if the specified episode id is an audiobook chapter; otherwise, false.
         
@@ -11380,7 +11068,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -11474,10 +11162,11 @@ class SpotifyClient:
         return result
 
 
-    def PlayerMediaPause(self, 
-                         deviceId:str=None,
-                         delay:float=0.50
-                         ) -> None:
+    def PlayerMediaPause(
+        self, 
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Pause media play for the specified Spotify Connect device.
         
@@ -11499,7 +11188,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -11527,17 +11216,12 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
@@ -11569,15 +11253,15 @@ class SpotifyClient:
 
 
     def PlayerMediaPlayContext(
-            self, 
-            contextUri:str,
-            offsetUri:str=None,
-            offsetPosition:int=None,
-            positionMS:int=0,
-            deviceId:str=None,
-            delay:float=0.50,
-            resolveDeviceId:bool=True,
-            ) -> None:
+        self, 
+        contextUri:str,
+        offsetUri:str=None,
+        offsetPosition:int=None,
+        positionMS:int=0,
+        deviceId:str=None,
+        delay:float=0.50,
+        resolveDeviceId:bool=True,
+        ) -> None:
         """
         Start playing one or more tracks of the specified context on a Spotify Connect device.
         
@@ -11617,6 +11301,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
+                DEPRECATED - device id resolution is now automatic.
                 True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
                 value as it has already been resolved.  
                 Default is True.  
@@ -11625,7 +11310,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -11655,6 +11340,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'PlayerMediaPlayContext'
         apiMethodParms:SIMethodParmListContext = None
+        scDevice:SpotifyConnectDevice = None
         
         try:
             
@@ -11666,28 +11352,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
-            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
-            if (resolveDeviceId is None):
-                resolveDeviceId = True
 
-            # does the device id need to be resolved?
-            if (resolveDeviceId):
-                
-                # yes - ensure the specified device id / name is active and available.
-                scDevice = self.GetSpotifyConnectDevice(
-                    deviceId, 
-                    refreshDeviceList=False, 
-                    activateDevice=True)
+            # resolve / activate the device object if needed.
+            scDevice = self._ResolveDeviceObject(deviceId)
 
-                # did we find the device?
-                # if so, then use the found device id in case a device name was specified.
-                if scDevice is not None:
-                    deviceId = scDevice.Id
-                    
             # build spotify web api request parameters.
             reqData:dict = \
             {
@@ -11700,9 +11373,7 @@ class SpotifyClient:
                 reqData['offset'] = { 'position': offsetPosition }
 
             # formulate url parms; will manually add them since we are adding json body as well.
-            urlParms:str = ''
-            if deviceId is not None:
-                urlParms = '?device_id=%s' % deviceId
+            urlParms:str = '?device_id=%s' % scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
@@ -11734,13 +11405,13 @@ class SpotifyClient:
 
 
     def PlayerMediaPlayTrackFavorites(
-            self, 
-            deviceId:str=None,
-            shuffle:bool=True,
-            delay:float=0.50,
-            resolveDeviceId:bool=True,
-            limitTotal:int=200,
-            ) -> None:
+        self, 
+        deviceId:str=None,
+        shuffle:bool=True,
+        delay:float=0.50,
+        resolveDeviceId:bool=True,
+        limitTotal:int=200,
+        ) -> None:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'
         and starts playing them.
@@ -11759,6 +11430,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
+                DEPRECATED - device id resolution is now automatic.
                 True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
                 value as it has already been resolved.  
                 Default is True.  
@@ -11770,7 +11442,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -11792,6 +11464,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'PlayerMediaPlayTrackFavorites'
         apiMethodParms:SIMethodParmListContext = None
+        scDevice:SpotifyConnectDevice = None
         
         try:
             
@@ -11800,7 +11473,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("shuffle", shuffle)
             apiMethodParms.AppendKeyValue("delay", delay)
-            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
                 
@@ -11808,8 +11481,6 @@ class SpotifyClient:
             delay = validateDelay(delay, 0.50, 10)
             if (shuffle is None):
                 shuffle = True
-            if (resolveDeviceId is None):
-                resolveDeviceId = True
             if (limitTotal is None):
                 limitTotal = 200
             if (isinstance(limitTotal,int)) and (limitTotal > 750):
@@ -11827,27 +11498,16 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # does the device id need to be resolved?
-            if (resolveDeviceId):
-                
-                # yes - ensure the specified device id / name is active and available.
-                scDevice = self.GetSpotifyConnectDevice(
-                    deviceId, 
-                    refreshDeviceList=False, 
-                    activateDevice=True)
-
-                # did we find the device?
-                # if so, then use the found device id in case a device name was specified.
-                if scDevice is not None:
-                    deviceId = scDevice.Id
+            # resolve / activate the device object if needed.
+            scDevice = self._ResolveDeviceObject(deviceId)
 
             # set desired shuffle mode.
             if (shuffle == True):
-                self.PlayerSetShuffleMode(shuffle, deviceId, delay)
+                self.PlayerSetShuffleMode(shuffle, scDevice.Id, delay)
 
             # play the tracks.
             # indicate device id has already been resolved.
-            self.PlayerMediaPlayTracks(arrUris, deviceId=deviceId, delay=delay, resolveDeviceId=False)
+            self.PlayerMediaPlayTracks(arrUris, deviceId=scDevice, delay=delay)
             
             # process results.
             # no results to process - this is pass or fail.
@@ -11868,13 +11528,13 @@ class SpotifyClient:
 
 
     def PlayerMediaPlayTracks(
-            self, 
-            uris:list[str],
-            positionMS:int=0,
-            deviceId:str=None,
-            delay:float=0.50,
-            resolveDeviceId:bool=True,
-            ) -> None:
+        self, 
+        uris:list[str],
+        positionMS:int=0,
+        deviceId:str=None,
+        delay:float=0.50,
+        resolveDeviceId:bool=True,
+        ) -> None:
         """
         Start playing one or more tracks on the specified Spotify Connect device.
         
@@ -11904,6 +11564,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
+                DEPRECATED - device id resolution is now automatic.
                 True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
                 value as it has already been resolved.  
                 Default is True.  
@@ -11912,7 +11573,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -11928,6 +11589,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'PlayerMediaPlayTracks'
         apiMethodParms:SIMethodParmListContext = None
+        scDevice:SpotifyConnectDevice = None
         
         try:
             
@@ -11937,13 +11599,11 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("positionMS", positionMS)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
-            apiMethodParms.AppendKeyValue("resolveDeviceId", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
-            if (resolveDeviceId is None):
-                resolveDeviceId = True
 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
@@ -11955,20 +11615,9 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
         
-            # does the device id need to be resolved?
-            if (resolveDeviceId):
-                
-                # yes - ensure the specified device id / name is active and available.
-                scDevice = self.GetSpotifyConnectDevice(
-                    deviceId, 
-                    refreshDeviceList=False, 
-                    activateDevice=True)
+            # resolve / activate the device object if needed.
+            scDevice = self._ResolveDeviceObject(deviceId)
 
-                # did we find the device?
-                # if so, then use the found device id in case a device name was specified.
-                if scDevice is not None:
-                    deviceId = scDevice.Id
-                    
             # left this here in case we want to implement it in the future.
                     
             # # are we backfilling the player queue? if so, we can only have 50 uris total.
@@ -11997,9 +11646,7 @@ class SpotifyClient:
                 reqData['uris'] = arrUris
 
             # formulate url parms; will manually add them since we are adding json body as well.
-            urlParms:str = ''
-            if deviceId is not None:
-                urlParms = '?device_id=%s' % deviceId
+            urlParms:str = '?device_id=%s' % scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
@@ -12030,10 +11677,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaResume(self, 
-                          deviceId:str=None,
-                          delay:float=0.50
-                          ) -> None:
+    def PlayerMediaResume(
+        self, 
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Resume media play for the specified Spotify Connect device.
         
@@ -12055,7 +11703,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12083,17 +11731,12 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
@@ -12125,12 +11768,12 @@ class SpotifyClient:
 
 
     def PlayerMediaSeek(
-            self, 
-            positionMS:int=0,
-            deviceId:str=None,
-            delay:float=0.50,
-            relativePositionMS:int=0,
-            ) -> None:
+        self, 
+        positionMS:int=0,
+        deviceId:str=None,
+        delay:float=0.50,
+        relativePositionMS:int=0,
+        ) -> None:
         """
         Seeks to the given absolute or relative position in the user's currently playing track 
         for the specified Spotify Connect device.
@@ -12164,7 +11807,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12213,13 +11856,9 @@ class SpotifyClient:
             if (relativePositionMS is None):
                 relativePositionMS = 0
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
-            
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
+           
             # was relative seeking specified?
             if (relativePositionMS != 0) and ((positionMS is None) or (positionMS <= 0)):
                 
@@ -12239,8 +11878,7 @@ class SpotifyClient:
             {
                 'position_ms': positionMS
             }
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
@@ -12271,10 +11909,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaSkipNext(self, 
-                            deviceId:str=None,
-                            delay:float=0.50
-                            ) -> None:
+    def PlayerMediaSkipNext(
+        self, 
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Skips to next track in the user's queue for the specified Spotify Connect device.
         
@@ -12296,7 +11935,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12324,17 +11963,12 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
@@ -12365,10 +11999,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerMediaSkipPrevious(self, 
-                                deviceId:str=None,
-                                delay:float=0.50
-                                ) -> None:
+    def PlayerMediaSkipPrevious(
+        self, 
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Skips to previous track in the user's queue for the specified Spotify Connect device.
         
@@ -12390,7 +12025,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12418,17 +12053,12 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = {}
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
@@ -12459,11 +12089,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerSetRepeatMode(self, 
-                             state:str='off',
-                             deviceId:str=None,
-                             delay:float=0.50
-                             ) -> None:
+    def PlayerSetRepeatMode(
+        self, 
+        state:str='off',
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Set repeat mode for the specified Spotify Connect device.
         
@@ -12491,7 +12122,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12520,20 +12151,15 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'state': state
             }
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
@@ -12564,11 +12190,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerSetShuffleMode(self, 
-                             state:bool=False,
-                             deviceId:str=None,
-                             delay:float=0.50
-                             ) -> None:
+    def PlayerSetShuffleMode(
+        self, 
+        state:bool=False,
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Set shuffle mode for the specified Spotify Connect device.
         
@@ -12595,7 +12222,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12624,20 +12251,15 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'state': state
             }
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
@@ -12668,11 +12290,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerSetVolume(self, 
-                        volumePercent:int,
-                        deviceId:str=None,
-                        delay:float=0.50
-                        ) -> None:
+    def PlayerSetVolume(
+        self, 
+        volumePercent:int,
+        deviceId:str=None,
+        delay:float=0.50
+        ) -> None:
         """
         Set volume level for the specified Spotify Connect device.
         
@@ -12698,7 +12321,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12727,20 +12350,15 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # if deviceId was not specified, then verify that there is an active player device.
-            if deviceId is None:
-                deviceId:str = self.VerifyPlayerActiveDeviceId()
-
-            # check for device name; convert to an id if a name was supplied.
-            deviceId = self.PlayerConvertDeviceNameToId(deviceId)
+            # resolve / activate the device object if needed.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
                 'volume_percent': volumePercent
             }
-            if deviceId is not None:
-                urlParms['device_id'] = deviceId
+            urlParms['device_id'] = scDevice.Id
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
@@ -12772,13 +12390,13 @@ class SpotifyClient:
 
 
     def PlayerTransferPlayback(
-            self, 
-            deviceId:str=None,
-            play:bool=True,
-            delay:float=0.50,
-            refreshDeviceList:bool=True,
-            forceActivateDevice:bool=True,
-            ) -> None:
+        self, 
+        deviceId:str=None,
+        play:bool=True,
+        delay:float=0.50,
+        refreshDeviceList:bool=True,
+        forceActivateDevice:bool=True,
+        ) -> None:
         """
         Transfer playback to a new Spotify Connect device and optionally begin playback.
         
@@ -12813,7 +12431,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         This API only works for users who have Spotify Premium. 
@@ -12850,50 +12468,42 @@ class SpotifyClient:
                 refreshDeviceList = True
             if (forceActivateDevice is None):
                 forceActivateDevice = True
-            
-            # ensure the specified device id / name is active and available.
-            scDevice = self.GetSpotifyConnectDevice(
-                deviceId, 
-                refreshDeviceList=refreshDeviceList, 
-                activateDevice=forceActivateDevice)
 
-            # did we find the device?
-            # if so, then use the found device id in case a device name was specified.
-            if scDevice is not None:
-                    
-                deviceId = scDevice.Id
-                    
-                # is this a Sonos device? 
-                # if so, then control was automatically transferred by activating the device.
-                # note that we also cannot stop nor start play on the device either, as it's
-                # considered a restricted device and the Spotify Web API cannot control it!
-                if scDevice.DeviceInfo.IsBrandSonos:
-                    _logsi.LogVerbose('Sonos device detected; bypassing call to Spotify Web API Transfer Playback endpoint')
-                    return
+            # resolve / activate the device object if needed.
+            scDevice = self._ResolveDeviceObject(deviceId)
+
+            # is this a Sonos device? 
+            # if so, then control was automatically transferred by activating the device.
+            # note that we also cannot stop nor start play on the device either, as it's
+            # considered a restricted device and the Spotify Web API cannot control it!
+            if scDevice.DeviceInfo.IsBrandSonos:
+                _logsi.LogVerbose('Sonos device detected; bypassing call to Spotify Web API Transfer Playback endpoint')
+                return
 
             # before transferring playback to the device, we first need to check to see if anything
             # is currently playing.  if nothing is playing then we have to start something, otherwise 
             # the transfer playback will result in a `Restriction Violated` error!  
 
-            # get current player state.
-            playerState:PlayerPlayState = self.GetPlayerPlaybackState()
-            if playerState.IsEmpty:
+            # get currently active player.
+            scActiveDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetActiveDevice(refresh=False)
+            if (scActiveDevice is None):
 
                 # if nothing is playing, then start playing track favorites instead of transferring playback.
-                _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device '%s'; playing track favorites on selected device instead of transferring playback" % (deviceId))
-                tracks:TrackPageSaved = self.PlayerMediaPlayTrackFavorites(deviceId, False, resolveDeviceId=False, limitTotal=20)
-
-                # give spotify web api time to process the change.
-                if delay > 0:
-                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                    time.sleep(delay)
-
+                _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device %s; playing track favorites on selected device instead of transferring playback" % (scDevice.Title))
+                tracks:TrackPageSaved = self.PlayerMediaPlayTrackFavorites(scDevice, False, limitTotal=20)
+                
                 return
+
+            # if resolved device is already active, then there is nothing to do.
+            if (deviceId is None) or (deviceId == "*") or (isinstance(deviceId, str) and (deviceId.strip() == "")):
+                if (scActiveDevice.Name == scDevice.Name):
+                    _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
+                    return
 
             # build spotify web api request parameters.
             reqData:dict = \
             {
-                'device_ids': [deviceId]
+                'device_ids': [scDevice.Id]
             }
             if (play is not None):
                 reqData['play'] = play
@@ -12909,12 +12519,16 @@ class SpotifyClient:
                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                 time.sleep(delay)
 
-            # if forceActivateDevice=True, then we need to resume play manually if play=True
-            # was specified; this is due to the device losing its current status since it 
-            # was being forcefully activated (e.g. disconnected and reconnected).
-            if (forceActivateDevice) and (play):
-                _logsi.LogVerbose('Resuming play on device that was forcefully activated')
-                self.PlayerMediaResume()
+            # resume play if play=True was specified.
+            # sometimes the `play` argument to the Spotify Web API transfer playback command 
+            # is not honored, so we do a resume here to ensure it's playing.  
+            if (play):
+                try:
+                    _logsi.LogVerbose("Resuming play on device, in case it's not already playing")
+                    self.PlayerMediaResume(scDevice)
+                except:
+                    # sometimes the resume will raise a "Restriction violated" error - just ignore it.
+                    pass
                 
             # process results.
             # no results to process - this is pass or fail.
@@ -12934,108 +12548,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def PlayerVerifyDeviceDefault(self, 
-                                  defaultDeviceId:str=None,
-                                  play:bool=False,
-                                  delay:float=0.50
-                                  ) -> PlayerPlayState:
-        """
-        Checks to see if there is an active Spotify Connect device, and if not to make one active.
-        
-        If no active device was found, then it will activate the device specified by the defaultDeviceId argument
-        and optionally start play on the device.
-        
-        This method requires the `user-read-playback-state` and `user-modify-playback-state` scope.
-        
-        Args:
-            defaultDeviceId (str):
-                The id of the device on which playback should be started/transferred if there is
-                currently no active device.  
-                Example: `0d1841b0976bae2a3a310dd74c0f3df354899bc8`  
-            play (bool):
-                The transfer method:  
-                - `True`  - ensure playback happens on new device.   
-                - `False` - keep the current playback state.  
-                Default: `False`  
-            delay (float):
-                Time delay (in seconds) to wait AFTER issuing the command to the player.  
-                This delay will give the spotify web api time to process the change before 
-                another command is issued.  
-                Default is 0.50; value range is 0 - 10.
-                
-        Returns:
-            A `PlayerPlayState` object that contains player state details as well as
-            currently playing content.
-                
-        Raises:
-            SpotifyWebApiError: 
-                If the Spotify Web API request was for a non-authorization service 
-                and the response contains error information.
-            SpotifApiError: 
-                If the method fails for any other reason.
-
-        <details>
-          <summary>Sample Code</summary>
-        ```python
-        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerVerifyDeviceDefault.py
-        ```
-        </details>
-        """
-        apiMethodName:str = 'PlayerVerifyDeviceDefault'
-        apiMethodParms:SIMethodParmListContext = None
-        result:PlayerPlayState = None
-        
-        try:
-            
-            # trace.
-            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("defaultDeviceId", defaultDeviceId)
-            apiMethodParms.AppendKeyValue("play", play)
-            apiMethodParms.AppendKeyValue("delay", delay)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Checks if a Spotify Connect device is active, and activate one if not", apiMethodParms)
-                
-            # validations.
-            delay = validateDelay(delay, 0.50, 10)
-            if (play is None):
-                play = False
-
-            # get current Spotify Connect player state.
-            result = self.GetPlayerPlaybackState()
-            
-            # is there an active device set?
-            if (result.CurrentlyPlayingType is None and result.Context is None) \
-            or (result.Device is None) \
-            or (result.Device.Id is None):
-                
-                _logsi.LogVerbose('No active Spotify Connect device was found - activating device "%s"' % defaultDeviceId)
-                
-                # no - transfer control to the default device.
-                self.PlayerTransferPlayback(defaultDeviceId, play, delay, refreshDeviceList=False)
-                
-                # get current Spotify Connect player state.
-                result = self.GetPlayerPlaybackState()
-        
-            # trace.
-            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
-            return result
-
-        except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-        except Exception as ex:
-            
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
-
-        finally:
-        
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-
-    def RemoveAlbumFavorites(self, 
-                             ids:str=None
-                             ) -> None:
+    def RemoveAlbumFavorites(
+        self, 
+        ids:str=None
+        ) -> None:
         """
         Remove one or more albums from the current user's 'Your Library'.
         
@@ -13052,7 +12568,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if an album id in the list does not exist in the 
@@ -13123,9 +12639,9 @@ class SpotifyClient:
 
 
     def RemoveAudiobookFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Remove one or more audiobooks from the current user's 'Your Library'.
         
@@ -13142,7 +12658,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if a audiobook id in the list does not exist in the 
@@ -13213,9 +12729,9 @@ class SpotifyClient:
 
 
     def RemoveEpisodeFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Remove one or more episodes from the current user's 'Your Library'.
         
@@ -13232,7 +12748,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if a episode id in the list does not exist in the 
@@ -13303,9 +12819,9 @@ class SpotifyClient:
 
 
     def RemovePlaylist(
-            self, 
-            playlistId:str=None, 
-            ) -> None:
+        self, 
+        playlistId:str=None, 
+        ) -> None:
         """
         Remove a user's playlist (calls the `UnfollowPlaylist` method).
         
@@ -13320,7 +12836,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
         
         There is no Spotify Web API endpoint for deleting a playlist.  The notion of deleting a playlist is 
@@ -13368,11 +12884,12 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemovePlaylistItems(self, 
-                            playlistId:str, 
-                            uris:str=None,
-                            snapshotId:str=None
-                            ) -> str:
+    def RemovePlaylistItems(
+        self, 
+        playlistId:str, 
+        uris:str=None,
+        snapshotId:str=None
+        ) -> str:
         """
         Remove one or more items from a user's playlist.
         
@@ -13403,7 +12920,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `snapshotId` argument value will be returned if no items were removed; otherwise, a
@@ -13482,9 +12999,9 @@ class SpotifyClient:
 
 
     def RemoveShowFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Remove one or more shows from the current user's 'Your Library'.
         
@@ -13501,7 +13018,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if a show id in the list does not exist in the 
@@ -13569,9 +13086,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def RemoveTrackFavorites(self, 
-                             ids:str=None
-                             ) -> None:
+    def RemoveTrackFavorites(
+        self, 
+        ids:str=None
+        ) -> None:
         """
         Remove one or more tracks from the current user's 'Your Library'.
         
@@ -13588,7 +13106,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if a track id in the list does not exist in the 
@@ -13659,13 +13177,13 @@ class SpotifyClient:
 
 
     def ReorderPlaylistItems(
-            self, 
-            playlistId:str, 
-            rangeStart:int,
-            insertBefore:int,
-            rangeLength:int=1,
-            snapshotId:str=None
-            ) -> str:
+        self, 
+        playlistId:str, 
+        rangeStart:int,
+        insertBefore:int,
+        rangeLength:int=1,
+        snapshotId:str=None
+        ) -> str:
         """
         Reorder items in a user's playlist.
         
@@ -13701,7 +13219,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         The `rangeStart` and `insertBefore` arguments are one-offset values; the underlying Spotify
@@ -13780,10 +13298,11 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def ReplacePlaylistItems(self, 
-                             playlistId:str, 
-                             uris:str=None,
-                             ) -> str:
+    def ReplacePlaylistItems(
+        self, 
+        playlistId:str, 
+        uris:str=None,
+        ) -> str:
         """
         Replace one or more items in a user's playlist. Replacing items in a playlist will 
         overwrite its existing items. 
@@ -13809,7 +13328,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         <details>
@@ -13879,9 +13398,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SaveAlbumFavorites(self, 
-                           ids:str=None
-                           ) -> None:
+    def SaveAlbumFavorites(
+        self, 
+        ids:str=None
+        ) -> None:
         """
         Save one or more albums to the current user's 'Your Library'.
         
@@ -13898,7 +13418,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if an album id in the list already exists in the 
@@ -13969,9 +13489,9 @@ class SpotifyClient:
 
 
     def SaveAudiobookFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Save one or more audiobooks to the current user's 'Your Library'.
         
@@ -13988,7 +13508,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if an audiobook id in the list already exists in the 
@@ -14059,9 +13579,9 @@ class SpotifyClient:
 
 
     def SaveEpisodeFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Save one or more episodes to the current user's 'Your Library'.
         
@@ -14078,7 +13598,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if an episode id in the list already exists in the 
@@ -14149,9 +13669,9 @@ class SpotifyClient:
 
 
     def SaveShowFavorites(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Save one or more shows to the current user's 'Your Library'.
         
@@ -14168,7 +13688,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if an show id in the list already exists in the 
@@ -14236,9 +13756,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SaveTrackFavorites(self, 
-                           ids:str=None
-                           ) -> None:
+    def SaveTrackFavorites(
+        self, 
+        ids:str=None
+        ) -> None:
         """
         Save one or more tracks to the current user's 'Your Library'.
         
@@ -14255,7 +13776,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No error will be raised if a track id in the list already exists in the 
@@ -14386,7 +13907,7 @@ class SpotifyClient:
     #         SpotifyWebApiError: 
     #             If the Spotify Web API request was for a non-authorization service 
     #             and the response contains error information.
-    #         SpotifApiError: 
+    #         SpotifyApiError: 
     #             If the method fails for any other reason.
 
     #     Note the offset limitation of 1000 entries; this effectively limits you to 1,050 maximum
@@ -14503,14 +14024,15 @@ class SpotifyClient:
     #         _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchAlbums(self, 
-                     criteria:str,
-                     limit:int=20, 
-                     offset:int=0,
-                     market:str=None,
-                     includeExternal:str=None,
-                     limitTotal:int=None
-                     ) -> SearchResponse:
+    def SearchAlbums(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Albums that match a keyword string. 
         
@@ -14563,7 +14085,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -14696,14 +14218,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchArtists(self, 
-                     criteria:str,
-                     limit:int=20, 
-                     offset:int=0,
-                     market:str=None,
-                     includeExternal:str=None,
-                     limitTotal:int=None
-                     ) -> SearchResponse:
+    def SearchArtists(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Artists that match a keyword string. 
         
@@ -14756,7 +14279,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -14889,14 +14412,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchAudiobooks(self, 
-                         criteria:str,
-                         limit:int=20, 
-                         offset:int=0,
-                         market:str=None,
-                         includeExternal:str=None,
-                         limitTotal:int=None
-                         ) -> SearchResponse:
+    def SearchAudiobooks(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Audiobooks that match a keyword string. 
         
@@ -14949,7 +14473,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Audiobooks are only available within the US, UK, Canada, Ireland, New Zealand and Australia markets.
@@ -15084,14 +14608,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchEpisodes(self, 
-                       criteria:str,
-                       limit:int=20, 
-                       offset:int=0,
-                       market:str=None,
-                       includeExternal:str=None,
-                       limitTotal:int=None
-                       ) -> SearchResponse:
+    def SearchEpisodes(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Episodes that match a keyword string. 
         
@@ -15144,7 +14669,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -15277,14 +14802,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchPlaylists(self, 
-                        criteria:str,
-                        limit:int=20, 
-                        offset:int=0,
-                        market:str=None,
-                        includeExternal:str=None,
-                        limitTotal:int=None,
-                        ) -> SearchResponse:
+    def SearchPlaylists(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None,
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Playlists that match a keyword string. 
         
@@ -15337,7 +14863,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -15470,14 +14996,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchShows(self, 
-                    criteria:str,
-                    limit:int=20, 
-                    offset:int=0,
-                    market:str=None,
-                    includeExternal:str=None,
-                    limitTotal:int=None
-                    ) -> SearchResponse:
+    def SearchShows(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Shows that match a keyword string. 
         
@@ -15530,7 +15057,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -15663,14 +15190,15 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SearchTracks(self, 
-                     criteria:str,
-                     limit:int=20, 
-                     offset:int=0,
-                     market:str=None,
-                     includeExternal:str=None,
-                     limitTotal:int=None
-                     ) -> SearchResponse:
+    def SearchTracks(
+        self, 
+        criteria:str,
+        limit:int=20, 
+        offset:int=0,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
         """
         Get Spotify catalog information about Tracks that match a keyword string. 
         
@@ -15723,7 +15251,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
 
         Note that Spotify Web API automatically limits you to 1,000 max entries per type that can
@@ -15856,16 +15384,17 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def SetAuthTokenAuthorizationCode(self, 
-                                      clientId:str, 
-                                      clientSecret:str, 
-                                      scope:str=None, 
-                                      tokenProfileId:str=None,
-                                      forceAuthorize:bool=False,
-                                      redirectUriHost:str='localhost', 
-                                      redirectUriPort:int=8080,
-                                      redirectUriPath:str='/',
-                                      ) -> None:
+    def SetAuthTokenAuthorizationCode(
+        self, 
+        clientId:str, 
+        clientSecret:str, 
+        scope:str=None, 
+        tokenProfileId:str=None,
+        forceAuthorize:bool=False,
+        redirectUriHost:str='localhost', 
+        redirectUriPort:int=8080,
+        redirectUriPath:str='/',
+        ) -> None:
         """
         Generates a new Authorization Code type of authorization token used to access 
         the Spotify Web API.
@@ -15904,7 +15433,7 @@ class SpotifyClient:
                 Default value is '/'.
                 
         Raises:
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any reason.
                 
         The authorization code flow is suitable for long-running applications (e.g. web and mobile 
@@ -16045,16 +15574,21 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
 
-    def SetAuthTokenAuthorizationCodePKCE(self, 
-                                          clientId:str, 
-                                          scope:str=None, 
-                                          tokenProfileId:str=None,
-                                          forceAuthorize:bool=False,
-                                          redirectUriHost:str='localhost', 
-                                          redirectUriPort:int=8080, 
-                                          redirectUriPath:str='/'
-                                          ) -> None:
+
+    def SetAuthTokenAuthorizationCodePKCE(
+        self, 
+        clientId:str, 
+        scope:str=None, 
+        tokenProfileId:str=None,
+        forceAuthorize:bool=False,
+        redirectUriHost:str='localhost', 
+        redirectUriPort:int=8080, 
+        redirectUriPath:str='/'
+        ) -> None:
         """
         Generates a new Authorization Code PKCE type of authorization token used to access 
         the Spotify Web API.
@@ -16091,7 +15625,7 @@ class SpotifyClient:
                 Default value is '/'.
                 
         Raises:
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any reason.
                 
         The authorization code with PKCE is the recommended authorization type if you are 
@@ -16230,12 +15764,17 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
 
-    def SetAuthTokenClientCredentials(self, 
-                                      clientId:str, 
-                                      clientSecret:str,
-                                      tokenProfileId:str=None
-                                      ) -> None:
+
+    def SetAuthTokenClientCredentials(
+        self, 
+        clientId:str, 
+        clientSecret:str,
+        tokenProfileId:str=None
+        ) -> None:
         """
         Generates a new client credentials type of authorization token used to access 
         the Spotify Web API.
@@ -16322,12 +15861,17 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
 
-    def SetAuthTokenFromToken(self, 
-                              clientId:str,
-                              token:dict, 
-                              tokenProfileId:str=None
-                              ) -> None:
+
+    def SetAuthTokenFromToken(
+        self, 
+        clientId:str,
+        token:dict, 
+        tokenProfileId:str=None
+        ) -> None:
         """
         Uses an OAuth2 authorization token that was generated from an external provider to access 
         the Spotify Web API.
@@ -16343,7 +15887,7 @@ class SpotifyClient:
                 Default: `Shared`               
                 
         Raises:
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any reason.  
                 
         Make sure you have the `tokenUpdater` argument supplied on the class constructor so that
@@ -16429,6 +15973,10 @@ class SpotifyClient:
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
+            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
+
 
     def ToString(self) -> str:
         """
@@ -16444,9 +15992,9 @@ class SpotifyClient:
 
 
     def UnfollowArtists(
-            self, 
-            ids:str=None,
-            ) -> None:
+        self, 
+        ids:str=None,
+        ) -> None:
         """
         Remove the current user as a follower of one or more artists.
 
@@ -16463,7 +16011,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No exception is raised if a specified artist id is not being followed.
@@ -16530,9 +16078,9 @@ class SpotifyClient:
 
 
     def UnfollowPlaylist(
-            self, 
-            playlistId:str=None,
-            ) -> None:
+        self, 
+        playlistId:str=None,
+        ) -> None:
         """
         Remove the current user as a follower of a playlist.
 
@@ -16548,7 +16096,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         <details>
@@ -16599,9 +16147,10 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    def UnfollowUsers(self, 
-                      ids:str,
-                      ) -> None:
+    def UnfollowUsers(
+        self, 
+        ids:str,
+        ) -> None:
         """
         Remove the current user as a follower of one or more users.
 
@@ -16617,7 +16166,7 @@ class SpotifyClient:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
-            SpotifApiError: 
+            SpotifyApiError: 
                 If the method fails for any other reason.
                 
         No exception is raised if a specified user id is not being followed.
