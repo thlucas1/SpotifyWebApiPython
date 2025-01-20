@@ -284,7 +284,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             while counter < (timeout + 1):
                 if (self._SpotifyConnectZeroconfCastController.waitPlaybackTransfer.wait(1)):
                     if (self._SpotifyConnectZeroconfCastController.isPlaybackTransferError):
-                        raise SpotifyConnectZeroconfPlaybackTransferError("%s - playback transfer error TODO" % (self.name))
+                        raise SpotifyConnectZeroconfPlaybackTransferError("%s - playback transfer error: %s" % (self.name, str(self.ZeroconfResponseObject)))
                     break
                 if (counter >= timeout):
                     raise SpotifyConnectZeroconfPlaybackTransferError("%s - Timed out waiting for playback transfer to device" % (self.name))

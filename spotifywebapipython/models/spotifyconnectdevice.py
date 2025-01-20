@@ -186,7 +186,7 @@ class SpotifyConnectDevice():
     @property
     def ZeroconfResponseInfo(self) -> ZeroconfResponse:
         """ 
-        Spotify Zeroconf API GetInfo response object.
+        Spotify Zeroconf API Zeroconf response object.
         """
         return self._ZeroconfResponseInfo
     

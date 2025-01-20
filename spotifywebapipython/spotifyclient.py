@@ -813,7 +813,6 @@ class SpotifyClient:
             if (self._SpotifyConnectLoginId is None) or (len(self._SpotifyConnectLoginId.strip()) == 0):
                 _logsi.LogVerbose("Spotify Connect LoginId not specified on class constructor; using Spotify UserProfile ID value \"%s\"" % (self._UserProfile.Id), colorValue=SIColors.Coral)
                 self._SpotifyConnectLoginId = self._UserProfile.Id
-                #raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("spotifyConnectLoginId"), logsi=_logsi)  #TODO REMOVEME
 
             # create new Spotify Connect Directory instance.
             self._SpotifyConnectDirectory = SpotifyConnectDirectoryTask(self, self._ZeroconfClient, self._SpotifyConnectDiscoveryTimeout)
@@ -9292,7 +9291,6 @@ class SpotifyClient:
                 # activate the spotify cast application on the device.
                 _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s" % (scDevice.Title))
                 self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Name, transferPlayback=False)
-                scDevice.WasReConnected = True
 
                 # re-fetch device instance, as it has updated Zeroconf Response data.
                 # do not need to refresh from Spotify Web API, as only zeroconf data was changed.
@@ -12495,10 +12493,9 @@ class SpotifyClient:
                 return
 
             # if resolved device is already active, then there is nothing to do.
-            if (deviceId is None) or (deviceId == "*") or (isinstance(deviceId, str) and (deviceId.strip() == "")):
-                if (scActiveDevice.Name == scDevice.Name):
-                    _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
-                    return
+            if (scActiveDevice.Name == scDevice.Name):
+                _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
+                return
 
             # build spotify web api request parameters.
             reqData:dict = \

@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.150 ] - 2025/01/20
+
+  * Updated `SpotifyConnectDirectoryTask` to reset Zeroconf response data after Chromecast device activation; new requests were still referring to the stale information.
+
 ###### [ 1.0.149 ] - 2025/01/20
 
   * Added support for Google Chromecast Spotify Connect devices.

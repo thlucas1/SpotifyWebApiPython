@@ -150,8 +150,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
         # clear event notifiers.
         self.WaitForInitComplete.clear()
-        self.WaitForActivationComplete.clear()
-        self.WaitForTransferComplete.clear()
+        self.WaitForActivationComplete.set()    # indicate activation is complete (initial state).
+        self.WaitForTransferComplete.set()      # indicate transfer is complete (initial state).
       
 
     @property
@@ -278,7 +278,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # trace - dump devices discovered initially.
             if (_logsi.IsOn(SILevel.Verbose)):
 
-                # use lock, as zeroconf tasks could still be updating the device list.
+                # use lock, as zeroconf tasks could be updating the device list.
                 with self._Zeroconf_Lock:
 
                     # trace.
@@ -457,6 +457,16 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             if (len(self._CastBrowser.devices) == 0):
                 raise SpotifyApiError("No available Chromecast devices detected", logsi=_logsi)
 
+            # are we waiting on a previous request to finish?
+            if (not self.WaitForActivationComplete.is_set):
+                raise SpotifyApiError("Waiting for previous Chromecast device activation to complete; try again in a few seconds", logsi=_logsi)
+            if (not self.WaitForTransferComplete.is_set):
+                raise SpotifyApiError("Waiting for previous Chromecast device playback transfer to complete; try again in a few seconds", logsi=_logsi)
+
+            # clear event notifiers.
+            self.WaitForActivationComplete.clear()
+            self.WaitForTransferComplete.clear()
+
             # if Spotify Cast App is active on a cast device then request that it stop.
             castAppTask:SpotifyConnectZeroconfCastAppTask = self._CastAppTasks.get(scDevice.DiscoveryResult.Key, None)
             if (castAppTask is not None):
@@ -470,6 +480,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # get CastInfo details of the specified device.
             _logsi.LogVerbose("%s - Getting Chromecast information for device: \"%s\"" % (self.name, deviceName))
             castInfo:CastInfo = self._CastBrowser.devices[UUID(scDevice.DiscoveryResult.Key)]
+
+            # syncronize access via lock, as we are accessing the collection.
+            with self._SpotifyConnectDevices_RLock:
+
+                # reset device zeroconf response, as we are re-using an existing object.
+                scDevice.ZeroconfResponseInfo = ZeroconfResponse()
 
             # connect to the device and build a Chromecast instance.
             castDevice:Chromecast = get_chromecast_from_cast_info(
@@ -503,20 +519,27 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             self._CastAppTasks[str(castInfo.uuid)] = castAppTask
 
             # wait for the launched spotify app to activate the user (or fail).
-            # this occurs when we receive an `addUserResponse` or `addUserError` zeroconf response message.
+            # this occurs when we receive any of the following zeroconf response 
+            # messages: `addUserResponse`, `addUserError`, `getInfoError`.
 
             counter = 0
             while counter < (timeoutActivation + 1):
                 if (self.WaitForActivationComplete.wait(1)):
-                    scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
+                    # syncronize access via lock, as we are accessing the collection.
+                    with self._SpotifyConnectDevices_RLock:
+                        scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                     if (scDevice is not None):
                         response = scDevice.ZeroconfResponseInfo
                         if (response.ResponseSource == TYPE_ADD_USER_RESPONSE):
+                            # indicate device was reconnected.
+                            scDevice.WasReConnected = True
                             break
                         raise SpotifyApiError("Spotify Cast App could not be activated on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
                     raise SpotifyApiError("Spotify Cast App could not activated on Chromecast device: unknown error", logsi=_logsi)
                 if (counter >= timeoutActivation):
-                    scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
+                    # syncronize access via lock, as we are accessing the collection.
+                    with self._SpotifyConnectDevices_RLock:
+                        scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                     if (scDevice is not None):
                         raise SpotifyApiError("Spotify Cast App activation timeout (%s seconds) was exceeded while trying to activate Chromecast device \"%s\"" % (timeoutActivation, deviceName), logsi=_logsi)
                 counter += 1
@@ -527,13 +550,18 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # was transfer playback specified?
             if (transferPlayback == True):
 
-                # wait for the launched spotify app to activate the user (or fail).
-                # this occurs when we receive an `addUserResponse` or `addUserError` zeroconf response message.
+                # note that we only wait if we are transferring playback.
+
+                # wait for the launched spotify app to transfer playback (or fail).
+                # this occurs when we receive any of the following zeroconf response 
+                # messages: `transferSuccess`, `transferError`.
 
                 counter = 0
                 while counter < (timeoutTransfer + 1):
                     if (self.WaitForTransferComplete.wait(1)):
-                        scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
+                        # syncronize access via lock, as we are accessing the collection.
+                        with self._SpotifyConnectDevices_RLock:
+                            scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                         if (scDevice is not None):
                             response = scDevice.ZeroconfResponseInfo
                             if (response.ResponseSource == TYPE_TRANSFER_SUCCESS_RESPONSE):
@@ -541,7 +569,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
                         raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device: unknown error", logsi=_logsi)
                     if (counter >= timeoutTransfer):
-                        scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
+                        # syncronize access via lock, as we are accessing the collection.
+                        with self._SpotifyConnectDevices_RLock:
+                            scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                         if (scDevice is not None):
                             raise SpotifyApiError("Spotify Cast App transfer playback timeout (%s seconds) was exceeded while waiting for transfer of playback on Chromecast device \"%s\"" % (timeoutTransfer, deviceName), logsi=_logsi)
                     counter += 1
@@ -556,6 +586,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             raise SpotifyApiError("Could not activate Spotify Cast application on Chromecast device \"%s\": %s" % (deviceName, str(ex)), ex, logsi=_logsi)
 
         finally:
+
+            # reset activation and transfer wait events to initial state for next time;
+            # just in case they were not set in the wait logic above (e.g. error condition).
+            self.WaitForActivationComplete.set()
+            self.WaitForTransferComplete.set()
 
             # trace.
             _logsi.LeaveMethod(SILevel.Debug)
@@ -1416,14 +1451,6 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         This method will be called in a thread-safe manner, as the caller is using
         the `_Zeroconf_Lock` object to control access.
         """
-
-        # TODO - research this some more!
-        # saw the following logged to the console about 4 minutes after I unplugged the speaker!
-        # it also DID NOT show up in the SI trace!
-        # "[Nest Audio 01(192.168.1.95):8009] Failed to connect. No retries"
-        # ??? we don't want to remove the device, since it's just disconnecting and not necessarily
-        # removing itself from the network.
-
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:
 
@@ -1548,7 +1575,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 A `ZeroconfResponse` instance that contains the zeroconf response data.
 
         This method allows us to update the SpotifyConnectDevice entry with the Spotify Connect 
-        Zeroconf response information.                
+        Zeroconf response information.
         """
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:

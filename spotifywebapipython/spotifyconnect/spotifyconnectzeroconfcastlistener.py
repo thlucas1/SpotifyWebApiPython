@@ -94,6 +94,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
             _logsi.LogObject(SILevel.Debug, "Chromecast Zeroconf service details: \"%s\" (%s) (CastInfo object)" % (castInfo.friendly_name, serviceName), castInfo) 
 
             # TODO we may need to expand this check based on cast_type value ...
+
             # Regular chromecast, supports video/audio
             #CAST_TYPE_CHROMECAST = "cast"
             # Cast Audio device, supports only audio
