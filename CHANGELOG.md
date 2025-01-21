@@ -8,6 +8,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.151 ] - 2025/01/21
+
+  * Added support for limited Sonos Player functions via the SoCo Sonos API.
+  * Added `soco` package requirement, >= 0.30.6.
+
 ###### [ 1.0.150 ] - 2025/01/20
 
   * Updated `SpotifyConnectDirectoryTask` to reset Zeroconf response data after Chromecast device activation; new requests were still referring to the stale information.

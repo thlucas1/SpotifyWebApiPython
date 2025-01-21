@@ -146,6 +146,16 @@ class SpotifyConnectDevice():
 
 
     @property
+    def IsSonos(self) -> bool:
+        """ 
+        True if the device is a Sonos device; otherwise, False.
+        """
+        if (self._DeviceInfo is not None):
+            return self._DeviceInfo.IsBrandSonos
+        return False
+    
+
+    @property
     def Name(self) -> str:
         """ 
         Spotify Connect device name value (e.g. "Bose-ST10-1").
@@ -235,6 +245,7 @@ class SpotifyConnectDevice():
             'IsChromeCast': self.IsChromeCast,
             'IsInDeviceList': self._IsInDeviceList,
             'IsRestricted': self._IsRestricted,
+            'IsSonos': self.IsSonos,
             'WasReConnected': self._WasReConnected,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),
@@ -258,6 +269,7 @@ class SpotifyConnectDevice():
             msg = '%s\n IsChromecast="%s"' % (msg, str(self.IsChromeCast))
             msg = '%s\n IsInDeviceList="%s"' % (msg, str(self._IsInDeviceList))
             msg = '%s\n IsRestricted="%s"' % (msg, str(self._IsRestricted))
+            msg = '%s\n IsSonos="%s"' % (msg, str(self.IsSonos))
             msg = '%s\n WasReConnected="%s"' % (msg, str(self._WasReConnected))
             msg = '%s\n' % (msg)
            

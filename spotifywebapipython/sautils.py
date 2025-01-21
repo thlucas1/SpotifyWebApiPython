@@ -6,6 +6,9 @@ import sys
 Utility module of helper functions.
 """
 
+SONOS_NOT_IMPLEMENTED:str = 'NOT_IMPLEMENTED'
+
+
 def GetUnixTimestampMSFromUtcNow(days:int=0,
                                  hours:int=0,
                                  minutes:int=0,
@@ -52,6 +55,53 @@ def passwordMaskString(inputObj:str) -> str:
     result:str = ''.ljust(len(inputObj), '*')
                 
     return result
+
+
+def mediaPositionHMS_fromSeconds(
+    position:int, 
+    ) -> float:
+    """
+    Converts an integer media position value from seconds to a string value in H:MM:SS format.
+        
+    Args:
+        position (int):
+            The position value (as specified in seconds) to convert.
+    """
+    result:str = '0:00:00'
+    
+    # validations.
+    if (isinstance(position, float)):
+        position = int(position)
+    if (position is None) or (position < 1):
+        return result            
+
+    # convert seconds to H:MM:SS string format.
+    nSeconds = int(position)
+    mm, ss = divmod(nSeconds, 60)            # get minutes and seconds first
+    hh, mm= divmod(mm, 60)                   # get hours next
+    result = "%d:%02d:%02d" % (hh, mm, ss)   # format to hh:mm:ss
+    
+    # return result to caller.
+    return result
+
+
+def mediaPositionHMS_toSeconds(
+    timestr:str
+    ) -> int:
+    """
+    Convert an "HH:MM:SS" string value to total number of seconds.
+        
+    Args:
+        timestr (int):
+            The position value (as specified in H:MM:SS) to convert.
+    """
+    if (timestr is None) or (timestr == SONOS_NOT_IMPLEMENTED): 
+        return 0
+        
+    seconds= 0
+    for part in timestr.split(':'):
+        seconds= seconds*60 + int(part, 10)
+    return seconds
 
 
 def static_init(cls):

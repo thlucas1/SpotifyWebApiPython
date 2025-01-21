@@ -5,10 +5,16 @@ import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 import socket
+from soco import SoCo
+from soco.core import (
+    PLAY_MODE_BY_MEANING as SONOS_PLAY_MODE_BY_MEANING,
+    PLAY_MODES as SONOS_PLAY_MODES,
+)
 import time
 from typing import Tuple, Callable, Union
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
+import urllib.parse
 from lxml.etree import fromstring, Element, tostring
 from lxml import etree
 from zeroconf import Zeroconf
@@ -18,7 +24,6 @@ from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
 from .spotifyconnect import SpotifyConnectDirectoryTask
-from .sautils import export, GetUnixTimestampMSFromUtcNow, _xmlGetInnerText, validateDelay
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
@@ -28,6 +33,14 @@ from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
 from .zeroconfapi.zeroconfconnect import ZeroconfConnect, ZeroconfGetInfo, ZeroconfResponse, SpotifyZeroconfApiError
 from .zeroconfapi.zeroconfgetinfoalias import ZeroconfGetInfoAlias
+from .sautils import (
+    _xmlGetInnerText, 
+    export, 
+    GetUnixTimestampMSFromUtcNow, 
+    mediaPositionHMS_fromSeconds,
+    mediaPositionHMS_toSeconds,
+    validateDelay
+)
 from .const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
@@ -42,6 +55,7 @@ from .const import (
     TRACE_MSG_AUTHTOKEN_CREATE,
     TRACE_MSG_AUTOPAGING_NEXT,
     TRACE_MSG_DELAY_DEVICE,
+    TRACE_MSG_DELAY_DEVICE_SONOS,
     TRACE_MSG_USERPROFILE,
     TRACE_WARN_SPOTIFY_SEARCH_NO_MARKET,
     VERSION
@@ -7573,6 +7587,11 @@ class SpotifyClient:
                         if scDevice is not None:
                             device.Id = scDevice.DeviceInfo.DeviceId
         
+            # update Spotify Connect Directory with active device details.
+            # IMPORTANT - make sure result contains an object, otherwise it's an endless loop!
+            if result is not None:
+                self.SpotifyConnectDirectory.UpdateActiveDevice(result)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -9158,6 +9177,219 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
+    def GetSonosPlayerPlaybackState(
+        self, 
+        scDevice:SpotifyConnectDevice,
+        ) -> PlayerPlayState:
+        """
+        Get information about the Sonos user's current playback state, including track or episode, progress, 
+        and active device.
+        
+        This is not part of the Spotify Web API specification; it is for Sonos devices only!
+
+        Args:
+            scDevice (SpotifyConnectDevice):
+                Spotify Connect device instance used to identify the Sonos player.
+                
+        Returns:
+            A `PlayerPlayState` object that contains Sonos player state details as well as
+            currently playing content.
+                
+        Raises:
+            SpotifyApiError: 
+                If the method fails for any other reason.
+        """
+        apiMethodName:str = 'GetSonosPlayerPlaybackState'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("scDevice", scDevice)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get Sonos user's current playback state", apiMethodParms)
+            
+            # create playstate object.
+            playerState = PlayerPlayState()
+
+            # get Sonos Controller instance for the device.
+            sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+
+            # use the SoCo API to get Sonos playback status.
+            # build a spotify playback status instance with equivalent Sonos state values.
+            _logsi.LogVerbose("Getting Sonos device status via Sonos Control API for device: %s" % (scDevice.Title))
+            sonosTrackInfo:dict = sonosPlayer.get_current_track_info()
+            _logsi.LogDictionary(SILevel.Verbose, "Sonos device current_track_info results for device: %s" % (scDevice.Title), sonosTrackInfo, prettyPrint=True)
+            sonosTransportInfo:dict = sonosPlayer.get_current_transport_info()
+            _logsi.LogDictionary(SILevel.Verbose, "Sonos device get_current_transport_info results for device: %s" % (scDevice.Title), sonosTransportInfo, prettyPrint=True)
+
+            # update Spotify Web API player state with Sonos player state.
+            playerState._Device._Id = scDevice.Id
+            playerState._Device._Name = sonosPlayer.player_name
+            playerState._Device._VolumePercent = sonosPlayer.volume
+            playerState._Device._IsActive = True
+            playerState._Device._IsRestricted = True
+            playerState._Device._SupportsVolume = True
+            playerState._Device._Type = 'SPEAKER'
+                
+            # try to get the spotify uri from the "metadata" music library DIDL value, as
+            # the "uri" value (e.g. "x-sonos-vli:RINCON_38420B909DC801400:2,spotify:e934941535d7b182815bf688490ce8a8")
+            # is not a true spotify uri value (e.g. "spotify:track:6kYyS9g4WJeRzTYqsmcMmM")
+            spotifyUri:str = sonosTrackInfo.get('uri','')
+            didl:str = sonosTrackInfo.get('metadata',None)
+            if (didl):
+                METADATA_ID:str = 'x-sonos-spotify:'
+                idx:int = didl.find(METADATA_ID)
+                if (idx > -1):
+                    spotifyUri:str = didl[idx + len(METADATA_ID):]
+                    spotifyUri = urllib.parse.unquote(spotifyUri)
+                    idx = spotifyUri.find('?')
+                    if (idx > -1):
+                        spotifyUri = spotifyUri[:idx]
+            spotifyType = self.GetTypeFromUri(spotifyUri) or ''
+            spotifyId = self.GetIdFromUri(spotifyUri) or ''
+                
+            # set base item properties.
+            playerState.IsEmpty = False
+            playerState.ItemType = spotifyType
+            sTimeValue:str = sonosTrackInfo.get('position',None)
+            playerState._ProgressMS = mediaPositionHMS_toSeconds(sTimeValue) * 1000        # convert h:mm:ss to milliseconds
+                
+            # set some item properties based on the playing type (episode or non-episode).
+            if (spotifyType == 'episode'):
+
+                # get the episode data from spotify, as Sonos Soco data is incomplete.
+                playerState._CurrentlyPlayingType = 'episode'
+                episode:Episode = self.GetEpisode(spotifyId)
+                if (episode.Id is not None): 
+                    playerState._Item = episode
+                    if (playerState._Context is None):
+                        playerState._Context = Context()
+                        playerState._Context._Type = episode.Show.Type
+                        playerState._Context._Uri = episode.Show.Uri
+                        playerState._Context._Href = episode.Show.Href
+                        playerState._Context._ExternalUrls = episode.Show.ExternalUrls
+                else:
+                    # if data could not be obtained from spotify, then use what's 
+                    # available from Sonos Soco api metadata.
+                    playerState._Item = Episode()
+                    playerState._Item._Name = sonosTrackInfo.get('title','')
+                    playerState._Item._Uri = spotifyUri
+                    playerState._Item._Description = 'Sonos device does not provide a description'
+                    sTimeValue:str = sonosTrackInfo.get('duration',None)
+                    playerState._Item._DurationMS = mediaPositionHMS_toSeconds(sTimeValue) * 1000  # convert h:mm:ss to milliseconds
+                    playerState._Item._Explicit = False
+                    playerState._Item._Href = 'https://api.spotify.com/v1/episodes/' + spotifyId
+                    playerState._Item._HtmlDescription = playerState._Item._Description
+                    playerState._Item._Id = spotifyId
+                    playerState._Item.Images.append(ImageObject())
+                    playerState._Item.Images[0]._Url = sonosTrackInfo.get('album_art','')
+                    playerState._Item._TrackNumber = sonosTrackInfo.get('playlist_position','')
+                    playerState._Item._ReleaseDate = '0000'
+                    playerState._Item._ReleaseDatePrecision = 'year'
+                    playerState._Item._Type = 'episode'
+                    playerState._Item._Show = Show()
+                    playerState._Item._Show._Name = sonosTrackInfo.get('album','')  # TODO get this from metadata (<r:podcast>The Elfstones of Shannara</r:podcast>)
+                    playerState._Item._Show.Images.append(ImageObject())
+                    playerState._Item._Show.Images[0]._Url = sonosTrackInfo.get('album_art','')
+                    playerState._Item._Show._Publisher = sonosTrackInfo.get('artist','')
+
+                    # if show name not set then get it from metadata.
+                    if (playerState._Item._Show._Name == ''):
+                        if (didl):
+                            METADATA_ID:str = '<r:podcast>'
+                            METADATA_END:str = '</r:podcast>'
+                            idx:int = didl.find(METADATA_ID)
+                            if (idx > -1):
+                                metaValue:str = didl[idx + len(METADATA_ID):]
+                                idx = metaValue.find(METADATA_END)
+                                if (idx > -1):
+                                    metaValue = metaValue[:idx]
+                                    playerState._Item._Show._Name = metaValue
+                                    
+                # if episode is playing then resolve the underlying type (audiobook / podcast show).
+                if (self.IsChapterEpisode(spotifyId)):
+                    playerState.ItemType = 'audiobook'
+                else:
+                    playerState.ItemType = 'podcast'
+                        
+            elif (spotifyType == 'track'):
+                    
+                # get the track data from spotify, as Sonos Soco data is incomplete.
+                track:Track = self.GetTrack(spotifyId)
+                if (track.Id is not None): 
+                    playerState._Item = track
+                    if (playerState._Context is None):
+                        playerState._Context = Context()
+                        playerState._Context._Type = track.Album.Type
+                        playerState._Context._Uri = track.Album.Uri
+                        playerState._Context._Href = track.Album.Href
+                        playerState._Context._ExternalUrls = track.Album.ExternalUrls
+                else:
+                    # if data could not be obtained from spotify, then use what's 
+                    # available from Sonos Soco api metadata.
+                    playerState._CurrentlyPlayingType = 'track'
+                    playerState.ItemType = playerState._CurrentlyPlayingType
+                    playerState._Item = Track()
+                    playerState._Item._Name = sonosTrackInfo.get('title','')
+                    playerState._Item._Uri = spotifyUri
+                    playerState._Item._Description = 'Sonos device does not provide a description'
+                    sTimeValue:str = sonosTrackInfo.get('duration',None)
+                    playerState._Item._DurationMS = mediaPositionHMS_toSeconds(sTimeValue) * 1000  # convert h:mm:ss to milliseconds
+                    playerState._Item._Explicit = False
+                    playerState._Item._Href = 'https://api.spotify.com/v1/episodes/' + spotifyId
+                    playerState._Item._HtmlDescription = playerState._Item._Description
+                    playerState._Item._Id = spotifyId
+                    playerState._Item._TrackNumber = sonosTrackInfo.get('playlist_position','')
+                    playerState._Item._ReleaseDate = '0000'
+                    playerState._Item._ReleaseDatePrecision = 'year'
+                    playerState._Item._Type = 'track'
+                    playerState._Item._Album = Album()
+                    playerState._Item._Album._Name = sonosTrackInfo.get('album','')
+                    playerState._Item._Album.Images.append(ImageObject())
+                    playerState._Item._Album.Images[0]._Url = sonosTrackInfo.get('album_art','')
+                    playerState._Item.Artists.append(Artist())
+                    playerState._Item.Artists[0]._Name = sonosTrackInfo.get('artist','')
+                               
+            # set transport actions.
+            currentTransportState:str = sonosTransportInfo.get('current_transport_state','')
+            if currentTransportState == 'PLAYING':
+                playerState._IsPlaying = True
+            elif currentTransportState in ['PAUSED_PLAYBACK','STOPPED']:
+                playerState.Actions._Pausing = True
+                    
+            # only update the following PlayState attributes from SoCo if they are NOT set.
+            # these values are used to set the Sonos PlayMode value, which is the actual value that determines
+            # what the Repeat and Shuffle settings are (ya, it's weird!).  What is odd is that the Spotify
+            # Web API PlayerState values for Shuffle and Repeat can be different than what the Sonos Controller
+            # API (SoCo) report for the device!  This is why we use the Spotify Web API PlayerState values.
+            if playerState._ShuffleState is None:
+                playerState._ShuffleState = sonosPlayer.shuffle
+            if playerState._RepeatState is None:
+                sonosRepeat = sonosPlayer.repeat
+                if sonosRepeat == 'ONE':
+                    playerState._RepeatState = 'track'
+                elif sonosRepeat == False:
+                    playerState._RepeatState = 'off'
+                elif sonosRepeat == True:
+                    playerState._RepeatState = 'context'
+        
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "Current Spotify player PlayState (built from Sonos device current state) for device: %s" % (scDevice.Title), playerState, excludeNonPublic=True)
+            return playerState
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def GetSpotifyConnectDevice(
         self, 
         deviceValue:str, 
@@ -9244,6 +9476,7 @@ class SpotifyClient:
         apiMethodName:str = 'GetSpotifyConnectDevice'
         apiMethodParms:SIMethodParmListContext = None
         scDevice:SpotifyConnectDevice = None
+        sonosPlayer:Soco = None
         
         try:
             
@@ -9302,7 +9535,7 @@ class SpotifyClient:
             # if this is a Sonos device and there is no Spotify Client Application token then don't bother.
             # in this case, we will exit and let the calling method switch to the Sonos device and play 
             # using the Sonos local queue.
-            if (info.IsBrandSonos):
+            if (scDevice.IsSonos):
                         
                 # check if the Spotify Desktop Application Client oauth2 token is defined.
                 hasToken:bool = AuthClient.HasTokenForKey(
@@ -9317,6 +9550,10 @@ class SpotifyClient:
                 if not hasToken:
                     _logsi.LogVerbose("Spotify Desktop Application Client oauth2 token was not found for Spotify LoginId: '%s'" % (self._SpotifyConnectLoginId))
                     return scDevice
+
+                # get Sonos Controller instance for the device.
+                _logsi.LogVerbose("Target device is Sonos; getting Sonos Controller instance for device %s" % (scDevice.Title))
+                sonosPlayer = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
 
             # at this point, we will try to activate the device.
                     
@@ -9342,87 +9579,20 @@ class SpotifyClient:
                 tokenStorageDir=self.TokenStorageDir,
                 tokenStorageFile=self.TokenStorageFile)
             
-            # what if we DON'T disconnect the device?  
-            # will `Connect` switch the user context?
+            # is this a Sonos device?
+            if (scDevice.IsSonos):
+                               
+                # trace.
+                sonosMusicSource:str = sonosPlayer.music_source
+                _logsi.LogVerbose("Sonos device %s music source before Connect: \"%s\"" % (scDevice.Title, sonosMusicSource))
 
-            # # disconnect the device.
-            # # we will bypass disconnects for librespot devices (e.g. spotifyd, etc), as the
-            # # Spotify Connect Zeroconf `resetUsers` endpoint is not implemented and will
-            # # generate a 404 request response.
-            # if (info.BrandDisplayName != 'librespot'):                       
+                # was the Sonos device music source set to SPOTIFY_CONNECT?
+                # if not, then issue a Disconnect to (hopefully) reset the music source. this should allow
+                # the subsequent Connect to re-establish a SPOTIFY_CONNECT music source on the Sonos device.
+                if sonosMusicSource != "SPOTIFY_CONNECT":
+                    _logsi.LogVerbose("Issuing Disconnect to Sonos Spotify Connect device %s" % (scDevice.Title))
+                    zcfResult = zconn.Disconnect(ignoreStatusResult=True)
 
-            #     _logsi.LogVerbose("Issuing Disconnect to Spotify Connect device \"%s\" for current user context \"%s\" (ip=%s:%s)" % (scDevice.Title, oldActiveUser, zconn.HostIpAddress, zconn.HostIpPort))
-            #     zcfResult = zconn.Disconnect(delay)
-
-            #     # delay just a little to give the device time to process the disconnect.
-            #     # some devices only support a single connection on the spotify connect 
-            #     # zeroconf webserver, so we have to give it a little time to process the 
-            #     # disconnect command before we try to call the Connect method.
-            #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % DELAY_DISCONNECT)
-            #     time.sleep(DELAY_DISCONNECT)
-
-            #     # some manufacturers will reset the device host ip port after a disconnect (e.g. "Denon", etc).
-            #     # due to this, the device will de-register itself via zeroconf and then re-register itself.
-            #     # we will now wait for the device to be re-discovered by zeroconf.
-            #     loopTotalDelay:float = 0
-            #     LOOP_DELAY:float = 0.25
-            #     while True:
-
-            #         # wait just a bit between available device list queries.
-            #         _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
-            #         time.sleep(LOOP_DELAY)
-            #         loopTotalDelay = loopTotalDelay + LOOP_DELAY
-
-            #         with self._SpotifyConnectDirectory._Zeroconf_Lock:
-
-            #         # check for the device in the available device list.
-            #         # if we find it, then we are done.
-
-            #         device:Device = self.GetPlayerDevice(deviceResultId, True)
-            #         if device is not None:
-            #             _logsi.LogVerbose("Spotify Connect device \"%s\" is now in the available device list; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
-            #             break
-                        
-
-            #     # re-discover Spotify Connect devices on the network
-            #     _logsi.LogVerbose("Rediscovering Spotify Connect devices on the local network (due to previous disconnect)")
-            #     rediscovery:SpotifyDiscovery = SpotifyDiscovery(self._ZeroconfClient, printToConsole=False)
-            #     rediscovery.DiscoverDevices(timeout=self._SpotifyConnectDiscoveryTimeout)
-
-            #     # trace.
-            #     _logsi.LogDictionary(SILevel.Verbose, "Rediscovered Spotify Connect devices on the local network (due to previous disconnect)", rediscovery.DiscoveryResults, prettyPrint=True)
-
-            #     # process all rediscovered devices, and update selected device.
-            #     rediscovery:ZeroconfDiscoveryResult
-            #     for rediscovery in rediscovery.DiscoveryResults:
-
-            #         # add / update selected device discovery results by serviceinfo key value. 
-            #         if (rediscovery.Key == scDevice.DiscoveryResult.Key):
-
-            #             # save old discovery result id so we can log it later.
-            #             oldDiscoveryResultId:str = discovery.Id
-
-            #             # update selected device discovery result.
-            #             _logsi.LogObject(SILevel.Verbose, "Spotify Connect device \"%s\" DiscoveryResult instance rediscovered properties" % (rediscovery.Id), rediscovery, excludeNonPublic=True)
-            #             _logsi.LogVerbose("Updating Spotify Connect device \"%s\" DiscoveryResult instance with rediscovered properties" % (scDevice.Title))
-            #             scDevice.DiscoveryResult = rediscovery
-            #             discovery = rediscovery
-
-            #             # did the host ip address or port change?
-            #             # if so, then we need to recreate the ZeroconfConnect instance
-            #             # in order to access the updated ip address and port.
-            #             if (discovery.HostIpAddress != zconn.HostIpAddress) \
-            #             or (discovery.HostIpPort != zconn.HostIpPort):
-
-            #                 _logsi.LogVerbose("Spotify Connect device info changed to %s from %s after disconnect; recreating ZeroconfConnect instance" % (discovery.Id, oldDiscoveryResultId))
-            #                 zconn = ZeroconfConnect(discovery.HostIpAddress, 
-            #                                         discovery.HostIpPort, 
-            #                                         discovery.SpotifyConnectCPath,
-            #                                         useSSL=False,
-            #                                         tokenStorageDir=self.TokenStorageDir,
-            #                                         tokenStorageFile=self.TokenStorageFile)
-            #             break
-                    
             # connect the device to OUR Spotify Connect user context.
             # note that the result here only indicates that the connect was submitted - NOT that it was successful!
             _logsi.LogVerbose("Issuing Connect to Spotify Connect device %s for user context \"%s\" (ip=%s:%s)" % (scDevice.Title, self._SpotifyConnectLoginId, zconn.HostIpAddress, zconn.HostIpPort))
@@ -9434,6 +9604,26 @@ class SpotifyClient:
             # trace.
             _logsi.LogVerbose("User context switched from \"%s\" to \"%s\" for Spotify Connect device %s" % (oldActiveUser, self._SpotifyConnectLoginId, scDevice.Title))
 
+            # is this a Sonos device?
+            if (scDevice.IsSonos):
+                               
+                # trace.
+                sonosMusicSource:str = sonosPlayer.music_source
+                _logsi.LogVerbose("Sonos device %s music source after Connect: \"%s\"" % (scDevice.Title, sonosMusicSource))
+
+                # was the Sonos device music source set to Spotify Connect?
+                # if not, then it's a lost cause at this point since it's probably in an UNKNOWN state.
+                if sonosMusicSource != "SPOTIFY_CONNECT":
+                    _logsi.LogVerbose("Sonos device %s music source after Connect is not SPOTIFY_CONNECT; it will probably fail to play" % (scDevice.Title))
+
+                # at this point the Sonos music source should be set to SPOTIFY_CONNECT, and control
+                # transferred to the device.  note that the Sonos device will still NOT appear in the 
+                # player device list, but SHOULD be the active (restricted) device in player state.
+                
+            # wait for the device to enter the Spotify Web API player device list, or
+            # to become the active device.  
+            # Sonos devices are famous for not showing up in the device list, but DO 
+            # appear as the active (restricted) device!
             loopTotalDelay:float = 0
             LOOP_DELAY:float = 0.350
             while True:
@@ -9466,7 +9656,7 @@ class SpotifyClient:
                 # only check so many times before we give up;
                 # we will keep checking until we find the device, or we exceed the verifyTimeout value.
                 if (loopTotalDelay > verifyTimeout):
-                    _logsi.LogWarning("Verification timeout waiting for Spotify Connect device %s to be added to the player device list; device not found within %f seconds of Connect" % (scDevice.Title, verifyTimeout))
+                    _logsi.LogWarning("Verification timeout waiting for Spotify Connect device %s to be added to the player device list or become the active device; device not found within %f seconds of Connect" % (scDevice.Title, verifyTimeout))
                     break
 
             # return the device instance.
@@ -11217,15 +11407,24 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = {}
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                _logsi.LogVerbose("Issuing command to Sonos device %s: PAUSE" % (scDevice.Title))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.pause()
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = {}
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -11732,15 +11931,24 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = {}
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                _logsi.LogVerbose("Issuing command to Sonos device %s: PLAY (RESUME)" % (scDevice.Title))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.play()
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = {}
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -11871,18 +12079,28 @@ class SpotifyClient:
                         newPositionMS = 0
                     positionMS = newPositionMS
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'position_ms': positionMS
-            }
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                sonosPosition:str = mediaPositionHMS_fromSeconds(positionMS / 1000)    # convert from milliseconds to Sonos H:MM:SS format
+                _logsi.LogVerbose("Issuing command to Sonos device %s: SEEK (sonosPosition=%s)" % (scDevice.Title, sonosPosition))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.seek(str(sonosPosition))
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = \
+                {
+                    'position_ms': positionMS
+                }
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -11964,15 +12182,24 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = {}
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('POST', msg)
+                _logsi.LogVerbose("Issuing command to Sonos device %s: NEXT" % (scDevice.Title))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.next()
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = {}
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('POST', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -12054,15 +12281,24 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = {}
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('POST', msg)
+                _logsi.LogVerbose("Issuing command to Sonos device %s: PREVIOUS" % (scDevice.Title))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.previous()
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = {}
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('POST', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -12152,18 +12388,44 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'state': state
-            }
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                # get current Spotify Connect player state.
+                playerState = self.GetSonosPlayerPlaybackState(scDevice)
+            
+                # set the Sonos PlayMode directly (instead of setting the Sonos repeat property)!
+                # The Spotify Web API PlayerState `ShuffleState` value can sometimes be different than what the
+                # Sonos device reports for its `shuffle` property value!
+                if state == 'track':
+                    sonos_repeat = 'ONE'
+                elif state == 'off':
+                    sonos_repeat = False
+                elif state == 'context':
+                    sonos_repeat = True
+                else:
+                    sonos_repeat = False
+                playMode:str = SONOS_PLAY_MODE_BY_MEANING[(playerState.ShuffleState, sonos_repeat)]
+                
+                # execute SoCo api request.
+                _logsi.LogVerbose("Issuing command to Sonos device %s: REPEAT (playmode=%s)" % (scDevice.Title, playMode))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.play_mode = playMode
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = \
+                {
+                    'state': state
+                }
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -12252,18 +12514,45 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'state': state
-            }
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                # get current Spotify Connect player state.
+                playerState = self.GetSonosPlayerPlaybackState(scDevice)
+            
+                # set the Sonos PlayMode directly (instead of setting the Sonos `shuffle` property)!
+                # the Spotify Web API PlayerState `RepeatState` value can sometimes be different than what the
+                # Sonos device reports for its `repeat` property value!
+                sonos_repeat:str
+                if playerState.RepeatState == 'track':
+                    sonos_repeat = 'ONE'
+                elif playerState.RepeatState == 'off':
+                    sonos_repeat = False
+                elif playerState.RepeatState == 'context':
+                    sonos_repeat = True
+                else:   # assume off if nothing else.
+                    sonos_repeat = False
+                playMode:str = SONOS_PLAY_MODE_BY_MEANING[(state, sonos_repeat)]
+                
+                # execute SoCo api request.
+                _logsi.LogVerbose("Issuing command to Sonos device %s: SHUFFLE (playmode=%s)" % (scDevice.Title, playMode))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.play_mode = playMode
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = \
+                {
+                    'state': state
+                }
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -12351,18 +12640,27 @@ class SpotifyClient:
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'volume_percent': volumePercent
-            }
-            urlParms['device_id'] = scDevice.Id
+            # is this an active Sonos device?
+            if (scDevice.IsSonos) and (scDevice.IsActiveDevice):
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('PUT', msg)
+                _logsi.LogVerbose("Issuing command to Sonos device %s: VOLUME = %s" % (scDevice.Title, volumePercent))
+                sonosPlayer:Soco = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                sonosPlayer.volume = volumePercent
+
+            else:
+
+                # build spotify web api request parameters.
+                urlParms:dict = \
+                {
+                    'volume_percent': volumePercent
+                }
+                urlParms['device_id'] = scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.UrlParameters = urlParms
+                self.MakeRequest('PUT', msg)
             
             # give spotify web api time to process the change.
             if delay > 0:
@@ -12472,10 +12770,40 @@ class SpotifyClient:
 
             # is this a Sonos device? 
             # if so, then control was automatically transferred by activating the device.
-            # note that we also cannot stop nor start play on the device either, as it's
-            # considered a restricted device and the Spotify Web API cannot control it!
-            if scDevice.DeviceInfo.IsBrandSonos:
-                _logsi.LogVerbose('Sonos device detected; bypassing call to Spotify Web API Transfer Playback endpoint')
+            # note that the Spotify Web API cannot stop nor start play on the device either, 
+            # as it's considered a restricted device and the Spotify Web API cannot control it!
+            # all requests to control the device will be made via the Sonos Controller API.
+            if (scDevice.IsSonos):
+
+                # get Sonos Controller instance for the device.
+                sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+
+                # get current Sonos transport status.
+                sonosTransportInfo:dict = sonosPlayer.get_current_transport_info()
+                currentTransportState:str = sonosTransportInfo.get('current_transport_state', None)
+                currentTransportStatus:str = sonosTransportInfo.get('current_transport_status', None)
+                _logsi.LogVerbose("Sonos device %s current transport state after activation: \"%s\" (Status=%s)" % (scDevice.Title, currentTransportState, currentTransportStatus))
+
+                # stop / start play as requested.
+                wasCmdIssued:bool = False
+                if currentTransportState == 'PLAYING':
+                    if play == False:
+                        _logsi.LogVerbose("Issuing command to Sonos device %s: PAUSE" % (scDevice.Title))
+                        sonosPlayer.pause()
+                        wasCmdIssued = True
+                elif currentTransportState in ['PAUSED_PLAYBACK','STOPPED','TRANSITIONING']:
+                    if play == True:
+                        _logsi.LogVerbose("Issuing command to Sonos device %s: PLAY" % (scDevice.Title))
+                        sonosPlayer.play()
+                        wasCmdIssued = True
+                                        
+                # give SoCo api time to process the change.
+                if (wasCmdIssued) and (delay > 0):
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                    time.sleep(delay)
+
+                # trace.
+                _logsi.LogVerbose("Sonos device detected (IsRestricted); bypassing call to Spotify Web API Transfer Playback endpoint")
                 return
 
             # before transferring playback to the device, we first need to check to see if anything

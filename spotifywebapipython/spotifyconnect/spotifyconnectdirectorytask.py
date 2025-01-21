@@ -6,6 +6,7 @@ from datetime import datetime
 import hashlib
 from pychromecast import CastBrowser, CastInfo, Chromecast, get_chromecast_from_cast_info
 import socket
+from soco import SoCo
 import threading
 import time
 from uuid import UUID
@@ -101,6 +102,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         self._CastBrowser:CastBrowser = None
         self._InitialDiscoveryTimeout = initialDiscoveryTimeout
         self._IsStopRequested:bool = False
+        self._SonosPlayers:dict = {}
         self._SpotifyClientInstance = spotifyClientInstance
         self._SpotifyConnectBrowser:ServiceBrowser = None
         self._SpotifyConnectDevices:SpotifyConnectDevices = SpotifyConnectDevices()
@@ -957,6 +959,50 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             return result
 
 
+    def GetSonosPlayer(
+        self, 
+        device:SpotifyConnectDevice,
+        ) -> SoCo:
+        """ 
+        Returns the Sonos Controller instance for the specified Spotify Connect device.
+        Returns the Sonos player instance for the specified Spotify Connect Sonos device.
+        
+        Args:
+            device (SpotifyConnectDevice):
+                Spotify Connect device instance used to identify the Sonos player.
+
+        Returns:
+            The Sonos Controller instance for the specified Spotify Connect device.
+
+        Raises:
+            SpotifyApiError:
+                If a Sonos Controller instance could not be found for the device id.
+
+        You should invoke "if (scDevice.IsSonos):" logic prior to calling this method, as
+        a Sonos Controller instance will not be created for non-Sonos devices and an exception
+        will be raised!
+        """
+        apiMethodName:str = "GetSonosPlayer"
+
+        # syncronize access via lock, as we are accessing the collection.
+        with self._SpotifyConnectDevices_RLock:
+
+            result:SpotifyConnectDevice = None
+
+            # validations.
+            if (device is None):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'device'), logsi=_logsi)
+
+            # get Sonos Controller instance for device name.
+            sonosPlayer:SoCo = self._SonosPlayers.get(device.DiscoveryResult.HostIpAddress, None)
+
+            # if not found then it's an error.
+            if (sonosPlayer is None):
+                raise SpotifyApiError("Could not find Sonos Controller instance for device: %s" % (device.Title), None, logsi=_logsi)
+
+            return sonosPlayer
+
+
     def GetSpotifyDeviceIDFromName(
         self, 
         name:str
@@ -1737,6 +1783,21 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # sort devices collection by device name.
                     if (len(self._SpotifyConnectDevices.Items) > 0):
                         self._SpotifyConnectDevices.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+                    try:
+
+                        # if new device is a Sonos, then create a Sonos Controller instance for the device.
+                        # use device ip address as the key, as Spotify Web API reports id=null for restricted devices in playerstate!
+                        if (scDevice.IsSonos):
+                            _logsi.LogVerbose("Sonos device detected; creating Sonos Controller instance for device: %s (ip=%s)" % (scDevice.Title, zeroconfDiscoveryResult.HostIpAddress))
+                            self._SonosPlayers[zeroconfDiscoveryResult.HostIpAddress] = SoCo(zeroconfDiscoveryResult.HostIpAddress)
+
+                    except:
+
+                        # trace.
+                        _logsi.LogException("%s - Could not create Sonos Control API reference: %s" % (self.name, str(ex)), ex, logToSystemLogger=False)
+            
+                        # ignore exceptions, as there is nothing we can do at this point.
 
                     # raise event.
                     self._RaiseDeviceAdded(scDevice)
