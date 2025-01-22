@@ -20,17 +20,21 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
+    # if no active spotify player device, then use the specified device.
+    spotify.DefaultDeviceId = "Bose-ST10-1"
+            
+    # set device to control.
+    deviceId:str = "*"          # use DefaultDeviceId
+    #deviceId:str = "Office"    # use device name (or id)
+    #deviceId:str = None        # use currently active device
+
     # set shuffle mode ON for the user's current playback device.
-    deviceId:str = None   # use currently playing device
-    #deviceId:str = "Web Player (Chrome)" # or device name
-    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     print('\nSet shuffle mode ON for Spotify Connect device:\n- "%s" ...' % (str(deviceId)))
     spotify.PlayerSetShuffleMode(True, deviceId)
 
     print('\nSuccess - shuffle mode ON was set')
 
     # set shuffle mode OFF for the user's current playback device.
-    deviceId:str = None   # use currently playing device
     print('\nSet shuffle mode OFF for Spotify Connect device:\n- "%s" ...' % (str(deviceId)))
     spotify.PlayerSetShuffleMode(False, deviceId)
 

@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.152 ] - 2025/01/22
+
+  * Added more support for Sonos Player functions via the SoCo Sonos API.
+
 ###### [ 1.0.151 ] - 2025/01/21
 
   * Added support for limited Sonos Player functions via the SoCo Sonos API.

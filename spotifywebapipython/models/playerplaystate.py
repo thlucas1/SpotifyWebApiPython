@@ -31,7 +31,9 @@ class PlayerPlayState:
         self._ItemType:str = None
         self._CurrentlyPlayingType:str = None
         self._Device:Device = None
+        self._DeviceMusicSource:str = None
         self._Item:object = None
+        self._IsDeviceState:bool = False
         self._IsPlaying:bool = None
         self._ProgressMS:int = None
         self._RepeatState:str = None
@@ -147,6 +149,25 @@ class PlayerPlayState:
 
 
     @property
+    def DeviceMusicSource(self) -> str:
+        """ 
+        The device music source.
+        This value is device manufacturer specific.
+        For example, a Sonos source will contain values like "UNKNOWN", "SPOTIFY_CONNECT", etc.
+        
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        return self._DeviceMusicSource
+
+    @DeviceMusicSource.setter
+    def DeviceMusicSource(self, value:str):
+        """ 
+        Sets the DeviceMusicSource property value.
+        """
+        self._DeviceMusicSource = value
+
+
+    @property
     def Item(self) -> object:
         """ 
         The currently playing track or episode; can be null.  
@@ -185,6 +206,23 @@ class PlayerPlayState:
         if self._CurrentlyPlayingType == "ad":
             return True
         return False
+
+
+    @property
+    def IsDeviceState(self) -> bool:
+        """ 
+        True if playstate was built from a device playstate; 
+        otherwise, false if playstate was built from a Spotify Web API playstate.
+        """
+        return self._IsDeviceState
+
+    @IsDeviceState.setter
+    def IsDeviceState(self, value:bool):
+        """ 
+        Sets the IsDeviceState property value.
+        """
+        if isinstance(value, bool):
+            self._IsDeviceState = value
 
 
     @property
@@ -375,6 +413,8 @@ class PlayerPlayState:
             'context': context,
             'currently_playing_type': self._CurrentlyPlayingType,
             'device': device,
+            'device_music_source': self._DeviceMusicSource,
+            'is_device_state': self._IsDeviceState,
             'is_playing': self._IsPlaying,
             'progress_ms': self._ProgressMS,
             'repeat_state': self._RepeatState,
@@ -396,9 +436,11 @@ class PlayerPlayState:
         if self._CurrentlyPlayingType is not None: msg = '%s\n CurrentlyPlayingType="%s"' % (msg, str(self._CurrentlyPlayingType))
         if self._ItemType is not None: msg = '%s\n ItemType="%s"' % (msg, str(self._ItemType))
         if self._Device is not None: msg = '%s\n Device Name="%s"' % (msg, str(self._Device.Name))
+        if self._DeviceMusicSource is not None: msg = '%s\n DeviceMusicSource="%s"' % (msg, str(self._DeviceMusicSource))
         #if self._Context is not None: msg = '%s\n %s' % (msg, str(self._Context))
         #if self._Item is not None: msg = '%s\n %s' % (msg, str(self._Item))
         if self.IsMuted is not None: msg = '%s\n IsMuted="%s"' % (msg, str(self.IsMuted))
+        if self._IsDeviceState is not None: msg = '%s\n IsDeviceState="%s"' % (msg, str(self._IsDeviceState))
         if self._IsPlaying is not None: msg = '%s\n IsPlaying="%s"' % (msg, str(self._IsPlaying))
         if self._ProgressMS is not None: msg = '%s\n ProgressMS="%s"' % (msg, str(self._ProgressMS))
         if self._RepeatState is not None: msg = '%s\n RepeatState="%s"' % (msg, str(self._RepeatState))

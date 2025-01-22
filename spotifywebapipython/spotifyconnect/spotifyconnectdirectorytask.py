@@ -13,6 +13,7 @@ from uuid import UUID
 from zeroconf import Zeroconf, ServiceBrowser
 
 # our package imports.
+from .spotifyconnectzeroconfexceptions import SpotifyConnectDeviceNotFound
 from .spotifyconnectzeroconfcastapptask import SpotifyConnectZeroconfCastAppTask
 from .spotifyconnectzeroconfcastlistener import SpotifyConnectZeroconfCastListener
 from .spotifyconnectdeviceeventargs import SpotifyConnectDeviceEventArgs
@@ -733,33 +734,42 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         self,
         value:str,
         refreshDynamicDevices:bool=True,
+        raiseExceptionIfNotFound:bool=True,
         ) -> SpotifyConnectDevice:
         """
-        Returns a `SpotifyConnectDevice` object for the specified device name / id if found;
-        otherwise, an exception is returned indicating a device was not found.
+        Returns a `SpotifyConnectDevice` object for the specified device name / id if found
+        in the devices collection. otherwise, returns the currently active player
+        `SpotifyConnectDevice` object is returned.  otherwise, null is returned.
 
         Args:
-            value (str):
-                Spotify Connect device name or id value used to identify the device,
-                or null to retrieve the currently active Spotify Player device,
-                or an asterisk (*) to use the SpotifyPlus configured default device.
+            value (str | None):
+                The target player device identifier.
+                This could be an id, name, a default device indicator (e.g. "*"), or null
+                to utilize the active player device.  
+                Examples are `0d1841b0976bae2a3a310dd74c0f3df354899bc8`, `Office`, `*`, None.  
             refreshDynamicDevices (bool):
                 True to refresh the list of dynamically added devices and the active player
                 state from real-time Spotify Web API data; otherwise, false to use the
                 current cached state and device list.
                 Default is True.
+            raiseExceptionIfNotFound (bool):
+                True to raise an exception if a device could not be resolved;
+                otherwise, False to just return a null value.  
+                Default is True.
 
         Returns:
-            A `SpotifyConnectDevice` object for the specified device name / id.
+            A `SpotifyConnectDevice` object for the specified device name / id if found;
+            otherwise, null.
 
         Raises:
+            SpotifyConnectDeviceNotFound:
+                If the `raiseExceptionIfNotFound` argument value is True, and the specified 
+                device value was not found or there was no default device found.
             SpotifyApiError: 
-                If the specified device value was not found.
-                If there was no defaualt device found.
                 If an error occured while obtaining current Spotify Web API Player device data.
 
-        The object returned is a copy of the internal master device entry; any changes made
-        to the copy do not affect the internal master device entry.
+        If a SpotifyConnectDevice object is returned, it will be a copy of the internal master 
+        device entry; any changes made to the copy do not affect the internal master device entry.
 
         <details>
           <summary>Sample Code</summary>
@@ -790,6 +800,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     value = None
                 if (not isinstance(refreshDynamicDevices, bool)):
                     refreshDynamicDevices = True
+                if (not isinstance(raiseExceptionIfNotFound, bool)):
+                    raiseExceptionIfNotFound = True
                 valueOriginal:str = value
 
                 # get currently active player device.
@@ -805,6 +817,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     if (scActiveDevice is not None):
                         _logsi.LogObject(SILevel.Verbose, "Spotify Player device \"%s\" (%s) was found in the Spotify Connect Devices collection (by Active PlayerState)" % (scActiveDevice.Name, scActiveDevice.Id), scActiveDevice, excludeNonPublic=True)
                         return scActiveDevice
+
+                    # if no active player device, then let's use the default device value.
+                    _logsi.LogVerbose("Spotify Player has no active device; defaulting device selection to use DefaultDeviceId: \"%s\"" % (self.SpotifyClientInstance.DefaultDeviceId))
+                    value = self.SpotifyClientInstance.DefaultDeviceId
 
                 # was a default device value specified?
                 # if so, then use the `defaultDeviceId` value; if the `defaultDeviceId` value is not in the device list, 
@@ -824,7 +840,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             _logsi.LogObject(SILevel.Verbose, "Spotify Player default device (*) was not configured; using active player device: %s" % (scActiveDevice.Title), scActiveDevice, excludeNonPublic=True)
                             return scActiveDevice
                         # if no default device and no active player, then it's an error!
-                        raise SpotifyApiError("Spotify Player default device (*) was not configured, and there is no active Spotify Player device", logsi=_logsi)
+                        #raise SpotifyApiError("Spotify Player default device (*) was not configured, and there is no active Spotify Player device", logsi=_logsi)
                     
                     # assign default device value.
                     _logsi.LogVerbose("Spotify Player device default \"%s\" will be used for selecting a device (by default *)" % (defaultDeviceId))
@@ -860,8 +876,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         _logsi.LogObject(SILevel.Verbose, "Spotify Player default device \"%s\" was not found in the Spotify Connect Devices collection; using active player device: %s" % (value, scActiveDevice.Title), scActiveDevice, excludeNonPublic=True)
                         return scActiveDevice
 
-                # at this point we could not resolve the device name / id!
-                raise SpotifyApiError("Spotify Player device \"%s\" was not found in the Spotify Connect Devices collection" % (value), logsi=_logsi)
+                # at this point we could not resolve the device name / id, and there is no active player
+                # available; raise exception / return null as requested by the caller.
+                if (raiseExceptionIfNotFound):
+                    raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found, and there is no active Spotify player" % (value))
+                else:
+                    _logsi.LogVerbose("Spotify Player device \"%s\" was not found, and there is no active Spotify player" % (value))
+                    return None
 
             except SpotifyApiError: raise  # pass handled exceptions on thru
             except Exception as ex:
@@ -1059,9 +1080,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                 # trace.
                 if (scDevice is None):
-                    _logsi.LogVerbose("Spotify Player playstate active device is not present; no active device")
+                    _logsi.LogVerbose("Spotify Player playstate device is not present; no active device")
                 else:
-                    _logsi.LogObject(SILevel.Verbose, "Spotify Player playstate active device instance %s" % (scDevice.Title), scDevice, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Verbose, "Spotify Player playstate active device instance: %s" % (scDevice.Title), scDevice, excludeNonPublic=True)
 
                 # return real-time active Spotify Player device.
                 return scDevice

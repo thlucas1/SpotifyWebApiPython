@@ -1,5 +1,5 @@
 from spotifywebapipython import *
-from spotifywebapipython.models import *
+from spotifywebapipython.zeroconfapi import *
 
 try:
 

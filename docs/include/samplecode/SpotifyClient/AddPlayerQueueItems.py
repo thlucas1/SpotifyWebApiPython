@@ -20,11 +20,16 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
+    # if no active spotify player device, then use the specified device.
+    spotify.DefaultDeviceId = "Bose-ST10-1"
+            
+    # set device to control.
+    deviceId:str = "*"          # use DefaultDeviceId
+    #deviceId:str = "Office"    # use device name (or id)
+    #deviceId:str = None        # use currently active device
+
     # add an item to the end of the user's current playback queue.
     trackUri:str = 'spotify:track:27JODWXo4VNa6s7HqDL9yQ'
-    deviceId:str = None   # use currently playing device
-    #deviceId:str = "Web Player (Chrome)" # or device name
-    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     print('\nAdding item to the users current playback queue:\n- "%s" ...' % (trackUri))
     spotify.AddPlayerQueueItems(trackUri, deviceId)
 

@@ -20,10 +20,15 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
+    # if no active spotify player device, then use the specified device.
+    spotify.DefaultDeviceId = "Bose-ST10-1"
+            
+    # set device to control.
+    deviceId:str = "*"          # use DefaultDeviceId
+    #deviceId:str = "Office"    # use device name (or id)
+    #deviceId:str = None        # use currently active device
+
     # play playlist on the specified Spotify Connect device.
-    deviceId:str = None   # use currently playing device
-    #deviceId:str = "Web Player (Chrome)" # or device name
-    #deviceId:str = "0d1841b0976bae2a3a310dd74c0f3df354899bc8" # or device id
     contextUri:str = 'spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE'  # Playlist = My Playlist
     print('\nPlaying playlist on Spotify Connect device: \nID: %s \n- %s' % (deviceId, contextUri))
     spotify.PlayerMediaPlayContext(contextUri, deviceId=deviceId)
@@ -31,7 +36,6 @@ try:
     print('\nSuccess - playlist should be playing')
 
     # play playlist starting at track #7 on the specified Spotify Connect device.
-    deviceId:str = None   # use currently playing device
     contextUri:str = 'spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE'  # Playlist = My Playlist
     print('\nPlaying playlist starting at track #7 on Spotify Connect device: \nID: %s \n- %s' % (deviceId, contextUri))
     spotify.PlayerMediaPlayContext(contextUri, offsetPosition=6, deviceId=deviceId)
@@ -39,7 +43,6 @@ try:
     print('\nSuccess - playlist should be playing')
 
     # play playlist starting at track #5 and 25 seconds position on the specified Spotify Connect device.
-    deviceId:str = None   # use currently playing device
     contextUri:str = 'spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE'  # Playlist = My Playlist
     print('\nPlaying playlist starting at track #5 (25 seconds) on Spotify Connect device: \nID: %s \n- %s' % (deviceId, contextUri))
     spotify.PlayerMediaPlayContext(contextUri, offsetPosition=4, positionMS=25000, deviceId=deviceId)
@@ -47,7 +50,6 @@ try:
     print('\nSuccess - playlist should be playing')
 
     # play playlist starting at track id #7 on the specified Spotify Connect device.
-    deviceId:str = None   # use currently playing device
     contextUri:str = 'spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE'  # Playlist = My Playlist
     offsetUri:str = 'spotify:track:1kWUud3vY5ij5r62zxpTRy'      # Track = Flawless
     print('\nPlaying playlist starting at track #7 on Spotify Connect device: \nID: %s \n- %s' % (deviceId, contextUri))
