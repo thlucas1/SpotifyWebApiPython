@@ -20,19 +20,34 @@ try:
     print('\nAuth Token:\n Type="%s"\n Scope="%s"' % (spotify.AuthToken.AuthorizationType, str(spotify.AuthToken.Scope)))
     print('\nUser:\n DisplayName="%s"\n EMail="%s"' % (spotify.UserProfile.DisplayName, spotify.UserProfile.EMail))
 
+    # if no active spotify player device, then use the specified device.
+    spotify.DefaultDeviceId = "Bose-ST10-1"
+            
+    # set device to control.
+    #deviceId:str = "Bose-ST10-2"   # Bose SoundTouch device
+    #deviceId:str = "Nest Audio 01" # Chromecast device
+    deviceId:str = "Office"        # Sonos device
+    #deviceId:str = "*"             # use DefaultDeviceId
+    #deviceId:str = None            # use currently playing device
+
     # get Spotify Connect playback state.
-    print('\nGetting Spotify Connect playback state ...\n')
-    playerState:PlayerPlayState = spotify.GetPlayerPlaybackState()
+    print('\nGetting Spotify Connect device playback state ...\n- Device = \"%s\"' % (deviceId))
+    playerState:PlayerPlayState = spotify.GetDevicePlaybackState(deviceId)
 
     if playerState.IsEmpty:
 
-        print('Spotify Connect playback State is unavailable at this time')
+        print('Spotify Connect device playback State is unavailable at this time')
 
     else:
 
         print(str(playerState))
         print('')
         print(str(playerState.Item))
+        print('')
+        print(str(playerState.Device))
+        print('')
+        print(str(playerState.Actions))
+        print('')
 
 except Exception as ex:
 

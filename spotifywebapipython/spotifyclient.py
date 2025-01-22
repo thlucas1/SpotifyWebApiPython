@@ -12874,7 +12874,7 @@ class SpotifyClient:
         refreshDeviceList:bool=True,
         forceActivateDevice:bool=True,
         deviceIdFrom:str=None,
-        ) -> None:
+        ) -> SpotifyConnectDevice:
         """
         Transfer playback to a new Spotify Connect device and optionally begin playback.
         
@@ -12916,6 +12916,9 @@ class SpotifyClient:
                 for this argument.  
                 Examples are `0d1841b0976bae2a3a310dd74c0f3df354899bc8`, `Office`, `*`, None.  
                 
+        Returns:
+            A `SpotifyConnectDevice` object for the device where playback was transferred to.
+
         Raises:
             SpotifyWebApiError: 
                 If the Spotify Web API request was for a non-authorization service 
@@ -13027,7 +13030,7 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Sonos device detected (IsRestricted); bypassing call to Spotify Web API Transfer Playback endpoint")
-                return
+                return scDevice
 
             # before transferring playback to the device, we first need to check to see if anything
             # is currently playing.  if nothing is playing then we have to start something, otherwise 
@@ -13039,48 +13042,52 @@ class SpotifyClient:
 
                 # if nothing is playing, then start playing track favorites instead of transferring playback.
                 _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device %s; playing track favorites on selected device instead of transferring playback" % (scDevice.Title))
-                tracks:TrackPageSaved = self.PlayerMediaPlayTrackFavorites(scDevice, False, limitTotal=20)
-                
-                return
+                self.PlayerMediaPlayTrackFavorites(scDevice, False, limitTotal=20)
+                return scDevice
 
-            # if resolved device is already active, then there is nothing to do.
+            # is the resolved device already active?
             if (scActiveDevice.Name == scDevice.Name):
-                _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
-                return
 
-            # build spotify web api request parameters.
-            reqData:dict = \
-            {
-                'device_ids': [scDevice.Id]
-            }
-            if (play is not None):
-                reqData['play'] = play
+                # trace.
+                _logsi.LogVerbose("Spotify Connect device %s is already active; no need to transfer playback" % (scDevice.Title))
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
-            self.MakeRequest('PUT', msg)
+            else:
+
+                # build spotify web api request parameters.
+                reqData:dict = \
+                {
+                    'device_ids': [scDevice.Id]
+                }
+                if (play is not None):
+                    reqData['play'] = play
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestJson = reqData
+                self.MakeRequest('PUT', msg)
             
-            # give spotify web api time to process the change.
-            if delay > 0:
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                time.sleep(delay)
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
 
-            # resume play if play=True was specified.
+            # pause / resume play based on `play` argument specified.
             # sometimes the `play` argument to the Spotify Web API transfer playback command 
-            # is not honored, so we do a resume here to ensure it's playing.  
-            if (play):
-                try:
+            # is not honored, so we do a pause / resume here to ensure it's correct.  
+            try:
+                if (play):
                     _logsi.LogVerbose("Resuming play on device, in case it's not already playing")
                     self.PlayerMediaResume(scDevice)
-                except:
-                    # sometimes the resume will raise a "Restriction violated" error - just ignore it.
-                    pass
+                else:
+                    _logsi.LogVerbose("Pausing play on device, in case it's not already paused")
+                    self.PlayerMediaPause(scDevice)
+            except:
+                # in case a "Restriction violated" error is raised; just ignore it.
+                pass
                 
-            # process results.
-            # no results to process - this is pass or fail.
-            return
+            # return target player device instance.
+            return scDevice
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru

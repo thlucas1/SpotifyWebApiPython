@@ -35,6 +35,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAlbum_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetArtist_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetAudiobook_NowPlaying.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\GetDevicePlaybackState.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\IsChapterEpisode_NowPlaying.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\IsChapterEpisode.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetEpisode_NowPlaying.py" />

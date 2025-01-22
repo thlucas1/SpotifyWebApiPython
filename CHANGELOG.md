@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.153 ] - 2025/01/22
+
+  * Updated function `SpotifyClient.PlayerTransferPlayback` to return a `SpotifyConnectDevice` object for the device where playback was transferred to.
+
 ###### [ 1.0.152 ] - 2025/01/22
 
   * Added more support for Sonos Player functions via the SoCo Sonos API.
