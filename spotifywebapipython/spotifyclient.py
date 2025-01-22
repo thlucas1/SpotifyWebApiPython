@@ -10,6 +10,7 @@ from soco.core import (
     PLAY_MODE_BY_MEANING as SONOS_PLAY_MODE_BY_MEANING,
     PLAY_MODES as SONOS_PLAY_MODES,
 )
+from soco.plugins.sharelink import ShareLinkPlugin
 import time
 from typing import Tuple, Callable, Union
 from urllib3 import PoolManager, Timeout, HTTPResponse
@@ -11697,36 +11698,117 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (positionMS is None) or (positionMS < 0):
+                positionMS = 0
+            if (offsetPosition is None) or (offsetPosition < 0):
+                offsetPosition = 0
 
             # resolve / activate the device object if needed.
             scDevice = self._ResolveDeviceObject(deviceId, False)
 
-            # build spotify web api request parameters.
-            reqData:dict = \
-            {
-                'context_uri': contextUri,
-                'position_ms': positionMS
-            }
-            if offsetUri is not None:
-                reqData['offset'] = { 'uri': offsetUri }
-            elif offsetPosition is not None:
-                reqData['offset'] = { 'position': offsetPosition }
+            # is this a Sonos device?
+            if (scDevice is not None) and (scDevice.IsSonos):
 
-            # formulate url parms; will manually add them since we are adding json body as well.
-            urlParms:str = ''
-            if (scDevice is not None):
-                urlParms = '?device_id=%s' % scDevice.Id
+                # trace.
+                _logsi.LogVerbose("Context will be played on Sonos local queue for device: %s" % (scDevice.Title))
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
-            self.MakeRequest('PUT', msg)
+                # Sonos cannot handle playing an artist context!
+                # if this is an artist context, then we will get a list of the artist's albums
+                # and add them to the queue.    
+                if (contextUri.find(':artist:') > -1):
+                    artistId:str = contextUri.replace('spotify:artist:','')
+                    #includeGroups:str = 'album,single,appears_on,compilation'
+                    includeGroups:str = 'album'
+                    _logsi.LogVerbose("Getting ALL albums for artist id: %s" % (artistId))
+                    pageObj:AlbumPageSimplified = self.GetArtistAlbums(artistId, includeGroups, limitTotal=75)
+                    contextUri:list = []
+                    albumSimplified:AlbumSimplified
+                    for albumSimplified in pageObj.Items:
+                        contextUri.append(albumSimplified.Uri)
+
+                # build a list of all item uri's.
+                # remove any leading / trailing spaces in case user put a space between the items.
+                arrUris:list[str] = None
+                if isinstance(contextUri, list):
+                    arrUris = contextUri
+                else:
+                    arrUris = contextUri.split(',')
+                    for idx in range(0, len(arrUris)):
+                        arrUris[idx] = arrUris[idx].strip()
+
+                # get the Sonos Controller player instance.
+                sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+
+                # clear the Sonos local queue.
+                _logsi.LogVerbose("Issuing command to Sonos device \"%s\": CLEAR_QUEUE" % (scDevice.Name))
+                sonosPlayer.clear_queue()
+
+                # add all context items to the Sonos local queue.
+                sharelink = ShareLinkPlugin(sonosPlayer)
+                for idx in range(0, len(arrUris)):
+
+                    # add context to the Sonos local queue.
+                    uri = arrUris[idx].strip()
+                    _logsi.LogVerbose("Issuing command to Sonos device \"%s\": ADD_SHARE_LINK_TO_QUEUE (uri=%s)" % (scDevice.Name, uri))
+                    sharelink.add_share_link_to_queue(uri)
+
+                    # if this is the first item added, then start play of the queue as
+                    # it may take awhile to load the rest of the items.
+                    if (idx == 0):
+
+                        # start playing the Sonos local queue.
+                        _logsi.LogVerbose("Issuing command to Sonos device \"%s\": PLAY_FROM_QUEUE (index=%s)" % (scDevice.Name, offsetPosition))
+                        sonosPlayer.play_from_queue(index=offsetPosition)
+                
+                        # # give Sonos Controller time to process the change.
+                        # if delay > 0:
+                        #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        #     time.sleep(delay)
+
+                        # was a track seek position specified?
+                        if (positionMS > 0):
+
+                            # seek to the position in the track.
+                            sonosPosition:str = mediaPositionHMS_fromSeconds(positionMS / 1000)  # convert from milliseconds to Sonos H:MM:SS format
+                            _logsi.LogVerbose("Issuing command to Sonos device \"%s\": SEEK (position=%s)" % (scDevice.Name, sonosPosition))
+                            sonosPlayer.seek(position=sonosPosition)
+                
+                            # give Sonos Controller time to process the change.
+                            if delay > 0:
+                                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                                time.sleep(delay)
+
+            else:
+
+                # trace.
+                _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
+
+                # build spotify web api request parameters.
+                reqData:dict = \
+                {
+                    'context_uri': contextUri,
+                    'position_ms': positionMS
+                }
+                if offsetUri is not None:
+                    reqData['offset'] = { 'uri': offsetUri }
+                else:
+                    reqData['offset'] = { 'position': offsetPosition }
+
+                # formulate url parms; will manually add them since we are adding json body as well.
+                urlParms:str = ''
+                if (scDevice is not None):
+                    urlParms = '?device_id=%s' % scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestJson = reqData
+                self.MakeRequest('PUT', msg)
             
-            # give spotify web api time to process the change.
-            if delay > 0:
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                time.sleep(delay)
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
 
             # process results.
             # no results to process - this is pass or fail.
@@ -11952,6 +12034,9 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
+            if (positionMS is None) or (positionMS < 0):
+                positionMS = 0
+            offsetPosition:int = 0
 
             # build a list of all item uri's.
             # remove any leading / trailing spaces in case user put a space between the items.
@@ -11964,50 +12049,84 @@ class SpotifyClient:
                     arrUris[idx] = arrUris[idx].strip()
         
             # resolve / activate the device object if needed.
-            scDevice = self._ResolveDeviceObject(deviceId, False)
+            scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # left this here in case we want to implement it in the future.
-                    
-            # # are we backfilling the player queue? if so, we can only have 50 uris total.
-            # if (backfillUrisPageOffset > -1) and (len(arrUris) < 50):
+            # is this a Sonos device?
+            if (scDevice is not None) and (scDevice.IsSonos):
 
-            #     # are we playing tracks?
-            #     if (len(arrUris) > 0) and (SpotifyClient.GetTypeFromUri(arrUris[0]) == 'track'):
-                    
-            #         _logsi.LogVerbose("Backfilling player queue items from users top tracks")
+                # trace.
+                _logsi.LogVerbose("Track list will be played on Sonos local queue for device: %s" % (scDevice.Title))
+
+                # get the Sonos Controller player instance.
+                sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+
+                # clear the Sonos local queue.
+                _logsi.LogVerbose("Issuing command to Sonos device \"%s\": CLEAR_QUEUE" % (scDevice.Name))
+                sonosPlayer.clear_queue()
+
+                # add all track items to the Sonos local queue.
+                sharelink = ShareLinkPlugin(sonosPlayer)
+                for idx in range(0, len(arrUris)):
+
+                    # add track to the Sonos local queue.
+                    uri = arrUris[idx].strip()
+                    _logsi.LogVerbose("Issuing command to Sonos device \"%s\": ADD_SHARE_LINK_TO_QUEUE (uri=%s)" % (scDevice.Name, uri))
+                    sharelink.add_share_link_to_queue(uri)
+
+                    # if this is the first item added, then start play of the queue as
+                    # it may take awhile to load the rest of the items.
+                    if (idx == 0):
+
+                        # start playing the Sonos local queue.
+                        _logsi.LogVerbose("Issuing command to Sonos device \"%s\": PLAY_FROM_QUEUE (index=%s)" % (scDevice.Name, offsetPosition))
+                        sonosPlayer.play_from_queue(index=offsetPosition)
                 
-            #         # get list of users top tracks (50 max items).
-            #         pageObj:TrackPage = self.GetUsersTopTracks(timeRange='medium_term', offset=backfillUrisPageOffset, limit=(50 - len(arrUris)), sortResult=False)
+                        # # give Sonos Controller time to process the change.
+                        # if delay > 0:
+                        #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        #     time.sleep(delay)
+
+                        # was a track seek position specified?
+                        if (positionMS > 0):
+
+                            # seek to the position in the track.
+                            sonosPosition:str = mediaPositionHMS_fromSeconds(positionMS / 1000)  # convert from milliseconds to Sonos H:MM:SS format
+                            _logsi.LogVerbose("Issuing command to Sonos device \"%s\": SEEK (position=%s)" % (scDevice.Name, sonosPosition))
+                            sonosPlayer.seek(position=sonosPosition)
                 
-            #         # add them to the player queue; no need to validate the device id, since we
-            #         # know there is an active device id by this point.
-            #         item:Track
-            #         for item in pageObj.Items:
-            #             arrUris.append(item.Uri)
+                            # give Sonos Controller time to process the change.
+                            if delay > 0:
+                                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                                time.sleep(delay)
 
-            # build spotify web api request parameters.
-            reqData:dict = \
-            {
-                'position_ms': positionMS
-            }
-            if uris is not None:
-                reqData['uris'] = arrUris
+            else:
 
-            # formulate url parms; will manually add them since we are adding json body as well.
-            urlParms:str = ''
-            if (scDevice is not None):
-                urlParms = '?device_id=%s' % scDevice.Id
+                # trace.
+                _logsi.LogVerbose("Track list will be played on the Spotify Connect device via Spotify Web API")
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
-            self.MakeRequest('PUT', msg)
+                # build spotify web api request parameters.
+                reqData:dict = \
+                {
+                    'position_ms': positionMS
+                }
+                if uris is not None:
+                    reqData['uris'] = arrUris
+
+                # formulate url parms; will manually add them since we are adding json body as well.
+                urlParms:str = ''
+                if (scDevice is not None):
+                    urlParms = '?device_id=%s' % scDevice.Id
+
+                # execute spotify web api request.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestJson = reqData
+                self.MakeRequest('PUT', msg)
             
-            # give spotify web api time to process the change.
-            if delay > 0:
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                time.sleep(delay)
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
                 
             # process results.
             # no results to process - this is pass or fail.
@@ -13023,7 +13142,7 @@ class SpotifyClient:
                         sonosPlayer.play()
                         wasCmdIssued = True
                                         
-                # give SoCo api time to process the change.
+                # give Sonos Controller time to process the change.
                 if (wasCmdIssued) and (delay > 0):
                     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
                     time.sleep(delay)

@@ -8,6 +8,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.154 ] - 2025/01/22
+
+  * Updated function `SpotifyClient.PlayerMediaPlayTracks` to handle playing tracks on the Sonos local queue.  Sonos devices can only initiate play (of tracks or context) on their local queue, as they are considered restricted devices by the Spotify Web API.
+  * Updated function `SpotifyClient.PlayerMediaPlayContext` to handle playing context on the Sonos local queue.  Sonos devices can only initiate play (of tracks or context) on their local queue, as they are considered restricted devices by the Spotify Web API.
+
 ###### [ 1.0.153 ] - 2025/01/22
 
   * Updated function `SpotifyClient.PlayerTransferPlayback` to return a `SpotifyConnectDevice` object for the device where playback was transferred to.
