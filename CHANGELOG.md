@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.156 ] - 2025/01/23
+
+  * Updated `SpotifyClient` methods that require a `deviceId` argument to check for a "Device Not Found" condition, and return a more user-friendly message than the "Device Not Found" message from the Spotify Web API.
+
 ###### [ 1.0.155 ] - 2025/01/22
 
   * Updated `SpotifyClient.AddPlayerQueueItems` to support adding items to the Sonos device local queue.

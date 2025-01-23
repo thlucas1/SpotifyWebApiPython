@@ -24,7 +24,7 @@ from zeroconf import Zeroconf
 from .oauthcli import AuthClient
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
-from .spotifyconnect import SpotifyConnectDirectoryTask
+from .spotifyconnect import SpotifyConnectDirectoryTask, SpotifyConnectDeviceNotFound
 from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
@@ -472,6 +472,25 @@ class SpotifyClient:
         """
         return self._ZeroconfClient
     
+
+    def _CheckForDeviceNotFound(
+        self,
+        scDevice:SpotifyConnectDevice,
+        deviceId:str,
+        ) -> None:
+        """
+        Called to raise a SpotifyConnectDeviceNotFound exception when a Spotify Connect 
+        device could not be found and there is no active player.
+        """
+        # was a device resolved?
+        if (scDevice is None):
+
+            # if deviceId could not be resolved, then it's an error.
+            if (deviceId is None) or (deviceId == "*"):
+                raise SpotifyConnectDeviceNotFound("There is no active Spotify player, and a default player device was not configured; select a player device and try again.")
+            else:
+                raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found, and there is no active Spotify player; verify the device is active and available on the local network, and try again." % (deviceId))
+
 
     def _CheckForNextPageWithOffset(
         self, 
@@ -1231,10 +1250,11 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
                 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
-            # is this a Sonos device?
+            # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 # trace.
@@ -1257,6 +1277,10 @@ class SpotifyClient:
                 # trace.
                 _logsi.LogVerbose("Items will be added to playback queue for device: %s" % (scDevice.Title))
                 
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
+
                 # process all uri's.
                 for idx in range(0, len(arrUris)):
                 
@@ -11569,10 +11593,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PAUSE" % (scDevice.Title))
@@ -11580,6 +11605,10 @@ class SpotifyClient:
                 sonosPlayer.pause()
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = {}
@@ -11728,10 +11757,11 @@ class SpotifyClient:
             if (offsetPosition is None) or (offsetPosition < 0):
                 offsetPosition = 0
 
-            # resolve / activate the device object if needed.
-            scDevice = self._ResolveDeviceObject(deviceId, False)
+            # resolve the device object from the device idl activate if it's dormant.
+            scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # is this a Sonos device?
+            # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 # trace.
@@ -11807,6 +11837,10 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -11950,7 +11984,7 @@ class SpotifyClient:
             for trackSaved in tracks.Items:
                 arrUris.append(trackSaved.Track.Uri)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice = self._ResolveDeviceObject(deviceId, False)
 
             # set desired shuffle mode.
@@ -12073,10 +12107,11 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
         
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id; activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # is this a Sonos device?
+            # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 # trace.
@@ -12128,6 +12163,10 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Track list will be played on the Spotify Connect device via Spotify Web API")
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -12228,10 +12267,12 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
-            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
+            # resolve the device object from the device id; activate if it's dormant.
+            # we activate the device here, as it may have been paused for a long time.
+            scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, True)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PLAY (RESUME)" % (scDevice.Title))
@@ -12239,6 +12280,10 @@ class SpotifyClient:
                 sonosPlayer.play()
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = {}
@@ -12366,7 +12411,7 @@ class SpotifyClient:
             if (relativePositionMS is None):
                 relativePositionMS = 0
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
            
             # was relative seeking specified?
@@ -12384,6 +12429,7 @@ class SpotifyClient:
                     positionMS = newPositionMS
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 sonosPosition:str = mediaPositionHMS_fromSeconds(positionMS / 1000)    # convert from milliseconds to Sonos H:MM:SS format
@@ -12392,6 +12438,10 @@ class SpotifyClient:
                 sonosPlayer.seek(str(sonosPosition))
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = \
@@ -12487,10 +12537,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: NEXT" % (scDevice.Title))
@@ -12498,6 +12549,10 @@ class SpotifyClient:
                 sonosPlayer.next()
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = {}
@@ -12590,10 +12645,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PREVIOUS" % (scDevice.Title))
@@ -12601,6 +12657,10 @@ class SpotifyClient:
                 sonosPlayer.previous()
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = {}
@@ -12701,10 +12761,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 # get current Spotify Connect player state.
@@ -12729,6 +12790,10 @@ class SpotifyClient:
                 sonosPlayer.play_mode = playMode
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = \
@@ -12831,10 +12896,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 # get current Spotify Connect player state.
@@ -12860,6 +12926,10 @@ class SpotifyClient:
                 sonosPlayer.play_mode = playMode
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = \
@@ -12961,10 +13031,11 @@ class SpotifyClient:
             # validations.
             delay = validateDelay(delay, 0.50, 10)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
             # is this an active Sonos device?
+            # Sonos device can still be active, even if there is no active device in Spotify playstate.
             if (scDevice is not None) and (scDevice.IsSonos):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: VOLUME = %s" % (scDevice.Title, volumePercent))
@@ -12972,6 +13043,10 @@ class SpotifyClient:
                 sonosPlayer.volume = volumePercent
 
             else:
+
+                # was the deviceId resolved? 
+                # if not, then raise an exception as the Spotify Web API request will fail anyway.
+                self._CheckForDeviceNotFound(scDevice, deviceId)
 
                 # build spotify web api request parameters.
                 urlParms:dict = \
@@ -13129,7 +13204,7 @@ class SpotifyClient:
                 if (scDeviceFrom is not None) and (scDeviceFrom.IsSonos):
                     self.PlayerMediaPause(scDeviceFrom)
 
-            # resolve / activate the device object if needed.
+            # resolve the device object from the device id; activate if it's dormant.
             # for transfer playback, we will always activate the device.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 

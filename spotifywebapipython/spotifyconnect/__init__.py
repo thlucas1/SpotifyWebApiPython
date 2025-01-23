@@ -4,7 +4,7 @@ from .spotifyconnectdirectorytask import SpotifyConnectDirectoryTask
 from .spotifyconnectzeroconfcastapptask import SpotifyConnectZeroconfCastAppTask
 from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController
 from .spotifyconnectzeroconfcastlistener import SpotifyConnectZeroconfCastListener
-from .spotifyconnectzeroconfexceptions import SpotifyConnectZeroconfLaunchError, SpotifyConnectZeroconfPlaybackTransferError
+from .spotifyconnectzeroconfexceptions import SpotifyConnectZeroconfLaunchError, SpotifyConnectZeroconfPlaybackTransferError, SpotifyConnectDeviceNotFound
 from .spotifyconnectzeroconflistener import SpotifyConnectZeroconfListener
 
 # all classes to import when "import *" is specified.
@@ -15,5 +15,5 @@ __all__ = [
     'SpotifyConnectZeroconfCastListener',
     'SpotifyConnectDirectoryTask', 
     'SpotifyConnectZeroconfListener',
-    'SpotifyConnectZeroconfLaunchError', 'SpotifyConnectZeroconfPlaybackTransferError',
+    'SpotifyConnectZeroconfLaunchError', 'SpotifyConnectZeroconfPlaybackTransferError', 'SpotifyConnectDeviceNotFound',
 ]
