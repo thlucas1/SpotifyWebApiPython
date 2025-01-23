@@ -1191,6 +1191,9 @@ class SpotifyClient:
         This API only works for users who have Spotify Premium. 
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
+
+        For Sonos devices, items are added to the end of the device local queue.
+        For non-Sonos devices, items are added to the end of the user's current playback queue. 
         
         The Spotify Web API endpoint is called to add each item individually.  
         The Spotify Web API does not currently support adding more than 1 item to the queue at a time.
@@ -1230,30 +1233,52 @@ class SpotifyClient:
                 
             # resolve / activate the device object if needed.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
+
+            # is this a Sonos device?
+            if (scDevice is not None) and (scDevice.IsSonos):
+
+                # trace.
+                _logsi.LogVerbose("Items will be added to Sonos local queue for device: %s" % (scDevice.Title))
+
+                # get the Sonos Controller player instance.
+                sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+
+                # add all track items to the Sonos local queue.
+                sharelink = ShareLinkPlugin(sonosPlayer)
+                for idx in range(0, len(arrUris)):
+
+                    # add track to the Sonos local queue.
+                    uri = arrUris[idx].strip()
+                    _logsi.LogVerbose("Issuing command to Sonos device \"%s\": ADD_SHARE_LINK_TO_QUEUE (uri=%s)" % (scDevice.Name, uri))
+                    sharelink.add_share_link_to_queue(uri)
+
+            else:
+
+                # trace.
+                _logsi.LogVerbose("Items will be added to playback queue for device: %s" % (scDevice.Title))
                 
-            # process all uri's.
-            for idx in range(0, len(arrUris)):
+                # process all uri's.
+                for idx in range(0, len(arrUris)):
                 
-                # build spotify web api request parameters.
-                urlParms:dict = \
-                {
-                    'uri': arrUris[idx]
-                }
-                if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    # build spotify web api request parameters.
+                    urlParms:dict = \
+                    {
+                        'uri': arrUris[idx]
+                    }
+                    if (scDevice is not None):
+                        urlParms['device_id'] = scDevice.Id
 
-                # execute spotify web api request.
-                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-                msg.UrlParameters = urlParms
-                self.MakeRequest('POST', msg)
+                    # execute spotify web api request.
+                    msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
+                    msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                    msg.UrlParameters = urlParms
+                    self.MakeRequest('POST', msg)
 
-                # give spotify web api time to process the change.
-                if delay > 0:
-                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                    time.sleep(delay)
+                    # give spotify web api time to process the change.
+                    if delay > 0:
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                        time.sleep(delay)
 
-            
             # process results.
             # no results to process - this is pass or fail.
             return

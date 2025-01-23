@@ -22,7 +22,7 @@ try:
 
     # get Spotify Connect playback state.
     print('\nGetting Spotify Connect playback state ...\n')
-    playerState:PlayerPlayState = spotify.GetPlayerPlaybackState()
+    playerState:PlayerPlayState = spotify.GetPlayerPlaybackState(additionalTypes='episode')
 
     if playerState.IsEmpty:
 

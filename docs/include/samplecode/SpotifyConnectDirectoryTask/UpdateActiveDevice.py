@@ -45,7 +45,7 @@ try:
     scActiveDevice:SpotifyConnectDevice = spotify.SpotifyConnectDirectory.UpdateActiveDevice()
 
     # updates currently active device based on specified playerState.
-    playerState:PlayerPlayState = spotify.GetPlayerPlaybackState()
+    playerState:PlayerPlayState = spotify.GetPlayerPlaybackState(additionalTypes='episode')
     scActiveDevice:SpotifyConnectDevice = spotify.SpotifyConnectDirectory.UpdateActiveDevice(playerState)
 
     # log active device info.

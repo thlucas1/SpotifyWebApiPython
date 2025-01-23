@@ -1308,7 +1308,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             # if playerState object not supplied, then go get it.
             if (playerState is None):
-                playerState:PlayerPlayState = self._SpotifyClientInstance.GetPlayerPlaybackState()
+                playerState:PlayerPlayState = self._SpotifyClientInstance.GetPlayerPlaybackState(additionalTypes='episode')
 
             # if valid object then process it.
             if (isinstance(playerState, PlayerPlayState)):

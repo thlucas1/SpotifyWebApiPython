@@ -8,6 +8,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.155 ] - 2025/01/22
+
+  * Updated `SpotifyClient.AddPlayerQueueItems` to support adding items to the Sonos device local queue.
+  * Added `additionalTypes='episode'` parameter to all `GetPlayerPlaybackState()` calls so that context and item information is returned in the player playstate data.
+
 ###### [ 1.0.154 ] - 2025/01/22
 
   * Updated function `SpotifyClient.PlayerMediaPlayTracks` to handle playing tracks on the Sonos local queue.  Sonos devices can only initiate play (of tracks or context) on their local queue, as they are considered restricted devices by the Spotify Web API.
