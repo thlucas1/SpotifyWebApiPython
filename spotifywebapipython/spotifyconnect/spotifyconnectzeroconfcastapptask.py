@@ -4,11 +4,9 @@ import threading
 import time
 
 # our package imports.
-from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController
-from .spotifyconnectzeroconfexceptions import SpotifyConnectZeroconfPlaybackTransferError
-#from spotifywebapipython import SpotifyClient
-from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
+from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController, TYPE_LAUNCH_ERROR
 from spotifywebapipython.spotifywebplayertoken import SpotifyWebPlayerToken
+from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession
@@ -118,42 +116,27 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
         return self._TransferPlayback
 
 
-    @property
-    def ZeroconfInfo(self) -> ZeroconfGetInfo:
-        """ 
-        Returns the Chromecast Spotify Connect getinfo response, if the Spotify
-        application is running on the Chromecast devive; otherwise, None.
+    def _CallGetInfoResponseReceivedCallback(
+        self,
+        zcResponse:ZeroconfGetInfo=None,
+        ) -> None:
         """
-        if (self._SpotifyConnectZeroconfCastController is None):
-            return None
-        return self._SpotifyConnectZeroconfCastController.zeroconfGetInfo
+        Executes the callback to process the zeroconf getInfo response from the cast app task.
 
-
-    @property
-    def ZeroconfResponseObject(self) -> ZeroconfResponse:
-        """ 
-        Returns the Chromecast Spotify Connect zeroconf response, if the Spotify
-        application returned one; otherwise, None.
+        Args:
+            zcResponse (ZeroconfGetInfo):
+                Zeroconf getInfo response object.
         """
-        if (self._SpotifyConnectZeroconfCastController is None):
-            return None
-        return self._SpotifyConnectZeroconfCastController.zeroconfResponse
-
-
-    def _CallGetInfoResponseReceivedCallback(self) -> None:
-        """
-        If defined, call the callback to process the zeroconf getInfo response from the cast app task.
-        """
-        # was a GetInfoResponse callback defined?
+        # was the callback defined?
         if (self._GetInfoResponseReceivedCallback):
 
             try:
 
                 # trace.
-                _logsi.LogVerbose("%s - Zeroconf getInfoResponse received; Spotify Connect info: \"%s\" (%s)" % (self.name, self.ZeroconfInfo.RemoteName, self.ZeroconfInfo.DeviceId))
+                _logsi.LogVerbose("%s - Zeroconf getInfoResponse received; Spotify Connect info: \"%s\" (%s)" % (self.name, zcResponse.RemoteName, zcResponse.DeviceId))
 
                 # invoke callback to process the GetInfoResponse data.
-                self._GetInfoResponseReceivedCallback(self._CastDevice.uuid, self.ZeroconfInfo)
+                self._GetInfoResponseReceivedCallback(self._CastDevice.uuid, zcResponse)
 
             except Exception as ex:
 
@@ -162,21 +145,27 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                 #ignore exceptions, as there is nothing we can do about them!
 
 
+    def _CallZeroconfResponseReceivedCallback(
+        self,
+        zcResponse:ZeroconfResponse=None,
+        ) -> None:
+        """
+        Executes the callback to process the various zeroconf responses from the cast app task.
 
-    def _CallZeroconfResponseReceivedCallback(self) -> None:
+        Args:
+            zcResponse (ZeroconfResponse):
+                Zeroconf response object.
         """
-        If defined, call the callback to process the various zeroconf responses from the cast app task.
-        """
-        # was a ZeroconfResponse callback defined?
+        # was the callback defined?
         if (self._ZeroconfResponseReceivedCallback):
 
             try:
 
                 # trace.
-                _logsi.LogVerbose("%s - Zeroconf \"%s\" received; Spotify Connect response: \"%s\" (%s)" % (self.name, self.ZeroconfResponseObject.ResponseSource, self.ZeroconfResponseObject.StatusString, self.ZeroconfResponseObject.Status))
+                _logsi.LogVerbose("%s - Zeroconf \"%s\" received; Spotify Connect response: \"%s\" (%s)" % (self.name, zcResponse.ResponseSource, zcResponse.StatusString, zcResponse.Status))
 
                 # invoke callback to process the ZeroconfResponse data.
-                self._ZeroconfResponseReceivedCallback(self._CastDevice.uuid, self.ZeroconfResponseObject)
+                self._ZeroconfResponseReceivedCallback(self._CastDevice.uuid, zcResponse)
 
             except Exception as ex:
 
@@ -188,6 +177,9 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
     def run(self):
         """
         The task to perform on a seperate thread.
+
+        Note that any exceptions must be processed via a call to _PostLaunchErrorEvent, if you 
+        want the exception to be see by the user; just raising an exception will only log it!
         """
         try:
 
@@ -220,32 +212,24 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # at this point the cast app should be either fully launched, or an error
             # occured while trying to launch.
 
-            # was a ZeroconfResponse callback defined?
-            if (self._ZeroconfResponseReceivedCallback):
+            # did an error occur?
+            if (not self._SpotifyConnectZeroconfCastController.isLaunched):
 
-                try:
+                # was it a launchError or getInfoError?
+                if (not self._SpotifyConnectZeroconfCastController.isAddUserError):
+                    self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
+                    _logsi.LogException("%s - Failed to launch spotify controller due to timeout" % (self.name), None, logToSystemLogger=False)
+                    return
 
-                    # at this point, the Spotify Connect `addUser` has been made and the results populated.
-                    _logsi.LogVerbose("%s - Zeroconf ZeroconfResponse received; Spotify Connect response: \"%s\" (%s)" % (self.name, self.ZeroconfResponseObject.StatusString, self.ZeroconfResponseObject.ResponseSource))
+                # if getInfoResponse was received, then execute callback to process the getInfoResponse.
+                if (not self._SpotifyConnectZeroconfCastController.isGetInfoError) and (self._SpotifyConnectZeroconfCastController.zeroconfGetInfo is not None):
+                    self._CallGetInfoResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfGetInfo)
 
-                    # invoke callback to process the ZeroconfResponse data.
-                    self._ZeroconfResponseReceivedCallback(self._CastDevice.uuid, self.ZeroconfResponseObject)
-
-                except Exception as ex:
-
-                    # trace.
-                    _logsi.LogException("An unhandled exception occured in ZeroconfResponseReceivedCallback: %s" % (str(ex)), ex, logToSystemLogger=False)
-                    #ignore exceptions, as there is nothing we can do about them!
-
-            # check for launch or getInfoError errors.
-            if (not self._SpotifyConnectZeroconfCastController.isLaunched) and (not self._SpotifyConnectZeroconfCastController.isAddUserError):
-                self._CallZeroconfResponseReceivedCallback()
-                raise ValueError("%s - Failed to launch spotify controller due to timeout" % (self.name))
-
-            # check for addUserError errors.
-            if (not self._SpotifyConnectZeroconfCastController.isLaunched) and (self._SpotifyConnectZeroconfCastController.isAddUserError):
-                self._CallZeroconfResponseReceivedCallback()
-                raise ValueError("%s - Failed to launch spotify controller due to credentials error" % (self.name))
+                # was it a addUserError? if so, then sp_dc / sp_key credentials are probably bad.
+                if (self._SpotifyConnectZeroconfCastController.isAddUserError):
+                    self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
+                    _logsi.LogException("%s - Failed to launch spotify controller due to credentials error" % (self.name), None, logToSystemLogger=False)
+                    return
 
             # at this point the cast app launch was successful; the following steps were performed:
             # - issues a Spotify Connect Zeroconf `getInfo` request to retrieve info about the device.
@@ -258,10 +242,10 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # as well as AFTER the call to `addUser` (no need to call `getInfo` again AFTER addUser).
 
             # call the callback to process the getInfoResponse.
-            self._CallGetInfoResponseReceivedCallback()
+            self._CallGetInfoResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfGetInfo)
 
             # call the callback to process the addUserResponse.
-            self._CallZeroconfResponseReceivedCallback()
+            self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
 
             # trace.
             _logsi.LogVerbose("%s - User is logged in to Spotify Cast App; waiting for transfer playback ..." % (self.name))
@@ -271,7 +255,8 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
 
                 # transfer playback to the Chromecast device.
                 _logsi.LogVerbose("%s - Transferring playback for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-                self.SpotifyClientInstance.PlayerTransferPlayback(self.ZeroconfInfo.DeviceId, play=True, refreshDeviceList=False)
+                deviceId:str = self._SpotifyConnectZeroconfCastController.zeroconfGetInfo.DeviceId
+                self.SpotifyClientInstance.PlayerTransferPlayback(deviceId, play=True, refreshDeviceList=False)
 
                 # the cast device will receive a Chromecast message of payload type `transferSuccess`
                 # on successful transfer of playback; this will set the `isPlaybackTransferred` flag to True.
@@ -284,17 +269,19 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             while counter < (timeout + 1):
                 if (self._SpotifyConnectZeroconfCastController.waitPlaybackTransfer.wait(1)):
                     if (self._SpotifyConnectZeroconfCastController.isPlaybackTransferError):
-                        raise SpotifyConnectZeroconfPlaybackTransferError("%s - playback transfer error: %s" % (self.name, str(self.ZeroconfResponseObject)))
+                        self._PostLaunchErrorEvent(1001, "Playback transfer error: %s" % (self._SpotifyConnectZeroconfCastController.zeroconfResponse.StatusString))
+                        return
                     break
                 if (counter >= timeout):
-                    raise SpotifyConnectZeroconfPlaybackTransferError("%s - Timed out waiting for playback transfer to device" % (self.name))
+                    self._PostLaunchErrorEvent(1002, "Playback transfer error - Timed out waiting for playback transfer to device")
+                    return
                 counter += 1
 
             # update task status.
             _logsi.LogVerbose("%s - Transfer Playback complete for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
 
             # call the callback to process the transferSuccess or transferError.
-            self._CallZeroconfResponseReceivedCallback()
+            self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
 
             # event loop; we have to keep this thread active in order to keep the 
             # Spotify App on the Chromecast device active and available.
@@ -309,20 +296,16 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # trace.
             _logsi.LogVerbose("%s - Thread task was stopped" % (self.name))
         
-        except SpotifyConnectZeroconfPlaybackTransferError as ex:
-
-            # trace.
-            _logsi.LogError(str(ex))
-            _logsi.LogVerbose("%s - Thread task is ending due to error" % (self.name))
-            
         except Exception as ex:
 
+            # post launchError event with exception details.
+            # this will also log a trace message.
+            self._PostLaunchErrorEvent(1000, str(ex))
+
             # trace.
-            _logsi.LogException("%s - Exception: %s" % (self.name, str(ex)), ex, logToSystemLogger=False)
             _logsi.LogVerbose("%s - Thread task is ending due to exception" % (self.name))
-            
-            # raise unhandled exception.
-            raise
+
+            #ignore exceptions, as there is nothing we can do about them!
 
         finally:
 
@@ -334,3 +317,29 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                     self._SpotifyConnectZeroconfCastController.tear_down()
             except:
                 pass
+
+
+    def _PostLaunchErrorEvent(
+        self,
+        returnCode:int,
+        message:str
+        ) -> None:
+        """
+        Formats a `launchError` Zeroconf Response, and executes the callback.
+        """
+        try:
+
+            # trace.
+            _logsi.LogError("%s - LaunchError event; (%s) %s" % (self.name, returnCode, message), logToSystemLogger=False)
+
+            # post launchError event with error details.
+            response:ZeroconfResponse = ZeroconfResponse()
+            response.ResponseSource = TYPE_LAUNCH_ERROR
+            response.Status = returnCode
+            response.StatusString = message
+            self._CallZeroconfResponseReceivedCallback(response)
+
+        except:
+
+            # ignore exceptions, as there is nothing we can do about them.
+            pass

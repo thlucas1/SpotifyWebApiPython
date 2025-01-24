@@ -22,8 +22,9 @@ from .spotifyconnectzeroconfcastcontroller import (
     TYPE_ADD_USER_RESPONSE,
     TYPE_ADD_USER_ERROR,
     TYPE_GET_INFO_ERROR,
-    TYPE_TRANSFER_ERROR_RESPONSE,
-    TYPE_TRANSFER_SUCCESS_RESPONSE
+    TYPE_LAUNCH_ERROR,
+    TYPE_TRANSFER_ERROR,
+    TYPE_TRANSFER_SUCCESS
     )
 # note - cannot reference `SpotifyClient` due to circular import!
 # from spotifywebapipython import SpotifyClient
@@ -523,7 +524,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             # wait for the launched spotify app to activate the user (or fail).
             # this occurs when we receive any of the following zeroconf response 
-            # messages: `addUserResponse`, `addUserError`, `getInfoError`.
+            # messages: `addUserResponse`, `addUserError`, `getInfoError`, `launchError`.
 
             counter = 0
             while counter < (timeoutActivation + 1):
@@ -533,8 +534,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                     if (scDevice is not None):
                         response = scDevice.ZeroconfResponseInfo
-                        if (response.ResponseSource == TYPE_ADD_USER_RESPONSE):
-                            # indicate device was reconnected.
+                        if (response.ResponseSource == TYPE_LAUNCH_ERROR):
+                            raise SpotifyApiError("Spotify Cast Application could not be activated on Chromecast device \"%s\": %s" % (deviceName, response.StatusString), logsi=_logsi)
+                        elif (response.ResponseSource == TYPE_ADD_USER_RESPONSE):
                             scDevice.WasReConnected = True
                             break
                         raise SpotifyApiError("Spotify Cast App could not be activated on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
@@ -567,7 +569,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                         if (scDevice is not None):
                             response = scDevice.ZeroconfResponseInfo
-                            if (response.ResponseSource == TYPE_TRANSFER_SUCCESS_RESPONSE):
+                            if (response.ResponseSource == TYPE_TRANSFER_SUCCESS):
                                 break
                             raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
                         raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device: unknown error", logsi=_logsi)
@@ -1661,10 +1663,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (ZeroconfResponseInfo)" % (scDevice.Name), scDevice.ZeroconfResponseInfo, excludeNonPublic=True)
 
                 # indicate zeroconf response data was received.
-                if (response.ResponseSource == TYPE_ADD_USER_RESPONSE) or (response.ResponseSource == TYPE_ADD_USER_ERROR) or (response.ResponseSource == TYPE_GET_INFO_ERROR):
+                if (response.ResponseSource == TYPE_ADD_USER_RESPONSE) or (response.ResponseSource == TYPE_ADD_USER_ERROR) \
+                or (response.ResponseSource == TYPE_GET_INFO_ERROR):
                     self.WaitForActivationComplete.set()
-                elif (response.ResponseSource == TYPE_TRANSFER_SUCCESS_RESPONSE) or (response.ResponseSource == TYPE_TRANSFER_ERROR_RESPONSE):
+                elif (response.ResponseSource == TYPE_TRANSFER_SUCCESS) or (response.ResponseSource == TYPE_TRANSFER_ERROR):
                     self.WaitForTransferComplete.set()
+                elif (response.ResponseSource == TYPE_LAUNCH_ERROR):
+                    self.WaitForActivationComplete.set()
 
 
     def OnServiceInfoAddedUpdatedSpotifyConnect(

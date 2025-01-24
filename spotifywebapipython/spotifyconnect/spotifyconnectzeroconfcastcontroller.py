@@ -38,8 +38,10 @@ TYPE_GET_INFO_RESPONSE = "getInfoResponse"
 TYPE_ADD_USER = "addUser"
 TYPE_ADD_USER_RESPONSE = "addUserResponse"
 TYPE_ADD_USER_ERROR = "addUserError"
-TYPE_TRANSFER_SUCCESS_RESPONSE = "transferSuccess"
-TYPE_TRANSFER_ERROR_RESPONSE = "transferError"
+TYPE_TRANSFER_SUCCESS = "transferSuccess"
+TYPE_TRANSFER_ERROR = "transferError"
+# not an actual Google Cast zeroconf response; used by this api to denote a launch / config error.
+TYPE_LAUNCH_ERROR = "launchError"
 
 SPOTIFY_WEB_API_DEVICEAUTH_REFRESH = "https://spclient.wg.spotify.com/device-auth/v1/refresh"
 
@@ -144,26 +146,26 @@ class SpotifyConnectZeroconfCastController(BaseController):
         # launch the spotify app on the device.
         # this will perform the following steps, initiated via the callback function:
         # - issues a Spotify Connect Zeroconf `getInfo` request to retrieve info about the device.
-        # - waits for a `getInfoResponse` message and processes the results.
+        # - waits for a `getInfoResponse` (or `getInfoError`) message and processes the results.
         # - issues a Spotify Connect Zeroconf `addUser` request to login the user to Spotify Connect.
         # - waits for a `addUserResponse` (or `addUserError`) message and processes the results.
         self.launch(callback_function=callback)
 
-        # wait for the launched spotify app to fully initialize.
-        # this occurs when we receive an `addUserResponse` or `addUserError` message.
+        # wait for the launched spotify app to fully initialize.  this occurs when we receive one
+        # of the following messages: `addUserResponse`, `addUserError`, `getInfoError`, `launchError`.
         counter = 0
         while counter < (timeout + 1):
             if (self.waitAddUser.wait(1)):
-                if (self.isAddUserError):
-                    raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "AddUser request failed", "launch_app", self.zeroconfResponse.StatusString)
                 break
-            if (self.isGetInfoError):
-                raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "GetInformation request failed", "launch_app", self.zeroconfResponse.StatusString)
             if (counter >= timeout):
                 raise SpotifyZeroconfApiError(0, "Timed out while waiting for a response", "launch_app", "timeout")
             counter += 1
 
-        # one more check to ensure that we launched.
+        # check for error conditions.
+        if (self.isAddUserError):
+            raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "AddUser request failed", "launch_app", self.zeroconfResponse.StatusString)
+        if (self.isGetInfoError):
+            raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "GetInformation request failed", "launch_app", self.zeroconfResponse.StatusString)
         if (not self.isLaunched):
             raise SpotifyConnectZeroconfLaunchError("Spotify Cast App could not be launched")
 
@@ -336,7 +338,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 return True
 
             # was playback transferred to the device?
-            if payloadDataType == TYPE_TRANSFER_SUCCESS_RESPONSE:
+            if payloadDataType == TYPE_TRANSFER_SUCCESS:
 
                 # example payload response (Nest Speaker):
                 # { 'type': 'transferSuccess',
@@ -354,7 +356,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 return True
 
             # did an error occur transferring playback to the device?
-            if payloadDataType == TYPE_TRANSFER_ERROR_RESPONSE:
+            if payloadDataType == TYPE_TRANSFER_ERROR:
 
                 # example payload response (Nest Speaker):
                 # { 'type': 'transferError',

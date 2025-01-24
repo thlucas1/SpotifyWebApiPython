@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.157 ] - 2025/01/23
+
+  * Updated Chromecast logic to support more user-friendly error messages when configuration / initialization errors occur.
+
 ###### [ 1.0.156 ] - 2025/01/23
 
   * Updated `SpotifyClient` methods that require a `deviceId` argument to check for a "Device Not Found" condition, and return a more user-friendly message than the "Device Not Found" message from the Spotify Web API.
