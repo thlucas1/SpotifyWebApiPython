@@ -443,29 +443,29 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 if (scDevice is None):
                     scDevice = self._SpotifyConnectDevices.GetDeviceById(deviceName)
                 if (scDevice is None):
-                    raise SpotifyApiError("Chromecast device \"%s\" could not be found in the SpotifyConnectDevices collection " % (deviceName), logsi=_logsi)
+                    raise SpotifyApiError("Chromecast device \"%s\" could not be found in the SpotifyConnectDevices collection." % (deviceName), logsi=_logsi)
 
             # is this a chromecast device?
             if (not scDevice.IsChromeCast):
-                raise SpotifyApiError("Device %s is not a Chromecast device; use TransferPlayback instead " % (scDevice.Title), logsi=_logsi)
+                raise SpotifyApiError("Device %s is not a Chromecast device; use TransferPlayback instead." % (scDevice.Title), logsi=_logsi)
 
             # is zeroconf discovery disabled?
             if (not self.IsZeroconDiscoveryEnabled):
-                raise SpotifyApiError("Zeroconf discovery is disabled; cannot activate Chromecast devices", logsi=_logsi)
+                raise SpotifyApiError("Zeroconf discovery is disabled; cannot activate Chromecast devices.", logsi=_logsi)
 
             # has discovery browser been started yet?
             if (self._CastBrowser is None):
-                raise SpotifyApiError("Chromecast discovery browser reference not set; the Browser must be started prior to calling this method", logsi=_logsi)
+                raise SpotifyApiError("Chromecast discovery browser reference not set; the Browser must be started prior to calling this method.", logsi=_logsi)
 
             # any devices available?
             if (len(self._CastBrowser.devices) == 0):
-                raise SpotifyApiError("No available Chromecast devices detected", logsi=_logsi)
+                raise SpotifyApiError("No available Chromecast devices detected.", logsi=_logsi)
 
             # are we waiting on a previous request to finish?
             if (not self.WaitForActivationComplete.is_set):
-                raise SpotifyApiError("Waiting for previous Chromecast device activation to complete; try again in a few seconds", logsi=_logsi)
+                raise SpotifyApiError("Waiting for previous Chromecast device activation to complete; try again in a few seconds.", logsi=_logsi)
             if (not self.WaitForTransferComplete.is_set):
-                raise SpotifyApiError("Waiting for previous Chromecast device playback transfer to complete; try again in a few seconds", logsi=_logsi)
+                raise SpotifyApiError("Waiting for previous Chromecast device playback transfer to complete; try again in a few seconds.", logsi=_logsi)
 
             # clear event notifiers.
             self.WaitForActivationComplete.clear()
@@ -540,13 +540,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.WasReConnected = True
                             break
                         raise SpotifyApiError("Spotify Cast App could not be activated on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
-                    raise SpotifyApiError("Spotify Cast App could not activated on Chromecast device: unknown error", logsi=_logsi)
+                    raise SpotifyApiError("Spotify Cast App could not activated on Chromecast device: unknown error.", logsi=_logsi)
                 if (counter >= timeoutActivation):
                     # syncronize access via lock, as we are accessing the collection.
                     with self._SpotifyConnectDevices_RLock:
                         scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                     if (scDevice is not None):
-                        raise SpotifyApiError("Spotify Cast App activation timeout (%s seconds) was exceeded while trying to activate Chromecast device \"%s\"" % (timeoutActivation, deviceName), logsi=_logsi)
+                        raise SpotifyApiError("Spotify Cast App activation timeout (%s seconds) was exceeded while trying to activate Chromecast device \"%s\"." % (timeoutActivation, deviceName), logsi=_logsi)
                 counter += 1
 
             # at this point we have received an `adduserResponse` from the Chromecast device, indicating 
@@ -572,13 +572,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             if (response.ResponseSource == TYPE_TRANSFER_SUCCESS):
                                 break
                             raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device \"%s\": %s" % (deviceName, response.ToString(False)), logsi=_logsi)
-                        raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device: unknown error", logsi=_logsi)
+                        raise SpotifyApiError("Spotify Cast App failed to receive playback transfer on Chromecast device: unknown error.", logsi=_logsi)
                     if (counter >= timeoutTransfer):
                         # syncronize access via lock, as we are accessing the collection.
                         with self._SpotifyConnectDevices_RLock:
                             scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
                         if (scDevice is not None):
-                            raise SpotifyApiError("Spotify Cast App transfer playback timeout (%s seconds) was exceeded while waiting for transfer of playback on Chromecast device \"%s\"" % (timeoutTransfer, deviceName), logsi=_logsi)
+                            raise SpotifyApiError("Spotify Cast App transfer playback timeout (%s seconds) was exceeded while waiting for transfer of playback on Chromecast device \"%s\"." % (timeoutTransfer, deviceName), logsi=_logsi)
                     counter += 1
 
                 # at this point we have received an `transferSuccess` from the Chromecast device, indicating 

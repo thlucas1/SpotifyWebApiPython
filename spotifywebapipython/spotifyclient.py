@@ -487,9 +487,9 @@ class SpotifyClient:
 
             # if deviceId could not be resolved, then it's an error.
             if (deviceId is None) or (deviceId == "*"):
-                raise SpotifyConnectDeviceNotFound("There is no active Spotify player, and a default player device was not configured; select a player device and try again.")
+                raise SpotifyConnectDeviceNotFound("There is no active Spotify player, and a default player device was not configured.")
             else:
-                raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found, and there is no active Spotify player; verify the device is active and available on the local network, and try again." % (deviceId))
+                raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found in the Spotify Connect device list; verify the device is discoverable via Zeroconf on the local network." % (deviceId))
 
 
     def _CheckForNextPageWithOffset(
@@ -13208,10 +13208,9 @@ class SpotifyClient:
             # for transfer playback, we will always activate the device.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # if device could not be resolved, then go no further as it will result in a 
-            # "device not found" error from the Spotify Web API anyway!
-            if (scDevice is None):
-                raise SpotifyConnectDeviceNotFound("Spotify Player device was not found, and there is no active Spotify player", logsi=_logsi)
+            # was the deviceId resolved? 
+            # if not, then raise an exception as the Spotify Web API request will fail anyway.
+            self._CheckForDeviceNotFound(scDevice, deviceId)
 
             # is this a Sonos device? 
             # if so, then control was automatically transferred by activating the device.

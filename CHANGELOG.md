@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.158 ] - 2025/01/23
+
+  * Updated Chromecast logic to support more user-friendly error messages when configuration / initialization errors occur.
+
 ###### [ 1.0.157 ] - 2025/01/23
 
   * Updated Chromecast logic to support more user-friendly error messages when configuration / initialization errors occur.

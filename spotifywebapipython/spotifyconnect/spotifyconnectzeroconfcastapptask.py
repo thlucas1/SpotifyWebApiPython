@@ -273,7 +273,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                         return
                     break
                 if (counter >= timeout):
-                    self._PostLaunchErrorEvent(1002, "Playback transfer error - Timed out waiting for playback transfer to device")
+                    self._PostLaunchErrorEvent(1002, "Playback transfer error - Timed out waiting for playback transfer to device.")
                     return
                 counter += 1
 
