@@ -8,6 +8,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.159 ] - 2025/01/25
+
+  * Replaced `threading.Lock` references with `threading.RLock` (reentrant) references.  This should avoid any potential deadlock situations for recursive calls to methods on the same thread.
+
 ###### [ 1.0.158 ] - 2025/01/23
 
   * Updated Chromecast logic to support more user-friendly error messages when configuration / initialization errors occur.

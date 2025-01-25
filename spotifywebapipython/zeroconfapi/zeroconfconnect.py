@@ -1214,15 +1214,20 @@ class ZeroconfConnect:
             # try connecting to the device until we timeout or there are no more "connection refused" errors.
             loopTotalDelay:float = 0
             LOOP_DELAY:float = 0.25
-            LOOP_TIMEOUT:float = 2.0
+            LOOP_TIMEOUT:float = 1.0  # this is the number of tries (not seconds to wait); 1.0 = 4 tries, 2.0 = 8 tries, etc.
             while True:
 
                 try:
                         
+                    # if device connection was previously delayed, then log the info
+                    # as it may be helpful in debugging other issues.
+                    if (loopTotalDelay > 0):
+                        _logsi.LogVerbose("Re-trying to reach Spotify Connect device (ip=%s:%s) after %f seconds from initial request" % (self._HostIpAddress, self._HostIpPort, loopTotalDelay))
+
                     # execute spotify zeroconf api request.
                     response = requests.get(
                         self._Uri, 
-                        timeout=5,
+                        timeout=4,
                         headers=reqHeaders,
                         params=reqParams
                     )

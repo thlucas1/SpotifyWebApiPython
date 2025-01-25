@@ -48,7 +48,7 @@ class SpotifyConnectZeroconfListener:
     def __init__(
         self, 
         parentDirectory,
-        zeroconf_Lock:threading.Lock,
+        zeroconf_RLock:threading.RLock,
         ) -> None:
         """
         Initializes a new instance of the class.
@@ -56,7 +56,7 @@ class SpotifyConnectZeroconfListener:
         Args:
             parentDirectory (SpotifyConnectDirectoryTask):
                 Parent SpotifyConnectDirectoryTask instance.
-            zeroconf_Lock (threading.Lock):
+            zeroconf_RLock (threading.RLock):
                 Lock object used to enforce thread-safe updates.
         """
         # invoke base class method.
@@ -64,7 +64,7 @@ class SpotifyConnectZeroconfListener:
 
         # initialize storage.
         self._ParentDirectory = parentDirectory
-        self._Zeroconf_Lock:threading.Lock = zeroconf_Lock
+        self._Zeroconf_RLock:threading.RLock = zeroconf_RLock
 
 
     def _GetZeroconfDiscoveryResult(
@@ -182,7 +182,7 @@ class SpotifyConnectZeroconfListener:
                 The type of service state change (add, remove, update).
         """
         # use lock, as multiple threads could be calling this method simultaneously.
-        with self._Zeroconf_Lock:
+        with self._Zeroconf_RLock:
 
             # copy passed parameters to thread-safe storage.
             serviceType:str = service_type
@@ -248,7 +248,7 @@ class SpotifyConnectZeroconfListener:
                 A description of the type of service state change (add, remove, update).
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `Zeroconf_Lock` object to control access.
+        the `Zeroconf_RLock` object to control access.
         """
         # build discovery result instance from service state information.
         # if nothing returned, then don't bother!
@@ -282,7 +282,7 @@ class SpotifyConnectZeroconfListener:
                 A description of the type of service state change (add, remove, update).
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `Zeroconf_Lock` object to control access.
+        the `Zeroconf_RLock` object to control access.
         """
         # for service removal notifications, there will be no zeroconf service info.
         # build discovery result instance from service state information.
@@ -322,7 +322,7 @@ class SpotifyConnectZeroconfListener:
                 A description of the type of service state change (add, remove, update).
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `Zeroconf_Lock` object to control access.
+        the `Zeroconf_RLock` object to control access.
         """
         # build discovery result instance from service state information.
         # if nothing returned, then don't bother!

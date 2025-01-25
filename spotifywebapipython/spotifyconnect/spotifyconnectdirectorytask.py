@@ -110,7 +110,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         self._SpotifyConnectDevices:SpotifyConnectDevices = SpotifyConnectDevices()
         self._SpotifyConnectDevices_RLock = threading.RLock()   # re-entrant lock to sync access to devices collection.
         self._ZeroconfInstance:Zeroconf = zeroconfInstance
-        self._Zeroconf_Lock = threading.Lock()   # syncronous lock for zeroconf service state changes.
+        self._Zeroconf_RLock = threading.RLock()   # re-entrant lock to sync access to zeroconf service state changes.
 
         # define all events raised by this class.
         self.DeviceAdded = Event()
@@ -256,7 +256,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # when a deviceost, the cast_listener.remove_cast is called
                 # when a devicepdated, cast_listener.update_cast is called.
                 _logsi.LogVerbose("%s - Starting Spotify Connect Zeroconf discovery browser" % (self.name))
-                handler:SpotifyConnectZeroconfListener = SpotifyConnectZeroconfListener(self, self._Zeroconf_Lock)
+                handler:SpotifyConnectZeroconfListener = SpotifyConnectZeroconfListener(self, self._Zeroconf_RLock)
                 self._SpotifyConnectBrowser = ServiceBrowser(
                     self._ZeroconfInstance,
                     ZEROCONF_SERVICETYPE_SPOTIFYCONNECT,
@@ -271,7 +271,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 _logsi.LogVerbose("%s - Starting Chromecast Zeroconf discovery browser" % (self.name))
                 self._CastBrowser = CastBrowser(
                     zeroconf_instance=self._ZeroconfInstance,
-                    cast_listener=SpotifyConnectZeroconfCastListener(self, self._Zeroconf_Lock), 
+                    cast_listener=SpotifyConnectZeroconfCastListener(self, self._Zeroconf_RLock), 
                     known_hosts=None
                     )
                 self._CastBrowser.start_discovery()
@@ -283,7 +283,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             if (_logsi.IsOn(SILevel.Verbose)):
 
                 # use lock, as zeroconf tasks could be updating the device list.
-                with self._Zeroconf_Lock:
+                with self._Zeroconf_RLock:
 
                     # trace.
                     _logsi.LogVerbose("%s - Spotify Connect devices discovered at initialization (%s items)" % (self.name, len(self._SpotifyConnectDevices)), colorValue=SIColors.Coral)
@@ -1360,7 +1360,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 First known MDNS service name or host:port.
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `_Zeroconf_Lock` object to control access.
+        the `_Zeroconf_RLock` object to control access.
         """
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:
@@ -1518,7 +1518,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         - transfer playback failed (e.g. device restriction, etc).
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `_Zeroconf_Lock` object to control access.
+        the `_Zeroconf_RLock` object to control access.
         """
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:
@@ -1685,7 +1685,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 A `ZeroconfDiscoveryResult` object that contains discovery details.
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `_Zeroconf_Lock` object to control access.
+        the `_Zeroconf_RLock` object to control access.
         """
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:
@@ -1744,6 +1744,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         _logsi.LogVerbose("Could not retrieve Spotify Connect device information by ip address; retrying with DNS server alias \"%s\"" % (zeroconfDiscoveryResult.Server))
 
                         try:
+
+                            # *IMPORTANT* This call can take up to 20 seconds to timeout because it is using DNS
+                            # resolution to find the device.  the timeout is a system-level value, so it cannot be
+                            # controlled by this api!
                         
                             # create connection object to retrieve spotify connect device information (via dns alias).
                             zconn:ZeroconfConnect = ZeroconfConnect(
@@ -1888,7 +1892,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 A `ZeroconfDiscoveryResult` object that contains discovery details.
 
         This method will be called in a thread-safe manner, as the caller is using
-        the `_Zeroconf_Lock` object to control access.
+        the `_Zeroconf_RLock` object to control access.
         """
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:

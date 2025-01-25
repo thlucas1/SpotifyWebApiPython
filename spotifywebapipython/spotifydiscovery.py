@@ -67,7 +67,7 @@ class SpotifyDiscovery:
         self._DiscoveryResults:list[ZeroconfDiscoveryResult] = []
         self._PrintToConsole:bool = printToConsole
         self._ZeroconfClient = zeroconfClient
-        self._Zeroconf_Lock = threading.Lock()
+        self._Zeroconf_RLock = threading.RLock()
 
 
     def __getitem__(self, key):
@@ -293,7 +293,7 @@ class SpotifyDiscovery:
         # > the only way to remove an entry is to kill the process the entry was created under!
         
         # enter the following section one thread at a time (threadsafe).
-        with self._Zeroconf_Lock:
+        with self._Zeroconf_RLock:
 
             # copy passed parameters to thread-safe storage.
             serviceType:str = service_type

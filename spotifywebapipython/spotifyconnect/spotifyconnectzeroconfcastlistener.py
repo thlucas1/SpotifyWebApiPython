@@ -35,7 +35,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
     def __init__(
         self, 
         parentDirectory,
-        zeroconf_Lock:threading.Lock,
+        zeroconf_RLock:threading.RLock,
         ) -> None:
         """
         Initializes a new instance of the class.
@@ -43,7 +43,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
         Args:
             parentDirectory (SpotifyConnectDirectoryTask):
                 Parent SpotifyConnectDirectoryTask instance.
-            zeroconf_Lock (threading.Lock):
+            zeroconf_RLock (threading.RLock):
                 Lock object used to enforce thread-safe updates.
         """
         # invoke base class method.
@@ -51,7 +51,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
         # initialize storage.
         self._ParentDirectory = parentDirectory
-        self._Zeroconf_Lock:threading.Lock = zeroconf_Lock
+        self._Zeroconf_RLock:threading.RLock = zeroconf_RLock
 
 
     def _GetZeroconfDiscoveryResult(
@@ -158,7 +158,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                 First known MDNS service name or host:port.
         """
         # use lock, as multiple threads could be calling this method simultaneously.
-        with self._Zeroconf_Lock:
+        with self._Zeroconf_RLock:
 
             # copy passed parameters to thread-safe storage.
             argsUuid:UUID = uuid
@@ -216,7 +216,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                 CastInfo for the service to aid cleanup.
         """
         # use lock, as multiple threads could be calling this method simultaneously.
-        with self._Zeroconf_Lock:
+        with self._Zeroconf_RLock:
                 
             # copy passed parameters to thread-safe storage.
             argsUuid:UUID = uuid
@@ -278,7 +278,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                 MDNS service name or host:port.
         """
         # use lock, as multiple threads could be calling this method simultaneously.
-        with self._Zeroconf_Lock:
+        with self._Zeroconf_RLock:
                 
             # copy passed parameters to thread-safe storage.
             argsUuid:UUID = uuid
