@@ -10,7 +10,7 @@ from spotifywebapipython.models import ZeroconfProperty, ZeroconfDiscoveryResult
 # from .spotifyconnectdirectorytask import SpotifyConnectDirectoryTask
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SIColors
 import logging
 
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
@@ -22,6 +22,14 @@ ZEROCONF_SERVICETYPE_GOOGLECAST:str = "_googlecast._tcp.local."
 """
 Googlecast Zeroconf service type identifier.
 """
+
+# chromecast types supported.
+CAST_TYPE_CHROMECAST = "cast"
+""" Regular chromecast, supports video/audio """
+CAST_TYPE_AUDIO = "audio"
+""" Cast Audio device, supports only audio """
+CAST_TYPE_GROUP = "group" 
+""" Cast Audio group device, supports only audio """
 
 
 class SpotifyConnectZeroconfCastListener(AbstractCastListener):
@@ -95,14 +103,10 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
             # TODO we may need to expand this check based on cast_type value ...
 
-            # Regular chromecast, supports video/audio
-            #CAST_TYPE_CHROMECAST = "cast"
-            # Cast Audio device, supports only audio
-            #CAST_TYPE_AUDIO = "audio"
-            # Cast Audio group device, supports only audio
-            #CAST_TYPE_GROUP = "group"        
-            if (castInfo.cast_type != "audio"):
-                _logsi.LogDebug("Chromecast device does not support 'audio'; ignoring: \"%s\" (%s)" % (castInfo.friendly_name, serviceName))
+            # only certain cast_type values support Spotify Connect.
+            castType:str = castInfo.cast_type
+            if (not (castType in [CAST_TYPE_AUDIO, CAST_TYPE_GROUP, CAST_TYPE_CHROMECAST])):
+                _logsi.LogDebug("Chromecast device cast_type of \"%s\" is not supported; ignoring: \"%s\" (%s)" % (castType, castInfo.friendly_name, serviceName), colorValue=SIColors.Coral)
                 return None
             
             # create new discovery result instance.

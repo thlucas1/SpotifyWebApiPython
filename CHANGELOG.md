@@ -8,6 +8,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.161 ] - 2025/01/26
+
+  * Added more device `cast_type` values to check for supported Chromecast devices: `cast`, `group`.
+  
+###### [ 1.0.160 ] - 2025/01/26
+
+  * Removed check for `(castInfo.cast_type != "audio")` to determine if the Chromecast device is allowed in the device list or not.  This was never released to PROD.
+  
 ###### [ 1.0.159 ] - 2025/01/25
 
   * Replaced `threading.Lock` references with `threading.RLock` (reentrant) references.  This should avoid any potential deadlock situations for recursive calls to methods on the same thread.
