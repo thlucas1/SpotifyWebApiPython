@@ -125,8 +125,9 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
             result.ServerKey = serviceName
             result.ServiceType = ZEROCONF_SERVICETYPE_GOOGLECAST
             result.Weight = 0
-            result.Properties.append(ZeroconfProperty("CPath","/na"))
-            result.Properties.append(ZeroconfProperty("VERSION","1.0"))
+            result.Properties.append(ZeroconfProperty("CPath", "/na"))
+            result.Properties.append(ZeroconfProperty("VERSION", "1.0"))
+            result.Properties.append(ZeroconfProperty("cast_type", castType))
             result.SpotifyConnectCPath = "/na"
             result.SpotifyConnectVersion = "1.0"
             result.Id = "\"%s\" (%s:%s)" % (result.DeviceName, result.HostIpAddress, result.HostIpPort)

@@ -8,6 +8,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 UpdateActiveDevice
 
+###### [ 1.0.162 ] - 2025/01/28
+
+  * Added device `cast_type` value to `ZeroconfDiscoveryResult.Properties` for easier detection of Chromecast device types.
+  * Updated `SpotifyClient.PlayerMediaPlayContext` method to correct shuffled track behavior; Prior behavior did not honor the current shuffle setting of the player, and would always start with the first track.
+  
 ###### [ 1.0.161 ] - 2025/01/26
 
   * Added more device `cast_type` values to check for supported Chromecast devices: `cast`, `group`.

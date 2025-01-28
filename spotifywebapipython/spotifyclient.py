@@ -11846,11 +11846,16 @@ class SpotifyClient:
                 reqData:dict = \
                 {
                     'context_uri': contextUri,
-                    'position_ms': positionMS
                 }
+
+                if (positionMS is not None) and (positionMS > 0):
+                    reqData['position_ms'] = { 'position_ms': positionMS }
+
+                # offset should only be applied if it's not zer / a uri is specified; otherwise,
+                # it will not shuffle correctly if shuffle is enabled.
                 if offsetUri is not None:
                     reqData['offset'] = { 'uri': offsetUri }
-                else:
+                elif (offsetPosition > 0):
                     reqData['offset'] = { 'position': offsetPosition }
 
                 # formulate url parms; will manually add them since we are adding json body as well.
