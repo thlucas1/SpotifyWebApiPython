@@ -6,8 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
-UpdateActiveDevice
+###### [ 1.0.163 ] - 2025/01/30
 
+  * Adjusted `no active device` error message to be more user-friendly.
+  * Updated service method arguments to indicate DEPRECATED parameters (e.g. parameters no longer used).
+  
 ###### [ 1.0.162 ] - 2025/01/28
 
   * Added device `cast_type` value to `ZeroconfDiscoveryResult.Properties` for easier detection of Chromecast device types.

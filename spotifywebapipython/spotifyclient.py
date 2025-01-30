@@ -487,7 +487,7 @@ class SpotifyClient:
 
             # if deviceId could not be resolved, then it's an error.
             if (deviceId is None) or (deviceId == "*"):
-                raise SpotifyConnectDeviceNotFound("There is no active Spotify player, and a default player device was not configured.")
+                raise SpotifyConnectDeviceNotFound("There is no active Spotify player device, and a default player device was not configured.")
             else:
                 raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found in the Spotify Connect device list; verify the device is discoverable via Zeroconf on the local network." % (deviceId))
 
@@ -1191,10 +1191,7 @@ class SpotifyClient:
                 not be resolved or activated.
                 Examples are `0d1841b0976bae2a3a310dd74c0f3df354899bc8`, `Office`, `*`, None.  
             verifyDeviceId (bool):
-                DEPRECATED - deviceId is automatically verified as of v1.0.149.
-                True to verify a device id is active; otherwise, false to assume that a
-                device id is already active.  
-                Default is True.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the add request.  This delay will give the 
                 Spotify web api time to process the queue change before another command is issued.  
@@ -2039,10 +2036,10 @@ class SpotifyClient:
                 The Spotify ID of the playlist.  
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
             userIds (str):  
+                DEPRECATED - A single item list containing current user's Spotify Username; Maximum of 1 id.
                 A comma-separated list of Spotify User ID's to check.  
                 Maximum: 5 ID's.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`  
-                DEPRECATED - A single item list containing current user's Spotify Username; Maximum of 1 id.
                 
         Returns:
             Array of boolean, containing a single boolean status that indicates 
@@ -9593,19 +9590,13 @@ class SpotifyClient:
                 The device id / name value to check.
             verifyUserContext (bool):
                 DEPRECATED - no longer used, but left here to maintain compatibility.
-                If True, the active user context of the resolved device is checked to ensure it
-                matches the user context specified on the class constructor.
-                If False, the user context will not be checked.
-                Default is True.
             verifyTimeout (float):
                 Maximum time to wait (in seconds) for the device to become active in the Spotify
                 Connect device list.  This value is only used if a Connect command has to be
                 issued to activate the device.
                 Default is 5; value range is 0 - 10.
             refreshDeviceList (bool):
-                True to refresh the Spotify Connect device list; otherwise, False to use the 
-                Spotify Connect device list cache.  
-                Default is False.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
             activateDevice (bool):
                 True to activate the device if necessary; otherwise, False.  
                 Default is True.  
@@ -9664,7 +9655,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceValue", deviceValue)
             apiMethodParms.AppendKeyValue("verifyUserContext (DEPRECATED)", verifyUserContext)
             apiMethodParms.AppendKeyValue("verifyTimeout", verifyTimeout)
-            apiMethodParms.AppendKeyValue("refreshDeviceList", refreshDeviceList)
+            apiMethodParms.AppendKeyValue("refreshDeviceList (DEPRECATED)", refreshDeviceList)
             apiMethodParms.AppendKeyValue("activateDevice", activateDevice)
             apiMethodParms.AppendKeyValue("delay", delay)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify Connect Device object for deviceValue \"%s\"" % (deviceValue), apiMethodParms)
@@ -9674,8 +9665,6 @@ class SpotifyClient:
             verifyTimeout = validateDelay(verifyTimeout, 5, 10)
             if (activateDevice is None):
                 activateDevice = True
-            if (refreshDeviceList is None):
-                refreshDeviceList = False
 
             # resolve the device id from the specified device value.
             # returned value will be null if the device could not be resolved!
@@ -9802,9 +9791,9 @@ class SpotifyClient:
                 if sonosMusicSource != "SPOTIFY_CONNECT":
                     _logsi.LogVerbose("Sonos device %s music source after Connect is not SPOTIFY_CONNECT; it will probably fail to play" % (scDevice.Title))
 
-                # at this point the Sonos music source should be set to SPOTIFY_CONNECT, and control
-                # transferred to the device.  note that the Sonos device will still NOT appear in the 
-                # player device list, but SHOULD be the active (restricted) device in player state.
+            # at this point the Sonos music source should be set to SPOTIFY_CONNECT, and control
+            # transferred to the device.  note that the Sonos device will still NOT appear in the 
+            # player device list, but SHOULD be the active (restricted) device in player state.
                 
             # wait for the device to enter the Spotify Web API player device list, or
             # to become the active device.  
@@ -9876,10 +9865,7 @@ class SpotifyClient:
                 True (default) to return real-time information about devices and update the cache;
                 otherwise, False to just return the cached value.
             sortResult (bool):
-                DEPRECATED - no longer used, as the collection is always sorted by default.
-                True to sort the items by name; otherwise, False to leave the items in the same order they 
-                were returned in by the Spotify Web API.  
-                Default: True
+                DEPRECATED - no longer used, but left here to maintain compatibility.
         
         Returns:
             A `SpotifyConnectDevices` object that contain Spotify Connect devices that are registered
@@ -11696,10 +11682,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
-                DEPRECATED - device id resolution is now automatic.
-                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
-                value as it has already been resolved.  
-                Default is True.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
                 
         Raises:
             SpotifyWebApiError: 
@@ -11921,10 +11904,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
-                DEPRECATED - device id resolution is now automatic.
-                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
-                value as it has already been resolved.  
-                Default is True.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
             limitTotal (int):
                 The maximum number of items to retrieve from favorites.  
                 Default is 200; value range is 1 - 750.  
@@ -12058,10 +12038,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
-                DEPRECATED - device id resolution is now automatic.
-                True to resolve the supplied `deviceId` value; otherwise, False not resolve the `deviceId`
-                value as it has already been resolved.  
-                Default is True.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
                 
         Raises:
             SpotifyWebApiError: 
@@ -13124,9 +13101,7 @@ class SpotifyClient:
                 another command is issued.  
                 Default is 0.50; value range is 0 - 10.
             refreshDeviceList (bool):
-                True to refresh the Spotify Connect device list; otherwise, False to use the 
-                Spotify Connect device list cache.  
-                Default is True.  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
             forceActivateDevice (bool):
                 True to issue a Spotify Connect Disconnect call prior to transfer, which will
                 force the device to reconnect to Spotify Connect; otherwise, False to not
@@ -13177,7 +13152,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("play", play)
             apiMethodParms.AppendKeyValue("delay", delay)
-            apiMethodParms.AppendKeyValue("refreshDeviceList", refreshDeviceList)
+            apiMethodParms.AppendKeyValue("refreshDeviceList (DEPRECATED)", refreshDeviceList)
             apiMethodParms.AppendKeyValue("forceActivateDevice", forceActivateDevice)
             apiMethodParms.AppendKeyValue("deviceIdFrom", deviceIdFrom)
             _logsi.LogMethodParmList(SILevel.Verbose, "Transfer playback to a new Spotify Connect device", apiMethodParms)
@@ -13186,8 +13161,6 @@ class SpotifyClient:
             delay = validateDelay(delay, 0.50, 10)
             if (play is None):
                 play = True
-            if (refreshDeviceList is None):
-                refreshDeviceList = True
             if (forceActivateDevice is None):
                 forceActivateDevice = True
 
