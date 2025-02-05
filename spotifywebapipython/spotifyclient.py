@@ -4,11 +4,9 @@ from datetime import datetime
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
-import socket
 from soco import SoCo
 from soco.core import (
     PLAY_MODE_BY_MEANING as SONOS_PLAY_MODE_BY_MEANING,
-    PLAY_MODES as SONOS_PLAY_MODES,
 )
 from soco.plugins.sharelink import ShareLinkPlugin
 import time
@@ -16,7 +14,7 @@ from typing import Tuple, Callable, Union
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
 import urllib.parse
-from lxml.etree import fromstring, Element, tostring
+from lxml.etree import fromstring, Element
 from lxml import etree
 from zeroconf import Zeroconf
 
@@ -202,6 +200,7 @@ class SpotifyClient:
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
         self._DefaultDeviceId:str = None
+        self._IsDisposed:bool = False
         self._Manager:PoolManager = manager
         self._SpotifyConnectUsername:str = spotifyConnectUsername
         self._SpotifyConnectPassword:str = spotifyConnectPassword
@@ -243,7 +242,7 @@ class SpotifyClient:
         Finalizes the instance of the class.
         """
         try:
-            self.StopSpotifyConnectDirectoryTask()
+            self.Dispose()
         except:
             # ignore exceptions since we are shutting down.
             pass
@@ -257,7 +256,7 @@ class SpotifyClient:
     def __exit__(self, etype, value, traceback) -> None:
         # if called via a context manager (e.g. "with" statement).
         try:
-            self.StopSpotifyConnectDirectoryTask()
+            self.Dispose()
         except:
             # ignore exceptions since we are shutting down.
             pass
@@ -974,6 +973,51 @@ class SpotifyClient:
         # otherwise, defult the value.
         _logsi.LogVerbose("A market value was not supplied for the request, and the user profile did not contain a country code value (e.g. public access token is in effect).  Defaulting value to '%s'." % SPOTIFY_DEFAULT_MARKET)
         return SPOTIFY_DEFAULT_MARKET
+
+
+    def Dispose(self) -> None:
+        """
+        Releases all resources of this instance.
+
+        This method stops the Spotify Connect Directory task, and ensures
+        that any event wirings are removed.
+        """
+        apiMethodName:str = 'Dispose'
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Disposing of SpotifyClient instance", apiMethodParms)
+
+            # are we already disposed? if so, then don't do it again!
+            if (self._IsDisposed == True):
+                _logsi.LogVerbose("SpotifyClient instance is already disposed")
+                return
+            else:
+                # indicate we are disposed (or in the process thereof).
+                self._IsDisposed = True
+
+            # shut down the directory task.
+            try:
+                self.StopSpotifyConnectDirectoryTask()
+            except Exception as ex:
+                pass  # ignore exceptions as they have already been logged.
+
+            # trace.
+            _logsi.LogVerbose("Disposal of SpotifyClient instance completed successfully")
+
+        except Exception as ex:
+            
+            # log unhandled exception.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex)
+
+            # ignore exceptions as we are disposing!
+
+        finally:
+
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def MakeRequest(
@@ -11647,9 +11691,10 @@ class SpotifyClient:
 
         Args:
             contextUri (str):
-                Spotify URI of the context to play.  
+                Spotify URI (or URL) of the context to play.  
                 Valid contexts are albums, artists & playlists.  
                 Example: `spotify:album:6vc9OTcyd3hyzabCmsdnwE`.   
+                Example: `https://open.spotify.com/playlist/4ufyQwaLq1MR49KvGRCNAo`.   
             offsetUri (str):
                 Indicates from what Uri in the context playback should start.  
                 Only available when contextUri corresponds to an artist, album or playlist.  

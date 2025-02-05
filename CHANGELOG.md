@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.164 ] - 2025/02/05
+
+  * Added `SpotifyClient.Dispose` method to properly dispose of resources and unwire events when the instance is destroyed.friendly.
+  
 ###### [ 1.0.163 ] - 2025/01/30
 
   * Adjusted `no active device` error message to be more user-friendly.

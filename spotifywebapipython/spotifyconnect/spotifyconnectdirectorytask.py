@@ -348,6 +348,23 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             try:
 
+                # unwire event handlers.
+                _logsi.LogVerbose("%s - Unwiring event handlers" % (self.name))
+                if (self.DeviceAdded is not None):
+                    self.DeviceAdded -= self.OnDeviceAdded
+                if (self.DeviceRemoved is not None):
+                    self.DeviceRemoved -= self.OnDeviceRemoved
+                if (self.DeviceUpdated is not None):
+                    self.DeviceUpdated -= self.OnDeviceUpdated
+
+            except:
+
+                # trace.
+                _logsi.LogException("%s - An unhandled exception occured while unwiring event handlers: %s" % (self.name, str(ex)), ex, logToSystemLogger=False)
+                # ignore exceptions, since we are shutting down.
+
+            try:
+
                 # stop spotify connect zeroconf discovery browser.
                 if (self._SpotifyConnectBrowser is not None):
                     _logsi.LogVerbose("%s - Stopping Spotify Connect Zeroconf discovery" % (self.name))
