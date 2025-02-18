@@ -436,6 +436,10 @@ class AuthClient:
             if tokenStorageFile is None:
                 tokenStorageFile = 'tokens.json'
 
+            # if token clientId not set, then default to shared.
+            if clientId is None:
+                clientId = 'Shared'
+
             # if token providerId not set, then default to shared.
             if tokenProviderId is None:
                 tokenProviderId = 'Shared'

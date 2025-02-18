@@ -33,3 +33,9 @@ try:
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))
+
+finally:
+
+    # shut down zeroconf directory browser and dispose of all resources.
+    if (spotify is not None):
+        spotify.Dispose()

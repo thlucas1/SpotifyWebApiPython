@@ -30,6 +30,7 @@ from .spotifyauthtoken import SpotifyAuthToken
 from .spotifydiscovery import SpotifyDiscovery
 from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
+from .spotifywebplayertoken import SpotifyWebPlayerToken
 from .zeroconfapi.zeroconfconnect import ZeroconfConnect, ZeroconfGetInfo, ZeroconfResponse, SpotifyZeroconfApiError
 from .zeroconfapi.zeroconfgetinfoalias import ZeroconfGetInfoAlias
 from .sautils import (
@@ -200,6 +201,7 @@ class SpotifyClient:
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
         self._DefaultDeviceId:str = None
+        self._HasSpotifyWebPlayerCredentials:bool = False
         self._IsDisposed:bool = False
         self._Manager:PoolManager = manager
         self._SpotifyConnectUsername:str = spotifyConnectUsername
@@ -362,6 +364,15 @@ class SpotifyClient:
             else:
                 self._DefaultDeviceId = value
 
+
+    @property
+    def HasSpotifyWebPlayerCredentials(self) -> bool:
+        """ 
+        Returns true if Spotify Web Player credentials have been configured in the Token Cache File;
+        otherwise, False.
+        """
+        return self._HasSpotifyWebPlayerCredentials
+    
 
     @property
     def SpotifyConnectDirectoryEnabled(self) -> bool:
@@ -764,6 +775,57 @@ class SpotifyClient:
         msg.ResponseData = responseData
 
 
+    def _GetSpotifyWebPlayerTokenHeaderValue(
+        self,
+        scDevice:SpotifyConnectDevice=None,
+        ) -> str:
+        """
+        Retrieves a SpotifyWebPlayer token header value, if Spotify Web Player cookie credentials 
+        are defined in the Token Cache File.
+
+        Args:
+            scDevice (SpotifyConnectDevice):
+                A resolved SpotifyConnectDevice object.
+
+        Returns:
+            A token header value that can be used in the request header authorization variable;
+            otherwise, None.
+
+        The value returned will be a `Bearer: token` string that can be used in a request header 
+        authorization key for Spotify Web API endpoints that start playback on a devoce.
+
+        The Token Cache File is queried for a key value of "SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID",
+        which will contain the `sp_key` and `sp_dc` values of the cookie credentials.  These 
+        credentials are then converted into an authorization access token which is used by 
+        Spotify Web API endpoints to start playback on the specified device id.
+        """
+        result:SpotifyWebPlayerToken = None
+
+        # are spotify web player credentials configured? if not, then don't bother!
+        if (not self._HasSpotifyWebPlayerCredentials):
+            return result
+
+        # was the device resolved? if not, then don't bother!
+        if (not isinstance(scDevice, SpotifyConnectDevice)):
+            return result
+
+        # is the device restricted or Sonos?
+        if (scDevice.IsSonos or scDevice.IsRestricted):
+
+            # get spotify web player access token info from spotify web player cookie credentials.
+            _logsi.LogVerbose("Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self._SpotifyConnectLoginId))
+            tokenWP = SpotifyWebPlayerToken(profileId=self._SpotifyConnectLoginId,
+                                            tokenStorageDir=self._TokenStorageDir,
+                                            tokenStorageFile=self._TokenStorageFile)
+            if tokenWP is not None:
+                result = tokenWP.HeaderValue
+                _logsi.LogVerbose("Playback will be started using Spotify Web Player authorization access token for device: %s" % (scDevice.Title))
+
+        # return result to caller.
+        return result
+
+
+
     def _ResolveDeviceObject(
         self,
         device:str | SpotifyConnectDevice,
@@ -855,6 +917,26 @@ class SpotifyClient:
             if (self._SpotifyConnectLoginId is None) or (len(self._SpotifyConnectLoginId.strip()) == 0):
                 _logsi.LogVerbose("Spotify Connect LoginId not specified on class constructor; using Spotify UserProfile ID value \"%s\"" % (self._UserProfile.Id), colorValue=SIColors.Coral)
                 self._SpotifyConnectLoginId = self._UserProfile.Id
+
+            try:
+
+                # check if the Spotify Web Player cookie credentials are defined in Token cache File.
+                # Example: SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID
+                self._HasSpotifyWebPlayerCredentials = AuthClient.HasTokenForKey(
+                    clientId=None,
+                    tokenProviderId='SpotifyWebPlayerCookieCredentials',
+                    tokenProfileId=self._SpotifyConnectLoginId,
+                    tokenStorageDir=self._TokenStorageDir,
+                    tokenStorageFile=self._TokenStorageFile,
+                )
+
+            except Exception as ex:
+
+                # could not detect player credentials; assume none.
+                self._HasSpotifyWebPlayerCredentials = False
+
+                # ignore exceptions, as transfer will still work.
+                pass
 
             # create new Spotify Connect Directory instance.
             self._SpotifyConnectDirectory = SpotifyConnectDirectoryTask(self, self._ZeroconfClient, self._SpotifyConnectDiscoveryTimeout)
@@ -1315,13 +1397,13 @@ class SpotifyClient:
 
             else:
 
-                # trace.
-                _logsi.LogVerbose("Items will be added to playback queue for device: %s" % (scDevice.Title))
-                
                 # was the deviceId resolved? 
                 # if not, then raise an exception as the Spotify Web API request will fail anyway.
                 self._CheckForDeviceNotFound(scDevice, deviceId)
 
+                # trace.
+                _logsi.LogVerbose("Items will be added to playback queue for device: %s" % (scDevice.Title))
+                
                 # process all uri's.
                 for idx in range(0, len(arrUris)):
                 
@@ -9740,7 +9822,7 @@ class SpotifyClient:
             # in this case, we will exit and let the calling method switch to the Sonos device and play 
             # using the Sonos local queue.
             if (scDevice.IsSonos):
-                        
+
                 # check if the Spotify Desktop Application Client oauth2 token is defined.
                 hasToken:bool = AuthClient.HasTokenForKey(
                     clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
@@ -11788,9 +11870,19 @@ class SpotifyClient:
             # resolve the device object from the device idl activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
+            # are spotify web player credentials configured?
+            # if so, then we will use them to create an authorization access token for the 
+            # Spotify Web API endpoint that starts playback on the device; this token has the
+            # required access to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            # if spotify web player credentials are NOT configured, then we will transfer control to the
+            # Sonos device local queue for playback; otherwise, we will just call the Spotify Web API
+            # endpoint below with the elevated authorization access token to start playback under the
+            # control of Spotify Connect. 
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # trace.
                 _logsi.LogVerbose("Context will be played on Sonos local queue for device: %s" % (scDevice.Title))
@@ -11863,12 +11955,12 @@ class SpotifyClient:
 
             else:
 
-                # trace.
-                _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
-
                 # was the deviceId resolved? 
                 # if not, then raise an exception as the Spotify Web API request will fail anyway.
                 self._CheckForDeviceNotFound(scDevice, deviceId)
+
+                # trace.
+                _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -11879,7 +11971,7 @@ class SpotifyClient:
                 if (positionMS is not None) and (positionMS > 0):
                     reqData['position_ms'] = { 'position_ms': positionMS }
 
-                # offset should only be applied if it's not zer / a uri is specified; otherwise,
+                # offset should only be applied if it's not zero / a uri is specified; otherwise,
                 # it will not shuffle correctly if shuffle is enabled.
                 if offsetUri is not None:
                     reqData['offset'] = { 'uri': offsetUri }
@@ -11893,7 +11985,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.RequestJson = reqData
                 self.MakeRequest('PUT', msg)
             
@@ -12137,12 +12229,22 @@ class SpotifyClient:
             # resolve the device object from the device id; activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
+            # are spotify web player credentials configured?
+            # if so, then we will use them to create an authorization access token for the 
+            # Spotify Web API endpoint that starts playback on the device; this token has the
+            # required access to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            # if spotify web player credentials are NOT configured, then we will transfer control to the
+            # Sonos device local queue for playback; otherwise, we will just call the Spotify Web API
+            # endpoint below with the elevated authorization access token to start playback under the
+            # control of Spotify Connect. 
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # trace.
-                _logsi.LogVerbose("Track list will be played on Sonos local queue for device: %s" % (scDevice.Title))
+                _logsi.LogVerbose("Tracks will be played on Sonos local queue for device: %s" % (scDevice.Title))
 
                 # get the Sonos Controller player instance.
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -12188,12 +12290,12 @@ class SpotifyClient:
 
             else:
 
-                # trace.
-                _logsi.LogVerbose("Track list will be played on the Spotify Connect device via Spotify Web API")
-
                 # was the deviceId resolved? 
                 # if not, then raise an exception as the Spotify Web API request will fail anyway.
                 self._CheckForDeviceNotFound(scDevice, deviceId)
+
+                # trace.
+                _logsi.LogVerbose("Tracks will be played on the Spotify Connect device via Spotify Web API")
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -12210,7 +12312,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.RequestJson = reqData
                 self.MakeRequest('PUT', msg)
             

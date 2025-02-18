@@ -143,6 +143,25 @@ class SpotifyWebPlayerToken:
     
 
     @property
+    def HeaderKey(self) -> str:
+        """
+        Returns a string containing the header key to assign the authorization token value to.
+        This will always return 'Authorization'.
+        """
+        return 'Authorization'
+
+
+    @property
+    def HeaderValue(self) -> str:
+        """
+        Returns the value portion of the authorization header, in the form of 'Bearer {token}'.
+
+        Example: `Bearer {token value ...}'
+        """
+        return 'Bearer {token}'.format(token=self.AccessToken)
+
+
+    @property
     def IsExpired(self) -> bool:
         """ 
         Returns true if the token has expired; otherwise, False if not expired.

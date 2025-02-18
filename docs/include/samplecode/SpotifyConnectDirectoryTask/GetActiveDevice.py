@@ -48,6 +48,6 @@ except Exception as ex:
 
 finally:
 
-    # shut down zeroconf directory browser.
+    # shut down zeroconf directory browser and dispose of all resources.
     if (spotify is not None):
-        spotify.StopSpotifyConnectDirectoryTask()
+        spotify.Dispose()
