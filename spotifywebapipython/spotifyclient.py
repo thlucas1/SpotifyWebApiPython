@@ -27,12 +27,10 @@ from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
 from .spotifyauthtoken import SpotifyAuthToken
-from .spotifydiscovery import SpotifyDiscovery
 from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
 from .spotifywebplayertoken import SpotifyWebPlayerToken
 from .zeroconfapi.zeroconfconnect import ZeroconfConnect, ZeroconfGetInfo, ZeroconfResponse, SpotifyZeroconfApiError
-from .zeroconfapi.zeroconfgetinfoalias import ZeroconfGetInfoAlias
 from .sautils import (
     _xmlGetInnerText, 
     export, 

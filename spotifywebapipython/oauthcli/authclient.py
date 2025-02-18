@@ -8,6 +8,7 @@ import os.path
 import platformdirs
 import secrets
 import socket
+import threading
 import webbrowser
 
 from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient, TokenExpiredError, AccessDeniedError
@@ -17,7 +18,7 @@ from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server as
 from wsgiref.util import request_uri as WSGIRequestUri
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SIColors
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -139,6 +140,7 @@ class AuthClient:
         self._TokenStorageFile:str = tokenStorageFile
         self._TokenStoragePath:str = os.path.join(tokenStorageDir, tokenStorageFile)
         self._TokenUpdater:Callable = tokenUpdater
+        self._TokenUpdater_Lock = threading.Lock()   # non re-entrant lock to sync access to token updates.
         self._TokenUrl:str = tokenUrl
         self._TokenProfileId:str = tokenProfileId
         
@@ -1081,14 +1083,22 @@ class AuthClient:
             # was a token updater supplied?
             if self._TokenUpdater is not None:
                     
-                _logsi.LogVerbose('Calling Token Updater to refresh the token externally')
-                token = self._TokenUpdater()
+                # log trace message if we are waiting on another token update to complete!
+                _logsi.LogVerbose("Preparing to set the lock for external token refresh", colorValue=SIColors.Gold)
+                if self._TokenUpdater_Lock.locked():
+                    _logsi.LogVerbose("Waiting on a previous external token refresh to complete", colorValue=SIColors.Red)
 
-                _logsi.LogDictionary(SILevel.Verbose, 'Token Updater has refreshed the token externally', token)
+                # only allow one thread to update authorization token at a time.
+                with self._TokenUpdater_Lock:
+
+                    _logsi.LogVerbose('Calling External Token Updater to refresh the token', colorValue=SIColors.Gold)
+                    token = self._TokenUpdater()
+
+                    _logsi.LogDictionary(SILevel.Verbose, 'External Token Updater has refreshed the token', token, colorValue=SIColors.Gold)
                 
-                # if nothing returned then it's an error.
-                if token is None:
-                    raise TokenExpiredError('Token Updater did not return a token.')
+                    # if nothing returned then it's an error.
+                    if token is None:
+                        raise TokenExpiredError('External Token Updater did not return a token.')
                     
             else:
             
