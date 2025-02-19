@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.168 ] - 2025/02/18
+
+  * Cleaned up some old trace messages and code comments.
+  
 ###### [ 1.0.167 ] - 2025/02/18
 
   * Updated `SpotifyConnectDirectoryTask.GetDevices` method to not lock the collection when making a copy of the collection.

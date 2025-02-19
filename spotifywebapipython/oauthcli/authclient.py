@@ -1073,13 +1073,11 @@ class AuthClient:
         Returns:
             A token dictionary.
         """
-        apiMethodName:str = 'RefreshToken'
         token:dict = None
         
         try:
 
             # trace.
-            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Refreshing OAuth2 authorization token for the \"%s\" authorization type" % self._AuthorizationType, colorValue=SIColors.Gold)
             
             # was a token updater supplied?
@@ -1150,11 +1148,6 @@ class AuthClient:
                 
             # pass exception on thru.
             raise
-
-        finally:
-
-            # trace.
-            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
 class _WSGIRequestHandler(WSGIRequestHandler):
