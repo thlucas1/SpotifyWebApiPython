@@ -933,12 +933,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         result:SpotifyConnectDevices
 
         # syncronize access via lock, as we are accessing the collection.
-        with self._SpotifyConnectDevices_RLock:
+        #with self._SpotifyConnectDevices_RLock:   # TEST TODO REMOVEME ?
 
-            # creates a completely independent copy of the devices collection (no references),
-            # and return it to the caller.
-            result = copy.deepcopy(self._SpotifyConnectDevices)
-            return result
+        # creates a completely independent copy of the devices collection (no references),
+        # and return it to the caller.
+        result = copy.deepcopy(self._SpotifyConnectDevices)
+        return result
 
 
     def GetPlayerDevice(

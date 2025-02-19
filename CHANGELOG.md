@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.167 ] - 2025/02/18
+
+  * Updated `SpotifyConnectDirectoryTask.GetDevices` method to not lock the collection when making a copy of the collection.
+  
 ###### [ 1.0.166 ] - 2025/02/18
 
   * Updated `AuthClient.RefreshToken` logic to prevent calling external token updaters from more than 1 thread at a time.
