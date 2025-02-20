@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.170 ] - 2025/02/20
+
+  * Updated `SpotifyConnectDevices.GetDeviceByName` method to match on alias name, remote name, and zeroconf device name when resolving a device name value.
+  * Updated `SpotifyConnectDirectoryTask.OnServiceInfoAddedUpdatedSpotifyConnect` method to use the ZeroConf DeviceName value for the user-friendly device name by default.  The getInfo RemoteName value will be used for the user-friendly device name for some manufacturers (Sonos, etc).
+  
 ###### [ 1.0.169 ] - 2025/02/20
 
   * Updated `SpotifyConnectDirectoryTask.GetSonosPlayer` method to optionally return the Sonos Group Coordinator when retrieving the Sonos Controller instance for a device.  This should prevent any `"play" can only be called/used on the coordinator in a group` errors.

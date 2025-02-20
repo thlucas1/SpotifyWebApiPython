@@ -9944,11 +9944,19 @@ class SpotifyClient:
                         scDevice = scActiveDevice
                         break
 
-                # was the device added to the player device list?
+                # was the device name added to the player device list?
                 # note that we already refreshed dynamic devices above, so no need to do it again.
                 scPlayerDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetPlayerDevice(scDevice.Name, refresh=False)
                 if (scPlayerDevice is not None):
-                    _logsi.LogVerbose("Spotify Connect device %s is now in the available device list; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+                    _logsi.LogVerbose("Spotify Connect device %s is now in the available device list; device found (by Name) within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+                    scDevice = scPlayerDevice
+                    break
+                        
+                # was the device id added to the player device list?
+                # note that we already refreshed dynamic devices above, so no need to do it again.
+                scPlayerDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetPlayerDevice(scDevice.Id, refresh=False)
+                if (scPlayerDevice is not None):
+                    _logsi.LogVerbose("Spotify Connect device %s is now in the available device list; device found (by Id) within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
                     scDevice = scPlayerDevice
                     break
                         

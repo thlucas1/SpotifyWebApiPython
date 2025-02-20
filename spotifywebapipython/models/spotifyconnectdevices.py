@@ -216,6 +216,8 @@ class SpotifyConnectDevices():
         # process all discovered devices.
         scDevice:SpotifyConnectDevice
         for scDevice in self._Items:
+
+            # search aliases (if defined).
             if (scDevice.DeviceInfo.HasAliases):
                 scAlias:ZeroconfGetInfoAlias
                 for scAlias in scDevice.DeviceInfo.Aliases:
@@ -225,9 +227,18 @@ class SpotifyConnectDevices():
                             break
                 if result is not None:
                     break
+
             else:
+
+                # match on `getInfo` RemoteName value (if defined).
                 if (scDevice.DeviceInfo.RemoteName is not None):
                     if (scDevice.DeviceInfo.RemoteName.lower() == value):
+                        result = scDevice
+                        break
+
+                # match on Zeroconf DeviceName value (if defined).
+                if (scDevice.DiscoveryResult.DeviceName is not None):
+                    if (scDevice.DiscoveryResult.DeviceName.lower() == value):
                         result = scDevice
                         break
         return result

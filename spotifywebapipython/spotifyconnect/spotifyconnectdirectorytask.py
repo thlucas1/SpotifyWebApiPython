@@ -932,18 +932,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         """
         result:SpotifyConnectDevices
 
-        # syncronize access via lock, as we are accessing the collection.
-        #with self._SpotifyConnectDevices_RLock:   # TEST TODO REMOVEME ?
+        # DO NOT syncronize access via lock here!
+        # doing so can cause thread deadlocks in Home Assistant state machine.
+        # with self._SpotifyConnectDevices_RLock:
 
         # creates a completely independent copy of the devices collection (no references),
         # and return it to the caller.
         result = copy.deepcopy(self._SpotifyConnectDevices)
-
-        # TODO - remove duplicates?
-        # remove any duplicate entries from the copy.
-        # this can happen when speakers are grouped (e.g. Bose uses the same device id for all speakers in the group).
-
-        # return result
         return result
 
 
@@ -996,7 +991,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # find specified player device in the devices collection.
             for scDevice in self._SpotifyConnectDevices._Items:
                 if (scDevice.IsInDeviceList):
-                    if (scDevice.Id.lower() == value) or (scDevice.Name.lower() == value):
+                    if (scDevice.Id.lower() == value) or (scDevice.Name.lower() == value)  or (scDevice.DiscoveryResult.DeviceName.lower() == value):
                         _logsi.LogVerbose("Spotify Connect player device detected: %s" % (scDevice.Title))
                         result = copy.deepcopy(scDevice)
                         break
@@ -1777,13 +1772,16 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice.DeviceInfo = zconn.GetInformation()
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
 
-                        # replace zeroconf device name with the remote name, as remote name is more user-friendly.
-                        # note that this can cause duplicate entrys for some manufacturers; 
-                        # for example, Bose speakers defined in a group will present the same remote name for all 
-                        # members in the group.
-                        # we have to use the remote name, as some manufacturers use unfriendly names in the zeroconf
-                        # registration, but friendly names in the remote name (e.g. Sonos).
-                        scDevice.Name = scDevice.DeviceInfo.RemoteName
+                        # if using remote name for the device name, then make it so.
+                        # by default, the ZeroConf DeviceName is used for the device name value.
+                        # for some manufacturers, we want to use the Spotify Connect `getInfo` RemoteName (more user-friendly).
+                        # some manufacturers use the same `getInfo` RemoteName for ALL members in the group!
+                        # Sonos: ZeroConf DeviceName = "sonosRINCON_38420B909DC801400", getInfo Remotename = "Office".
+                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1", getInfo Remotename = "Bose-ST10-1".
+                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1 + Bose-ST10-2 (L+R)", getInfo Remotename = "Bose-ST10-1" (if stereo paired).
+                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1 Group", getInfo Remotename = "Bose-ST10-1" (if zoned).
+                        if (scDevice.DeviceInfo.UseRemoteNameForDeviceName):
+                            scDevice.Name = scDevice.DeviceInfo.RemoteName
 
                     except Exception as ex:
 
