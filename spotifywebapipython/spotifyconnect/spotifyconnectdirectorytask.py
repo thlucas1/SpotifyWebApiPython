@@ -938,6 +938,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         # creates a completely independent copy of the devices collection (no references),
         # and return it to the caller.
         result = copy.deepcopy(self._SpotifyConnectDevices)
+
+        # TODO - remove duplicates?
+        # remove any duplicate entries from the copy.
+        # this can happen when speakers are grouped (e.g. Bose uses the same device id for all speakers in the group).
+
+        # return result
         return result
 
 
@@ -1002,6 +1008,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
     def GetSonosPlayer(
         self, 
         device:SpotifyConnectDevice,
+        returnCoordinator:bool=True
         ) -> SoCo:
         """ 
         Returns the Sonos Controller instance for the specified Spotify Connect device.
@@ -1010,6 +1017,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         Args:
             device (SpotifyConnectDevice):
                 Spotify Connect device instance used to identify the Sonos player.
+            returnCoordinator (bool):
+                True to return the group coordinator instance if the device is part of a Sonos group;
+                otherwise, False to return the found instance;  
+                Default is True.
 
         Returns:
             The Sonos Controller instance for the specified Spotify Connect device.
@@ -1032,6 +1043,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # validations.
             if (device is None):
                 raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'device'), logsi=_logsi)
+            if (not isinstance(returnCoordinator, bool)):
+                returnCoordinator = True
 
             # get Sonos Controller instance for device name.
             sonosPlayer:SoCo = self._SonosPlayers.get(device.DiscoveryResult.HostIpAddress, None)
@@ -1039,6 +1052,16 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # if not found then it's an error.
             if (sonosPlayer is None):
                 raise SpotifyApiError("Could not find Sonos Controller instance for device: %s" % (device.Title), None, logsi=_logsi)
+
+            # does caller want the group coordinator?
+            if (returnCoordinator):
+
+                # is the device part of a group? if so, then use the group coordinator.
+                if (sonosPlayer.group is not None):
+                    if (sonosPlayer.group.coordinator is not None):
+                        sonosPlayerCoordinator:SoCo = sonosPlayer.group.coordinator
+                        _logsi.LogVerbose("Sonos Controller group coordinator \"%s\" (%s) will be used for device: %s" % (sonosPlayerCoordinator.player_name, sonosPlayerCoordinator.ip_address, device.Title))
+                        sonosPlayer = sonosPlayerCoordinator
 
             return sonosPlayer
 
@@ -1753,6 +1776,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # retrieve initial spotify connect device information (by ip address).
                         scDevice.DeviceInfo = zconn.GetInformation()
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
+
+                        # replace zeroconf device name with the remote name, as remote name is more user-friendly.
+                        # note that this can cause duplicate entrys for some manufacturers; 
+                        # for example, Bose speakers defined in a group will present the same remote name for all 
+                        # members in the group.
+                        # we have to use the remote name, as some manufacturers use unfriendly names in the zeroconf
+                        # registration, but friendly names in the remote name (e.g. Sonos).
                         scDevice.Name = scDevice.DeviceInfo.RemoteName
 
                     except Exception as ex:
