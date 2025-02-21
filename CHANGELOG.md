@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.171 ] - 2025/02/21
+
+  * Updated `SpotifyConnectDirectoryTask.GetSonosPlayer` method to trace the SoCo instance that is used to control Sonos devices.
+  
 ###### [ 1.0.170 ] - 2025/02/20
 
   * Updated `SpotifyConnectDevices.GetDeviceByName` method to match on alias name, remote name, and zeroconf device name when resolving a device name value.

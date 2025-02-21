@@ -1003,7 +1003,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
     def GetSonosPlayer(
         self, 
         device:SpotifyConnectDevice,
-        returnCoordinator:bool=True
+        returnCoordinator:bool=True,
         ) -> SoCo:
         """ 
         Returns the Sonos Controller instance for the specified Spotify Connect device.
@@ -1050,6 +1050,16 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             # does caller want the group coordinator?
             if (returnCoordinator):
+
+                # if Sonos Controller instance is the group coordinator then we are done.
+                if (sonosPlayer.is_coordinator):
+                    _logsi.LogVerbose("Sonos Controller instance is a group coordinator for device: %s" % (device.Title))
+                    return sonosPlayer
+
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer)
+                if (sonosPlayer.zone_group_state is not None):
+                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
 
                 # is the device part of a group? if so, then use the group coordinator.
                 if (sonosPlayer.group is not None):
