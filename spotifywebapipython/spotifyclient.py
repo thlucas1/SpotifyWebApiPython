@@ -803,12 +803,8 @@ class SpotifyClient:
         if (not self._HasSpotifyWebPlayerCredentials):
             return result
 
-        # was the device resolved? if not, then don't bother!
-        if (not isinstance(scDevice, SpotifyConnectDevice)):
-            return result
-
-        # is the device restricted or Sonos?
-        if (scDevice.IsSonos or scDevice.IsRestricted):
+        # was a device argument passed?  if not, then just create the token.
+        if (scDevice is None):
 
             # get spotify web player access token info from spotify web player cookie credentials.
             _logsi.LogVerbose("Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self._SpotifyConnectLoginId))
@@ -817,7 +813,25 @@ class SpotifyClient:
                                             tokenStorageFile=self._TokenStorageFile)
             if tokenWP is not None:
                 result = tokenWP.HeaderValue
-                _logsi.LogVerbose("Playback will be started using Spotify Web Player authorization access token for device: %s" % (scDevice.Title))
+                _logsi.LogVerbose("Spotify Web Player authorization access token will be used")
+
+        else:
+
+            # was the device resolved? if not, then don't bother!
+            if (not isinstance(scDevice, SpotifyConnectDevice)):
+                return result
+
+            # is the device restricted or Sonos?
+            if (scDevice.IsSonos or scDevice.IsRestricted):
+
+                # get spotify web player access token info from spotify web player cookie credentials.
+                _logsi.LogVerbose("Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self._SpotifyConnectLoginId))
+                tokenWP = SpotifyWebPlayerToken(profileId=self._SpotifyConnectLoginId,
+                                                tokenStorageDir=self._TokenStorageDir,
+                                                tokenStorageFile=self._TokenStorageFile)
+                if tokenWP is not None:
+                    result = tokenWP.HeaderValue
+                    _logsi.LogVerbose("Playback will be started using Spotify Web Player authorization access token for device: %s" % (scDevice.Title))
 
         # return result to caller.
         return result
@@ -4340,7 +4354,8 @@ class SpotifyClient:
         ) -> list[Artist]:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -4389,8 +4404,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about artists similar to a given artist", apiMethodParms)
             
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # validations.
             if sortResult is None: 
@@ -4406,7 +4427,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists/{id}/related-artists'.format(id=artistId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -5744,7 +5765,8 @@ class SpotifyClient:
         ) -> Tuple[PlaylistPageSimplified, str]:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -5831,8 +5853,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify playlists tagged with a particular category", apiMethodParms)
                 
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # validations.
             if limit is None: 
@@ -5866,7 +5894,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/categories/{category_id}/playlists'.format(category_id=categoryId))
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
 
@@ -6732,7 +6760,8 @@ class SpotifyClient:
         ) -> Tuple[PlaylistPageSimplified, str]:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -6826,8 +6855,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of Spotify featured playlists", apiMethodParms)
                 
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # validations.
             if limit is None: 
@@ -6864,7 +6899,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/browse/featured-playlists')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
 
@@ -6931,7 +6966,8 @@ class SpotifyClient:
         ) -> list[str]:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -6975,8 +7011,14 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available genres")
                 
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # validations.
             if (refresh is None):
@@ -6992,7 +7034,7 @@ class SpotifyClient:
                 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations/available-genre-seeds')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 self.MakeRequest('GET', msg)
 
                 # process results.
@@ -8448,6 +8490,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a playlist owned by a Spotify user", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
             
@@ -8491,7 +8537,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}'.format(id=playlistId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -8879,6 +8925,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users playlist favorites", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -8908,7 +8958,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/playlists')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
 
@@ -10161,7 +10211,8 @@ class SpotifyClient:
         ) -> AudioFeatures:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -10204,8 +10255,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("trackId", trackId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get audio feature information for a single track", apiMethodParms)
                 
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
@@ -10217,7 +10274,7 @@ class SpotifyClient:
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features/{id}'.format(id=trackId))
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -10609,7 +10666,8 @@ class SpotifyClient:
         ) -> TrackRecommendations:
         """
         <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27.
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
             More information about the deprecated functionality can be found on the 
             <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
             page.
@@ -10853,8 +10911,14 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("targetValence", targetValence)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get track recommendations for specified criteria", apiMethodParms)
                 
-            # api endpoint no longer supported by Spotify as of 2024/11/27.
-            raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
@@ -10974,7 +11038,7 @@ class SpotifyClient:
                 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/recommendations')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 

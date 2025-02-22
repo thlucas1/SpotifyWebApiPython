@@ -1051,15 +1051,24 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # does caller want the group coordinator?
             if (returnCoordinator):
 
+                # TEST TODO - use to test Sonos coordinator functionality.
+                # _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer, colorValue=SIColors.Red)
+                # sonosPlayer._is_coordinator = False 
+
                 # if Sonos Controller instance is the group coordinator then we are done.
                 if (sonosPlayer.is_coordinator):
                     _logsi.LogVerbose("Sonos Controller instance is a group coordinator for device: %s" % (device.Title))
+                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer)
+                    _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
+                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (group)" % (device.Title), sonosPlayer.group)
+                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
                     return sonosPlayer
 
                 # trace.
                 _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer)
-                if (sonosPlayer.zone_group_state is not None):
-                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
+                _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
+                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (group)" % (device.Title), sonosPlayer.group)
+                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
 
                 # is the device part of a group? if so, then use the group coordinator.
                 if (sonosPlayer.group is not None):
