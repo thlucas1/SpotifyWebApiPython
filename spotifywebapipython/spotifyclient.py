@@ -8752,6 +8752,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get full details of the items of a playlist owned by a Spotify user", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -8796,7 +8800,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/tracks'.format(id=playlistId))
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
 

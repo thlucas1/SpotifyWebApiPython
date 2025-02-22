@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.174 ] - 2025/02/22
+
+  * Updated `SpotifyClient` methods to restore functions that were previously deprecated by the Spotify development team.  Note that the [Spotify Web Player Authentication Setup](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-web-player-authentication-setup) must be enabled to use these specific functions; if not enabled, the functions will still work but won't return Spotify owned items and data.  The following methods have functionality restored: `GetPlaylistItems`.
+
 ###### [ 1.0.173 ] - 2025/02/22
 
   * Updated `SpotifyClient` methods to restore functions that were previously deprecated by the Spotify development team.  Note that the [Spotify Web Player Authentication Setup](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-web-player-authentication-setup) must be enabled to use these specific functions; if not enabled, the functions will still work but won't return Spotify owned items and data.  The following methods have functionality restored: `GetPlaylist`,  `GetPlaylistFavorites`.
@@ -237,7 +241,7 @@ Change are listed in reverse chronological order (newest to oldest).
 ###### [ 1.0.122 ] - 2024/12/02
 
   * Updated `SpotifyClient` methods to return an exception due to the functions being deprecated by the Spotify development team.  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.  The following methods will now raise a `SpotifyApiError` exception due to the Spotify development team changes: `GetArtistRelatedArtists`, `GetTrackRecommendations`, `GetTracksAudioFeatures`, `GetFeaturedPlaylists`, `GetCategoryPlaylists`, `GetGenres`.  The following properties were also marked as deprecated for the same reason: `TrackSimplified.PreviewUrl`.
-  * Due to the above chnages made by Spotify, any Algorithmic and Spotify-owned editorial playlists are no longer accessible or have more limited functionality.  This means that you can no longer obtain details via the `SpotifyClient.GetPlaylist` and `SpotifyClient.GetPlaylistItems` methods for Spotify-owned / generated content (e.g. "Made For You", etc).  A `404 - Not Found` error will be returned when trying to retrieve information for these playlist types.
+  * Due to the above changes made by Spotify, any Algorithmic and Spotify-owned editorial playlists are no longer accessible or have more limited functionality.  This means that you can no longer obtain details via the `SpotifyClient.GetPlaylist` and `SpotifyClient.GetPlaylistItems` methods for Spotify-owned / generated content (e.g. "Made For You", etc).  A `404 - Not Found` error will be returned when trying to retrieve information for these playlist types.
 
 ###### [ 1.0.121 ] - 2024/11/20
 
