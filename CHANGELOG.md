@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.176 ] - 2025/02/24
+
+  * Added Spotify Player transport control for Spotify FREE accounts.  Note that the [Spotify Web Player Authentication Setup](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-web-player-authentication-setup) must be configured to use this functionality; if not configured, then the Spotify Web API will return a `Premium required` exception for all transport control methods.
+
 ###### [ 1.0.175 ] - 2025/02/23
 
   * Updated `SpotifyClient` methods to utilize the Spotify Web Player elevated access token (if configured) if a Spotify Player method is accessed.  This should prevent issues with Sonos devices.  Note that the [Spotify Web Player Authentication Setup](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-web-player-authentication-setup) must be configured to use this functionality; if not configured, then the Sonos Controller (e.g. SoCo) API is used to control the Sonos device.  The following methods were updated: `PlayerMediaPause`, `PlayerMediaResume`, `PlayerMediaSeek`, `PlayerMediaSkipNext`, `PlayerMediaSkipPrevious`, `PlayerSetRepeatMode`, `PlayerSetShuffleMode`, `PlayerSetVolume`, `PlayerTransferPlayback`, `AddPlayerQueueItems`.

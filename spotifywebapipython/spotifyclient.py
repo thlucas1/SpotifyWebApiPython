@@ -369,8 +369,8 @@ class SpotifyClient:
     @property
     def HasSpotifyWebPlayerCredentials(self) -> bool:
         """ 
-        Returns true if Spotify Web Player credentials have been configured in the Token Cache File;
-        otherwise, False.
+        Returns true if Spotify Web Player credentials have been configured in the Token Cache File
+        for the current UserProfile loginid; otherwise, False.
         """
         return self._HasSpotifyWebPlayerCredentials
     
@@ -793,12 +793,12 @@ class SpotifyClient:
             otherwise, None.
 
         The value returned will be a `Bearer: token` string that can be used in a request header 
-        authorization key for Spotify Web API endpoints that start playback on a devoce.
+        authorization key for Spotify Web API endpoints that start playback on a device.
 
         The Token Cache File is queried for a key value of "SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID",
         which will contain the `sp_key` and `sp_dc` values of the cookie credentials.  These 
         credentials are then converted into an authorization access token which is used by 
-        Spotify Web API endpoints to start playback on the specified device id.
+        Spotify Web API endpoints.
         """
         # are spotify web player credentials configured? if not, then don't bother!
         if (not self._HasSpotifyWebPlayerCredentials):
@@ -832,19 +832,16 @@ class SpotifyClient:
                 if (not isinstance(scDevice, SpotifyConnectDevice)):
                     return None
 
-                # is the device restricted or Sonos?
-                if (scDevice.IsSonos or scDevice.IsRestricted):
+                # get spotify web player access token info from spotify web player cookie credentials.
+                _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_REFRESHED % (self._SpotifyConnectLoginId), colorValue=SIColors.Gold)
+                self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
+                    profileId=self._SpotifyConnectLoginId,
+                    tokenStorageDir=self._TokenStorageDir,
+                    tokenStorageFile=self._TokenStorageFile)
 
-                    # get spotify web player access token info from spotify web player cookie credentials.
-                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_REFRESHED % (self._SpotifyConnectLoginId), colorValue=SIColors.Gold)
-                    self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
-                        profileId=self._SpotifyConnectLoginId,
-                        tokenStorageDir=self._TokenStorageDir,
-                        tokenStorageFile=self._TokenStorageFile)
-
-                    if self._SpotifyWebPlayerToken is not None:
-                        _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
-                        return self._SpotifyWebPlayerToken.HeaderValue
+                if self._SpotifyWebPlayerToken is not None:
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
+                    return self._SpotifyWebPlayerToken.HeaderValue
 
         # return result to caller.
         return None
@@ -1403,7 +1400,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -11826,7 +11822,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -11991,10 +11986,8 @@ class SpotifyClient:
             # resolve the device object from the device idl activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # are spotify web player credentials configured?
-            # if so, then we will use them to create an authorization access token for the 
-            # Spotify Web API endpoint that starts playback on the device; this token has the
-            # required access to control "restricted" devices (such as Sonos).
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -12350,10 +12343,8 @@ class SpotifyClient:
             # resolve the device object from the device id; activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
-            # are spotify web player credentials configured?
-            # if so, then we will use them to create an authorization access token for the 
-            # Spotify Web API endpoint that starts playback on the device; this token has the
-            # required access to control "restricted" devices (such as Sonos).
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -12523,7 +12514,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -12685,7 +12675,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -12802,7 +12791,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -12915,7 +12903,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -13036,7 +13023,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -13176,7 +13162,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?
@@ -13316,7 +13301,6 @@ class SpotifyClient:
 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            # note that the token is only used to control "restricted" devices (such as Sonos).
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
 
             # is this an active Sonos device?

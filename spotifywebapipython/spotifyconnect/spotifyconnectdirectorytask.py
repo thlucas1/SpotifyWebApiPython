@@ -1048,37 +1048,45 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             if (sonosPlayer is None):
                 raise SpotifyApiError("Could not find Sonos Controller instance for device: %s" % (device.Title), None, logsi=_logsi)
 
+            # trace.
+            _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
+
             # does caller want the group coordinator?
             if (returnCoordinator):
 
                 # TEST TODO - use to test Sonos coordinator functionality.
                 # _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer, colorValue=SIColors.Red)
-                # sonosPlayer._is_coordinator = False 
+                #sonosPlayer._is_coordinator = False 
 
-                # if Sonos Controller instance is the group coordinator then we are done.
+                # is Sonos Controller instance the group coordinator?
                 if (sonosPlayer.is_coordinator):
-                    if _logsi.IsOn(SILevel.Verbose):
-                        _logsi.LogVerbose("Sonos Controller instance is a group coordinator for device: %s" % (device.Title))
-                        _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer)
-                        _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
+
+                    # yes - nothing else to do since it's already a group coordinator.
+                    _logsi.LogVerbose("Sonos Controller instance is a group coordinator")
+
+                else:
+
+                    # no - try to determine the group coordinator.
+                    _logsi.LogVerbose("Sonos Controller instance is NOT a group coordinator for device: %s" % (device.Title))
+
+                    # is the device part of a group? if so, then use the `group.coordinator` value (if present).
+                    sonosPlayerCoordinator:SoCo = None
+                    if (sonosPlayer.group is not None):
+                        if (sonosPlayer.group.coordinator is not None):
+                            sonosPlayerCoordinator = sonosPlayer.group.coordinator
+                            sonosPlayer = sonosPlayerCoordinator
+                            _logsi.LogVerbose("Sonos Controller group coordinator \"%s\" (%s) will be used for device: %s" % (sonosPlayerCoordinator.player_name, sonosPlayerCoordinator.ip_address, device.Title))
+                            _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayerCoordinator.speaker_info)
+
+                    # if group coordinator could not be found, then log a trace message indicating
+                    # this and that subsequent Sonos Controller operations will probably fail.
+                    # this only seems to happen for "orphaned" Sonos devices (e.g. uid="")
+                    # zone_group_state.groups = [ZoneGroup(uid='RINCON_5CAAFDF4E8DE01400:orphan', coordinator=None, members={SoCo("192.168.50.79")}), etc
+                    if (sonosPlayerCoordinator is None):
+                        _logsi.LogVerbose("Sonos Controller group coordinator could not be determined for device: %s; subsequent Sonos Controller API functions will probably fail!" % (device.Title), colorValue=SIColors.Red)
                         _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (group)" % (device.Title), sonosPlayer.group)
-                        _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
-                    return sonosPlayer
 
-                # trace.
-                if _logsi.IsOn(SILevel.Verbose):
-                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (device.Title), sonosPlayer)
-                    _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
-                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (group)" % (device.Title), sonosPlayer.group)
-                    _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (device.Title), sonosPlayer.zone_group_state)
-
-                # is the device part of a group? if so, then use the group coordinator.
-                if (sonosPlayer.group is not None):
-                    if (sonosPlayer.group.coordinator is not None):
-                        sonosPlayerCoordinator:SoCo = sonosPlayer.group.coordinator
-                        _logsi.LogVerbose("Sonos Controller group coordinator \"%s\" (%s) will be used for device: %s" % (sonosPlayerCoordinator.player_name, sonosPlayerCoordinator.ip_address, device.Title))
-                        sonosPlayer = sonosPlayerCoordinator
-
+            # return Sonos Controller instance to caller.
             return sonosPlayer
 
 
@@ -1882,11 +1890,28 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     try:
 
-                        # if new device is a Sonos, then create a Sonos Controller instance for the device.
-                        # use device ip address as the key, as Spotify Web API reports id=null for restricted devices in playerstate!
+                        # is this a Sonos device?
                         if (scDevice.IsSonos):
+
+                            # create a Sonos Controller instance for the device, retrieve the Sonos speaker information, 
+                            # and add it to the Sonos players collection.  use device ip address as the key, as the
+                            # Spotify Web API reports "id=null" for restricted devices in playerstate!
                             _logsi.LogVerbose("Sonos device detected; creating Sonos Controller instance for device: %s (ip=%s)" % (scDevice.Title, zeroconfDiscoveryResult.HostIpAddress))
-                            self._SonosPlayers[zeroconfDiscoveryResult.HostIpAddress] = SoCo(zeroconfDiscoveryResult.HostIpAddress)
+                            sonosPlayer:SoCo = SoCo(zeroconfDiscoveryResult.HostIpAddress)
+                            self._SonosPlayers[zeroconfDiscoveryResult.HostIpAddress] = sonosPlayer
+
+                            try:
+                                sonosPlayer.get_speaker_info()
+                            except Exception as ex:
+                                _logsi.LogException("Could not get speaker info for Sonos Controller instance: %s" % (str(ex)), ex, logToSystemLogger=False)
+
+                            # trace.
+                            if (_logsi.IsOn(SILevel.Verbose)):
+                                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s" % (scDevice.Title), sonosPlayer)
+                                _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (scDevice.Title), sonosPlayer.speaker_info)
+                                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (group)" % (scDevice.Title), sonosPlayer.group)
+                                _logsi.LogObject(SILevel.Verbose, "Sonos Controller instance for device: %s (zone_group_state)" % (scDevice.Title), sonosPlayer.zone_group_state)
+                                _logsi.LogEnumerable(SILevel.Verbose, "Sonos Controller instance for device: %s (all_zones)" % (scDevice.Title), sonosPlayer.all_zones)
 
                     except:
 
