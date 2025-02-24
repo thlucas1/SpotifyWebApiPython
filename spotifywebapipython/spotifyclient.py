@@ -10,6 +10,7 @@ from soco.core import (
 )
 from soco.plugins.sharelink import ShareLinkPlugin
 import time
+import threading
 from typing import Tuple, Callable, Union
 from urllib3 import PoolManager, Timeout, HTTPResponse
 from urllib.parse import urlencode
@@ -208,6 +209,8 @@ class SpotifyClient:
         self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
         self._SpotifyConnectDirectory:SpotifyConnectDirectoryTask = None
         self._SpotifyConnectDirectoryEnabled:bool = spotifyConnectDirectoryEnabled
+        self._SpotifyWebPlayerToken:SpotifyWebPlayerToken = None
+        self._SpotifyWebPlayerToken_RLock:threading.RLock = threading.RLock()
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenStorageFile:str = tokenStorageFile
         self._TokenUpdater:Callable = tokenUpdater
@@ -797,44 +800,54 @@ class SpotifyClient:
         credentials are then converted into an authorization access token which is used by 
         Spotify Web API endpoints to start playback on the specified device id.
         """
-        result:SpotifyWebPlayerToken = None
-
         # are spotify web player credentials configured? if not, then don't bother!
         if (not self._HasSpotifyWebPlayerCredentials):
-            return result
+            return None
 
-        # was a device argument passed?  if not, then just create the token.
-        if (scDevice is None):
+        # make the following thread-safe, so we don't retrieve multiple tokens.
+        with self._SpotifyWebPlayerToken_RLock:
 
-            # get spotify web player access token info from spotify web player cookie credentials.
-            _logsi.LogVerbose("Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self._SpotifyConnectLoginId))
-            tokenWP = SpotifyWebPlayerToken(profileId=self._SpotifyConnectLoginId,
-                                            tokenStorageDir=self._TokenStorageDir,
-                                            tokenStorageFile=self._TokenStorageFile)
-            if tokenWP is not None:
-                result = tokenWP.HeaderValue
-                _logsi.LogVerbose("Spotify Web Player authorization access token will be used")
+            # if token already retrieved and has not expired, then use it.
+            if (self._SpotifyWebPlayerToken is not None) and (not self._SpotifyWebPlayerToken.IsExpired):
+                _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
+                return self._SpotifyWebPlayerToken.HeaderValue
 
-        else:
-
-            # was the device resolved? if not, then don't bother!
-            if (not isinstance(scDevice, SpotifyConnectDevice)):
-                return result
-
-            # is the device restricted or Sonos?
-            if (scDevice.IsSonos or scDevice.IsRestricted):
+            # was a device argument passed?  if not, then just refresh the token.
+            if (scDevice is None):
 
                 # get spotify web player access token info from spotify web player cookie credentials.
-                _logsi.LogVerbose("Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self._SpotifyConnectLoginId))
-                tokenWP = SpotifyWebPlayerToken(profileId=self._SpotifyConnectLoginId,
-                                                tokenStorageDir=self._TokenStorageDir,
-                                                tokenStorageFile=self._TokenStorageFile)
-                if tokenWP is not None:
-                    result = tokenWP.HeaderValue
-                    _logsi.LogVerbose("Playback will be started using Spotify Web Player authorization access token for device: %s" % (scDevice.Title))
+                _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_REFRESHED % (self._SpotifyConnectLoginId), colorValue=SIColors.Gold)
+                self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
+                    profileId=self._SpotifyConnectLoginId,
+                    tokenStorageDir=self._TokenStorageDir,
+                    tokenStorageFile=self._TokenStorageFile)
+
+                if self._SpotifyWebPlayerToken is not None:
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
+                    return self._SpotifyWebPlayerToken.HeaderValue
+
+            else:
+
+                # was the device resolved? if not, then don't bother!
+                if (not isinstance(scDevice, SpotifyConnectDevice)):
+                    return None
+
+                # is the device restricted or Sonos?
+                if (scDevice.IsSonos or scDevice.IsRestricted):
+
+                    # get spotify web player access token info from spotify web player cookie credentials.
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_REFRESHED % (self._SpotifyConnectLoginId), colorValue=SIColors.Gold)
+                    self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
+                        profileId=self._SpotifyConnectLoginId,
+                        tokenStorageDir=self._TokenStorageDir,
+                        tokenStorageFile=self._TokenStorageFile)
+
+                    if self._SpotifyWebPlayerToken is not None:
+                        _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
+                        return self._SpotifyWebPlayerToken.HeaderValue
 
         # return result to caller.
-        return result
+        return None
 
 
 
@@ -1388,9 +1401,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # trace.
                 _logsi.LogVerbose("Items will be added to Sonos local queue for device: %s" % (scDevice.Title))
@@ -1429,7 +1447,7 @@ class SpotifyClient:
 
                     # execute spotify web api request.
                     msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
-                    msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                    msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                     msg.UrlParameters = urlParms
                     self.MakeRequest('POST', msg)
 
@@ -8463,7 +8481,16 @@ class SpotifyClient:
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
             SpotifyApiError: 
-                If the method fails for any other reason.
+                If the method fails for any other reason.  
+
+        <span class="warning">
+            <b>DEPRECATED functionality as of 2024/11/27</b>  
+            For unauthorized Spotify Developer Applications, the api endpoint will return a `404 - Resource Not Found` exception if a Spotify Algorithmic playlist is specified.<br/>
+            For authorized Spotify Developer Applications, the api endpoint will return details if a Spotify Algorithmic playlist is specified.<br/>
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        <span>
 
         <details>
           <summary>Sample Code</summary>
@@ -8712,16 +8739,27 @@ class SpotifyClient:
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
             SpotifyApiError: 
-                If the method fails for any other reason.
+                If the method fails for any other reason.  
 
-        * Notes regarding `limit_total` processing.  
-        There appears to be a bug in the Spotify Web API that forces you to use manual paging if 
-        utilizing the `fields` argument.  It has been found that the API will only return a value
-        of 50 (maximum) or less in the page `total` value if the `fields` argument is supplied.  
-        The API will return the total number of playlist items in the page `total` value if the `fields` 
-        argument is NOT supplied.  A good playlist id to test this on is `1XhVM7jWPrGLTiNiAy97Za`,
-        which is the largest playlist on spotify (4700+ items).
+        <span class="warning">
+            <b>Notes regarding `limit_total` processing</b>  
+            There appears to be a bug in the Spotify Web API that forces you to use manual paging if 
+            utilizing the `fields` argument.  It has been found that the API will only return a value
+            of 50 (maximum) or less in the page `total` value if the `fields` argument is supplied.  
+            The API will return the total number of playlist items in the page `total` value if the `fields` 
+            argument is NOT supplied.  A good playlist id to test this on is `1XhVM7jWPrGLTiNiAy97Za`,
+            which is the largest playlist on spotify (4700+ items).
+        <span>
         
+        <span class="warning">
+            <b>DEPRECATED functionality as of 2024/11/27</b>  
+            Spotify Algorithmic playlists (e.g. "Made For You", "Daily Mix n", etc) will no longer be included 
+            in the returned results for unauthorized Spotify Developer Applications; they will be included in 
+            the results for authorized Spotify Developer Applications.  More information about the deprecated 
+            functionality can be found on the <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" 
+            target="_blank">Spotify Developer Forum Blog</a> page.
+        <span>
+
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -8895,13 +8933,17 @@ class SpotifyClient:
                 If the Spotify Web API request was for a non-authorization service 
                 and the response contains error information.
             SpotifyApiError: 
-                If the method fails for any other reason.
+                If the method fails for any other reason.  
 
-        As of 2024/11/27, the Spotify Web API will only return user-defined playlists in the results. It will 
-        not return any Spotify Algorithmic playlists (e.g. "Daily Mix 1", "Discover Weekly", and other "Made For You" 
-        playlists). It will also not return playlist folders.  More information can be found on the [Spotify Developer 
-        Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.
-        
+        <span class="warning">
+            <b>DEPRECATED functionality as of 2024/11/27</b>  
+            Spotify Algorithmic playlists (e.g. "Made For You", "Daily Mix n", etc) will no longer be included 
+            in the returned results for unauthorized Spotify Developer Applications; they will be included in 
+            the results for authorized Spotify Developer Applications.  More information about the deprecated 
+            functionality can be found on the <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" 
+            target="_blank">Spotify Developer Forum Blog</a> page.
+        <span>
+
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -11757,7 +11799,7 @@ class SpotifyClient:
         This API only works for users who have Spotify Premium. 
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
-        
+
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -11782,9 +11824,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PAUSE" % (scDevice.Title))
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -11803,7 +11850,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -12474,9 +12521,14 @@ class SpotifyClient:
             # we activate the device here, as it may have been paused for a long time.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, True)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PLAY (RESUME)" % (scDevice.Title))
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -12495,7 +12547,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -12631,9 +12683,14 @@ class SpotifyClient:
                         newPositionMS = 0
                     positionMS = newPositionMS
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 sonosPosition:str = mediaPositionHMS_fromSeconds(positionMS / 1000)    # convert from milliseconds to Sonos H:MM:SS format
                 _logsi.LogVerbose("Issuing command to Sonos device %s: SEEK (sonosPosition=%s)" % (scDevice.Title, sonosPosition))
@@ -12656,7 +12713,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -12743,9 +12800,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: NEXT" % (scDevice.Title))
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -12764,7 +12826,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('POST', msg)
             
@@ -12851,9 +12913,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: PREVIOUS" % (scDevice.Title))
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -12872,7 +12939,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('POST', msg)
             
@@ -12967,9 +13034,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # get current Spotify Connect player state.
                 playerState = self.GetPlayerPlaybackStateSonos(scDevice)
@@ -13008,7 +13080,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -13102,9 +13174,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # get current Spotify Connect player state.
                 playerState = self.GetPlayerPlaybackStateSonos(scDevice)
@@ -13144,7 +13221,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -13237,9 +13314,14 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice:SpotifyConnectDevice = self._ResolveDeviceObject(deviceId, False)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            # note that the token is only used to control "restricted" devices (such as Sonos).
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
-            if (scDevice is not None) and (scDevice.IsSonos):
+            if (scDevice is not None) and (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 _logsi.LogVerbose("Issuing command to Sonos device %s: VOLUME = %s" % (scDevice.Title, volumePercent))
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -13261,7 +13343,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
@@ -13411,12 +13493,16 @@ class SpotifyClient:
             # if not, then raise an exception as the Spotify Web API request will fail anyway.
             self._CheckForDeviceNotFound(scDevice, deviceId)
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
             # is this a Sonos device? 
             # if so, then control was automatically transferred by activating the device.
             # note that the Spotify Web API cannot stop nor start play on the device either, 
             # as it's considered a restricted device and the Spotify Web API cannot control it!
             # all requests to control the device will be made via the Sonos Controller API.
-            if (scDevice.IsSonos):
+            if (scDevice.IsSonos) and (accessTokenHeaderValue is None):
 
                 # get Sonos Controller instance for the device.
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -13431,13 +13517,11 @@ class SpotifyClient:
                 wasCmdIssued:bool = False
                 if currentTransportState == 'PLAYING':
                     if play == False:
-                        _logsi.LogVerbose("Issuing command to Sonos device %s: PAUSE" % (scDevice.Title))
-                        sonosPlayer.pause()
+                        self.PlayerMediaPause(scDevice)
                         wasCmdIssued = True
                 elif currentTransportState in ['PAUSED_PLAYBACK','STOPPED','TRANSITIONING']:
                     if play == True:
-                        _logsi.LogVerbose("Issuing command to Sonos device %s: PLAY" % (scDevice.Title))
-                        sonosPlayer.play()
+                        self.PlayerMediaResume(scDevice)
                         wasCmdIssued = True
                                         
                 # give Sonos Controller time to process the change.
@@ -13480,7 +13564,7 @@ class SpotifyClient:
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
-                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.RequestJson = reqData
                 self.MakeRequest('PUT', msg)
             

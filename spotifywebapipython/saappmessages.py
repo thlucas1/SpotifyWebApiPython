@@ -59,3 +59,13 @@ class SAAppMessages:
     """
     SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of November 27th 2024, and the supporting functionality is no longer available.
     """
+
+    MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE:str = "Spotify Web Player authorization access token will be used for accessing Spotify Web API endpoint."
+    """
+    Spotify Web Player authorization access token will be used for accessing Spotify Web API endpoint.
+    """
+
+    MSG_SPOTIFY_WEB_PLAYER_TOKEN_REFRESHED:str = "Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"."
+    """
+    Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\".
+    """

@@ -6,6 +6,11 @@
   font-weight: bolder;
 }
 
+.warning {
+  color: orange;
+  font-weight: normal;
+}
+
 .modulename { color: #58a6ff; }
 
 /* color argument declarations to match ".pdoc-code .n" value. */
