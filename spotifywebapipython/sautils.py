@@ -95,7 +95,7 @@ def mediaPositionHMS_toSeconds(
         timestr (int):
             The position value (as specified in H:MM:SS) to convert.
     """
-    if (timestr is None) or (timestr == SONOS_NOT_IMPLEMENTED): 
+    if (timestr is None) or (timestr == '') or (timestr == SONOS_NOT_IMPLEMENTED): 
         return 0
         
     seconds= 0

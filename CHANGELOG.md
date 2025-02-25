@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.178 ] - 2025/02/24
+
+  * Updated `mediaPositionHMS_toSeconds` method to account for a null position value.
+
 ###### [ 1.0.177 ] - 2025/02/24
 
   * Added retry logic to token exchange method for handling Spotify Web Player token refresh "504 - Gateway Timeout" errors.
