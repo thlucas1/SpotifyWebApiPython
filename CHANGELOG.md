@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.177 ] - 2025/02/24
+
+  * Added retry logic to token exchange method for handling Spotify Web Player token refresh "504 - Gateway Timeout" errors.
+  * Added exception handling logic to process TokenError exceptions more gradefully and without adding extra system log errors messages.
+
 ###### [ 1.0.176 ] - 2025/02/24
 
   * Added Spotify Player transport control for Spotify FREE accounts.  Note that the [Spotify Web Player Authentication Setup](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-web-player-authentication-setup) must be configured to use this functionality; if not configured, then the Spotify Web API will return a `Premium required` exception for all transport control methods.

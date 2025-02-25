@@ -1,13 +1,13 @@
 # external package imports.
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 import json
 import os.path
 import platformdirs
 import requests
 import time
-from tokenize import TokenError
 
 # our package imports.
+from .spotifyapierror import SpotifyApiError
 from .const import (
     SPOTIFY_WEBUI_URL_BASE,
     SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE,
@@ -224,28 +224,22 @@ class SpotifyWebPlayerToken:
 
                         # validation.
                         if (self._sp_dc is None):
-                            raise TokenError("Cookie credentials storage key \"%s\" did not contain an \"sp_dc\" key value" % (tokenKey))
+                            raise SpotifyApiError("Cookie credentials storage key \"%s\" did not contain an \"sp_dc\" key value" % (tokenKey), None, logsi=_logsi)
                         if (self._sp_key is None):
-                            raise TokenError("Cookie credentials storage key \"%s\" did not contain an \"sp_key\" key value" % (tokenKey))
+                            raise SpotifyApiError("Cookie credentials storage key \"%s\" did not contain an \"sp_key\" key value" % (tokenKey), None, logsi=_logsi)
 
                         # return token to caller.
                         return tokens[tokenKey]
                     
             # if we make it here, then it denotes that a token was not found
             # for the specified key.
-            raise TokenError("Cookie credentials storage key not found: \"%s\"" % (tokenKey))
+            raise SpotifyApiError("Cookie credentials storage key not found: \"%s\"" % (tokenKey), None, logsi=_logsi)
                         
-        except TokenError as ex:
-
-            # trace.
-            _logsi.LogException(str(ex), ex, logToSystemLogger=False)
-            raise
-
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
             # trace.
-            _logsi.LogException("Could not load Spotify Web Player cookie credentials", ex, logToSystemLogger=False)
-            raise TokenError(str(ex))
+            raise SpotifyApiError("Could not load Spotify Web Player cookie credentials", ex, logsi=_logsi)
 
         finally:
         
@@ -282,39 +276,63 @@ class SpotifyWebPlayerToken:
                 "productType": "web_player",
             }
 
-            # trace.
-            _logsi.LogVerbose("Exchanging Spotify Web Player cookie credentials for OAuth2 authorization access token")
-            _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (cookies)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqCookies)
-            _logsi.LogDictionary(SILevel.Debug, "%s http request: \"%s\" (headers)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqHeaders)
-            _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (parms)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqParms)
+            # retry if gateway timeout error is returned.
+            loopTotalDelay:float = 0
+            LOOP_DELAY:float = 0.100
+            LOOP_TIMEOUT:float = 0.500
+            while True:
+                        
+                # trace.
+                _logsi.LogVerbose("Exchanging Spotify Web Player cookie credentials for OAuth2 authorization access token")
+                _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (cookies)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqCookies)
+                _logsi.LogDictionary(SILevel.Debug, "%s http request: \"%s\" (headers)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqHeaders)
+                _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (parms)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqParms)
             
-            # convert the spotify web player cookie credentials to an access token.
-            response = session.get(
-                SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN, 
-                cookies=reqCookies,
-                headers=reqHeaders, 
-                params=reqParms,
-                allow_redirects=False,
-                )
+                # convert the spotify web player cookie credentials to an access token.
+                response = session.get(
+                    SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN, 
+                    cookies=reqCookies,
+                    headers=reqHeaders, 
+                    params=reqParms,
+                    allow_redirects=False,
+                    )
 
-            # trace.
-            if _logsi.IsOn(SILevel.Debug):
-                _logsi.LogObject(SILevel.Debug, "%s http response object - type=\"%s\", module=\"%s\"" % (tracePrefix, type(response).__name__, type(response).__module__), response)
+                # trace.
+                if _logsi.IsOn(SILevel.Debug):
+                    _logsi.LogObject(SILevel.Debug, "%s http response object - type=\"%s\", module=\"%s\"" % (tracePrefix, type(response).__name__, type(response).__module__), response)
 
-            # trace.
-            if _logsi.IsOn(SILevel.Debug):
-                _logsi.LogObject(SILevel.Debug, "%s http response [%s-%s] (response)" % (tracePrefix, response.status_code, response.reason), response)
-                if (response.headers):
-                    _logsi.LogCollection(SILevel.Debug, "%s http response [%s-%s] (headers)" % (tracePrefix, response.status_code, response.reason), response.headers.items())
+                # trace.
+                if _logsi.IsOn(SILevel.Debug):
+                    _logsi.LogObject(SILevel.Debug, "%s http response [%s-%s] (response)" % (tracePrefix, response.status_code, response.reason), response)
+                    if (response.headers):
+                        _logsi.LogCollection(SILevel.Debug, "%s http response [%s-%s] (headers)" % (tracePrefix, response.status_code, response.reason), response.headers.items())
 
-            # raise exception if we could not get the access token, or if a redirect occured.
-            # the redirect usually indicates the sp_dc and sp_key are expired, and it's redirecting to a login page.
-            if (response.status_code == 302 and response.headers["Location"] == "/get_access_token?reason=transport&productType=web_player&_authfailed=1"):
-                _logsi.LogError("Unsuccessful token request, received code 302 and Location header %s. sp_dc and sp_key could be expired. Please update values in token storage file.", response.headers["Location"])
-                raise TokenError("Expired sp_dc, sp_key; please update values in token storage file")
-            if response.status_code != 200:
-                _logsi.LogVerbose("Unsuccessful token request, received code %i", response.status_code)
-                raise TokenError("Token exchange request failed: %s - %s" % (response.status_code, response.reason))
+                # raise exception if we could not get the access token, or if a redirect occured.
+                # the redirect usually indicates the sp_dc and sp_key are expired, and it's redirecting to a login page.
+                respHdrLocation:str = response.headers.get("Location", None)
+                if (response.status_code == 302 and respHdrLocation == "/get_access_token?reason=transport&productType=web_player&_authfailed=1"):
+                    raise SpotifyApiError("Unsuccessful token request, received status 302 and Location header \"%s\". sp_dc and sp_key could be expired. Please update values in token storage file." % (respHdrLocation), None, logsi=_logsi)
+
+                # if successful request, then break out of the retry loop.
+                if response.status_code == 200:
+                    _logsi.LogVerbose("Token exchange request was successful within %f seconds from initial request; processing results" % (loopTotalDelay))
+                    break
+
+                # any other status code besides 504 (gateway timeout) is an exception event!
+                if response.status_code != 504:
+                    raise SpotifyApiError("Token exchange request failed: %s - %s" % (response.status_code, response.reason), None, logsi=_logsi)
+
+                # only retry so many times before we give up;
+                if (loopTotalDelay > LOOP_TIMEOUT):
+                    raise SpotifyApiError("Timed out waiting for Spotify Gateway to become available; gave up after %f seconds from initial request" % (loopTotalDelay), None, logsi=_logsi)
+
+                # trace.
+                _logsi.LogVerbose("Spotify Web Player cookie credentials token exchange request returned with a 504 status (Gateway timeout); request will be retried")
+
+                # wait just a bit between requests.
+                _logsi.LogVerbose("Delaying for %s seconds to allow Spotify Gateway to become available" % (LOOP_DELAY))
+                time.sleep(LOOP_DELAY)
+                loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
             # load request response.
             data = response.content.decode('utf-8')
@@ -347,15 +365,16 @@ class SpotifyWebPlayerToken:
             # trace.
             _logsi.LogObject(SILevel.Verbose, "Spotify Web Player access token object", self, excludeNonPublic=True)
 
+        except SpotifyApiError: raise  # pass handled exceptions on thru
         except requests.TooManyRedirects as ex:
 
-            _logsi.LogException("Could not get Spotify Web Player access token; sp_dc and sp_key could be expired; Please update values in token storage file", ex, logToSystemLogger=False)
-            raise TokenError("Expired sp_dc, sp_key")
+            # trace.
+            raise SpotifyApiError("Could not get Spotify Web Player access token; sp_dc and sp_key could be expired; Please update values in token storage file", ex, logsi=_logsi)
         
-        except Exception as ex: 
-
-            _logsi.LogException("Could not get Spotify Web Player access token", ex, logToSystemLogger=False)
-            raise TokenError("Could not get Spotify Web Player access token")
+        except Exception as ex:
+            
+            # trace.
+            raise SpotifyApiError("Could not get Spotify Web Player access token", ex, logsi=_logsi)
 
         finally:
 
