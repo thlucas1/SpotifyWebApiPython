@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.179 ] - 2025/02/25
+
+  * Updated `SpotifyClient.GetDevicePlaybackState` method to get the current Spotify playback state, with device fallback if nothing is reported from Spotify.
+  * Updated `SpotifyClient.PlayerTransferPlayback` method to ignore exceptions if trying to pause play on the device being transferred from.
+
 ###### [ 1.0.178 ] - 2025/02/24
 
   * Updated `mediaPositionHMS_toSeconds` method to account for a null position value.

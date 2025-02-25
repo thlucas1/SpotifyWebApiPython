@@ -6320,9 +6320,9 @@ class SpotifyClient:
         deviceId:str|SpotifyConnectDevice|None=None,
         ) -> PlayerPlayState:
         """
-        Get information about the current playback state of the device, including track or episode, 
-        and progress. For Sonos devices, this will return the playstate of the device instead of the
-        active Spotify Web API player playstate.
+        Get information about the current playback state, including track or episode, and progress. 
+        If the Spotify Web API reports nothing as playing, then the device-specific playback state
+        is returned (if one exists).  
 
         This method requires the `user-read-playback-state` scope.
         
@@ -6365,7 +6365,7 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
-            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current playback state of the device", apiMethodParms)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get the current Spotify playback state, with device fallback", apiMethodParms)
 
             # resolve the device object; no need to activate it for what we want here.
             # this will also set the currently active device in the devices cache, as well as
@@ -6375,15 +6375,20 @@ class SpotifyClient:
             # get cached Spotify Web API playerstate (_ResolveDeviceObject method just refreshed it).
             result = self.GetPlayerPlaybackState(refresh=False)
 
-            # is this a Sonos device?
-            if (scDevice is not None) and (scDevice.IsSonos):
+            # did Spotify return a playstate?
+            if (result.IsEmpty):
 
-                # get Sonos playback state via Sonos Controller instance.
-                playerStateSonos:PlayerPlayState = self.GetPlayerPlaybackStateSonos(scDevice)
+                # no; we will now check for a device-specific playstate.
 
-                # return the device playstate.
-                _logsi.LogVerbose("Sonos device %s playstate will be returned" % (scDevice.Title))
-                result = playerStateSonos
+                # is this a Sonos device?
+                if (scDevice is not None) and (scDevice.IsSonos):
+
+                    # get Sonos playback state via Sonos Controller instance.
+                    playerStateSonos:PlayerPlayState = self.GetPlayerPlaybackStateSonos(scDevice)
+
+                    # return the device playstate.
+                    _logsi.LogVerbose("Sonos device %s playstate will be returned" % (scDevice.Title))
+                    result = playerStateSonos
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -13467,7 +13472,13 @@ class SpotifyClient:
                 # note that for other brands, the Spotify Web API transfer playback takes care of
                 # pausing the player since everything is under the Spotify players control.
                 if (scDeviceFrom is not None) and (scDeviceFrom.IsSonos):
-                    self.PlayerMediaPause(scDeviceFrom)
+                    #self.PlayerMediaPause(scDeviceFrom)
+                    try:
+                        self.PlayerMediaPause(scDeviceFrom)
+                    except:
+                        # ignore exceptions, since this is a convenience call to pause the from player.
+                        _logsi.LogVerbose("Ignoring previous exception, since this is a convenience call to pause the from player")
+                        pass
 
             # resolve the device object from the device id; activate if it's dormant.
             # for transfer playback, we will always activate the device.
