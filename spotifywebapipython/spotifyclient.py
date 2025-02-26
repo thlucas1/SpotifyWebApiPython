@@ -1164,6 +1164,7 @@ class SpotifyClient:
         - 500 Internal Server Error. You should never receive this error because our clever coders catch them all ... but if you are unlucky enough to get one, please report it to us through a comment at the bottom of this page.  
         - 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server.  
         - 503 Service Unavailable - The server is currently unable to handle the request due to a temporary condition which will be alleviated after some delay. You can choose to resend the request again.  
+        - 504 Gateway Timeout - The server is currently unable to handle the request due to a temporary condition which will be alleviated after some delay. You can choose to resend the request again.  
         """
         apiMethodName:str = 'MakeRequest'
         apiMethodParms:SIMethodParmListContext = None
@@ -1228,49 +1229,86 @@ class SpotifyClient:
             # in the logic below, ensure that ALL urllib3.request method calls conform to version 1.26.18.
             # urllib3 version 2.0 is not supported!  see internal developer notes for more details.
 
-            # call the appropriate poolmanager request method.
-            if msg.HasUrlParameters:
-                
-                # add querystring parameters to url; if url already has a partial parm
-                # string (e.g. has a '?xxx=...') then use the append separator (e.g. '...&xxx=...').
-                urlQS:str = urlencode(msg.UrlParameters)
-                urlParmSep:str = '?'
-                if (url.find('?') > 0):
-                    urlParmSep = '&'
-                url = url + urlParmSep + urlQS
-                
-                _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with urlparms)" % (url), msg.UrlParameters, prettyPrint=True)
-                response = self._Manager.request_encode_url(method, url, headers=msg.RequestHeaders)
-                
-            elif msg.HasRequestData:
+            # request retry loop for failed requests that are temporary in nature (504 Gateway Timeout, etc).
+            loopTotalDelay:float = 0
+            LOOP_DELAY:float = 0.200
+            LOOP_TIMEOUT:float = 1.000
+            while True:
 
-                if msg.IsRequestDataEncoded:
+                # call the appropriate poolmanager request method.
+                if msg.HasUrlParameters:
+                
+                    # add querystring parameters to url; if url already has a partial parm
+                    # string (e.g. has a '?xxx=...') then use the append separator (e.g. '...&xxx=...').
+                    urlQS:str = urlencode(msg.UrlParameters)
+                    urlParmSep:str = '?'
+                    if (url.find('?') > 0):
+                        urlParmSep = '&'
+                    url = url + urlParmSep + urlQS
+                
+                    _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with urlparms)" % (url), msg.UrlParameters, prettyPrint=True)
+                    response = self._Manager.request_encode_url(method, url, headers=msg.RequestHeaders)
+                
+                elif msg.HasRequestData:
 
-                    _logsi.LogText(SILevel.Verbose, "SpotifyClient http request: '%s' (with body encoded)" % (url), msg.RequestData)
-                    response = self._Manager.request(method, url, body=msg.RequestData, headers=msg.RequestHeaders)
+                    if msg.IsRequestDataEncoded:
+
+                        _logsi.LogText(SILevel.Verbose, "SpotifyClient http request: '%s' (with body encoded)" % (url), msg.RequestData)
+                        response = self._Manager.request(method, url, body=msg.RequestData, headers=msg.RequestHeaders)
                    
+                    else:
+
+                        _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with body)" % (url), msg.RequestData, prettyPrint=True)
+                        response = self._Manager.request_encode_body(method, url, fields=msg.RequestData, headers=msg.RequestHeaders, encode_multipart=False)
+                                    
+                elif msg.HasRequestJson:
+
+                    _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with json body)" % (url), msg.RequestJson, prettyPrint=True)
+
+                    # add content-type=json header and convert the dictionary to json format.
+                    if not ("content-type" in map(str.lower, msg.RequestHeaders.keys())):
+                        #headers = HTTPHeaderDict(headers)
+                        msg.RequestHeaders["Content-Type"] = "application/json"
+                    reqBody:str = json.dumps(msg.RequestJson, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+                    _logsi.LogBinary(SILevel.Debug, "SpotifyClient http request JSON body", reqBody)
+                    response = self._Manager.request(method, url, body=reqBody, headers=msg.RequestHeaders)
+                
                 else:
 
-                    _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with body)" % (url), msg.RequestData, prettyPrint=True)
-                    response = self._Manager.request_encode_body(method, url, fields=msg.RequestData, headers=msg.RequestHeaders, encode_multipart=False)
-                                    
-            elif msg.HasRequestJson:
+                    _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (no body)" % (url), msg.RequestData, prettyPrint=True)
+                    response = self._Manager.request(method, url, headers=msg.RequestHeaders)
 
-                _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (with json body)" % (url), msg.RequestJson, prettyPrint=True)
+                # TEST TODO - for testing retry logic.
+                # if (response.status_code == 200) and (loopTotalDelay <= 0.200):
+                #     _logsi.LogWarning("TEST TODO - Testing Spotify Web API 504 status (Gateway timeout) condition ...", colorValue=SIColors.Red)
+                #     response.status_code = 404
+                #     response.reason = "URL Not Found"
+                # if (response.status_code == 200) and (loopTotalDelay <= 0.200):
+                #     _logsi.LogWarning("TEST TODO - Testing Spotify Web API 504 status (Gateway timeout) condition ...", colorValue=SIColors.Red)
+                #     response.status_code = 504
+                #     response.reason = "Gateway Timeout"
 
-                # add content-type=json header and convert the dictionary to json format.
-                if not ("content-type" in map(str.lower, msg.RequestHeaders.keys())):
-                    #headers = HTTPHeaderDict(headers)
-                    msg.RequestHeaders["Content-Type"] = "application/json"
-                reqBody:str = json.dumps(msg.RequestJson, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-                _logsi.LogBinary(SILevel.Debug, "SpotifyClient http request JSON body", reqBody)
-                response = self._Manager.request(method, url, body=reqBody, headers=msg.RequestHeaders)
-                
-            else:
+                # check for errors that are temporary in nature; for these errors, we will retry the 
+                # request for a specified number of tries with a small wait period in between.
+                if (response.status == 504):
 
-                _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (no body)" % (url), msg.RequestData, prettyPrint=True)
-                response = self._Manager.request(method, url, headers=msg.RequestHeaders)
-                
+                    # only retry so many times before we give up;
+                    if (loopTotalDelay >= LOOP_TIMEOUT):
+                        raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_TIMEOUT % (loopTotalDelay), None, logsi=_logsi)
+
+                    # trace.
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_RESPONSE_STATUS % (response.status, response.reason), colorValue=SIColors.Red)
+
+                    # wait just a bit between requests.
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_REQUEST_DELAY % (LOOP_DELAY))
+                    time.sleep(LOOP_DELAY)
+                    loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+                else:
+
+                    # otherwise, break out of retry loop and process response.
+                    break
+
             # process based upon response status code; some requests will not return response data.
             # I know this could have been simplified, but I broke it down into possible return code ranges.
             if response.status >= 200 and response.status <= 299:

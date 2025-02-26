@@ -40,6 +40,21 @@ class SAAppMessages:
     SAM1002E - Spotify Web API returned an authorization error status while processing the \"{methodname}\" method.\nHTTP Status: {httpstatus} - {httpreason}\nError: {error}\nError Description: \"{errordescription}\"
     """
     
+    MSG_SPOTIFY_WEB_API_RETRY_REQUEST_DELAY:str = "Delaying for %s seconds before retry to allow Spotify Gateway to become available"
+    """
+    Delaying for %s seconds before retry to allow Spotify Gateway to become available
+    """
+
+    MSG_SPOTIFY_WEB_API_RETRY_RESPONSE_STATUS:str = "Spotify Web API request returned with a %s status (%s); request will be retried"
+    """
+    Spotify Web API request returned with a %s status (%s); request will be retried
+    """
+
+    MSG_SPOTIFY_WEB_API_RETRY_TIMEOUT:str = "Timed out waiting for Spotify Gateway to become available; gave up after %f seconds from initial request."
+    """
+    Timed out waiting for Spotify Gateway to become available; gave up after %f seconds from initial request.
+    """
+
     MSG_SPOTIFY_ZEROCONF_API_ERROR:str = "SAM1003E - Spotify ZeroConf API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\""
     """
     SAM1001E - Spotify ZeroConf API returned an error status while processing the \"{methodname}\" method.\nStatus: {status} - {httpreason}\nMessage: \"{message}\"

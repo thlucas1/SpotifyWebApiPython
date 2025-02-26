@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.180 ] - 2025/02/25
+
+  * Updated Spotify Web API request logic to retry request failures with status code 504 (Gateway Timeout); request will be tried 5 times with a slight delay in between before giving up.
+  * Updated Spotify Web Player token refresh request logic to retry request failures with status code 504 (Gateway Timeout); request will be tried 5 times with a slight delay in between before giving up.
+
 ###### [ 1.0.179 ] - 2025/02/25
 
   * Updated `SpotifyClient.GetDevicePlaybackState` method to get the current Spotify playback state, with device fallback if nothing is reported from Spotify.

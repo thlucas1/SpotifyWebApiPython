@@ -7,6 +7,7 @@ import requests
 import time
 
 # our package imports.
+from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .const import (
     SPOTIFY_WEBUI_URL_BASE,
@@ -14,7 +15,7 @@ from .const import (
 )
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SIColors
 import logging
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
 if (_logsi == None):
@@ -276,17 +277,17 @@ class SpotifyWebPlayerToken:
                 "productType": "web_player",
             }
 
-            # retry if gateway timeout error is returned.
+            # trace.
+            _logsi.LogVerbose("Exchanging Spotify Web Player cookie credentials for OAuth2 authorization access token")
+            _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (cookies)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqCookies)
+            _logsi.LogDictionary(SILevel.Debug, "%s http request: \"%s\" (headers)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqHeaders)
+            _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (parms)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqParms)
+
+            # request retry loop for failed requests that are temporary in nature (504 Gateway Timeout, etc).
             loopTotalDelay:float = 0
-            LOOP_DELAY:float = 0.100
-            LOOP_TIMEOUT:float = 0.500
+            LOOP_DELAY:float = 0.200
+            LOOP_TIMEOUT:float = 1.000
             while True:
-                        
-                # trace.
-                _logsi.LogVerbose("Exchanging Spotify Web Player cookie credentials for OAuth2 authorization access token")
-                _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (cookies)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqCookies)
-                _logsi.LogDictionary(SILevel.Debug, "%s http request: \"%s\" (headers)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqHeaders)
-                _logsi.LogDictionary(SILevel.Verbose, "%s http request: \"%s\" (parms)" % (tracePrefix, SPOTIFY_WEBUI_URL_GET_ACCESS_TOKEN), reqParms)
             
                 # convert the spotify web player cookie credentials to an access token.
                 response = session.get(
@@ -297,42 +298,58 @@ class SpotifyWebPlayerToken:
                     allow_redirects=False,
                     )
 
-                # trace.
-                if _logsi.IsOn(SILevel.Debug):
-                    _logsi.LogObject(SILevel.Debug, "%s http response object - type=\"%s\", module=\"%s\"" % (tracePrefix, type(response).__name__, type(response).__module__), response)
+                # TEST TODO - for testing retry logic.
+                # if (response.status_code == 200) and (loopTotalDelay <= 0.200):
+                #     _logsi.LogWarning("TEST TODO - Testing Spotify Web API 504 status (Gateway timeout) condition ...", colorValue=SIColors.Red)
+                #     response.status_code = 404
+                #     response.reason = "URL Not Found"
+                # if (response.status_code == 200) and (loopTotalDelay <= 0.200):
+                #     _logsi.LogWarning("TEST TODO - Testing Spotify Web API 504 status (Gateway timeout) condition ...", colorValue=SIColors.Red)
+                #     response.status_code = 504
+                #     response.reason = "Gateway Timeout"
 
-                # trace.
-                if _logsi.IsOn(SILevel.Debug):
-                    _logsi.LogObject(SILevel.Debug, "%s http response [%s-%s] (response)" % (tracePrefix, response.status_code, response.reason), response)
-                    if (response.headers):
-                        _logsi.LogCollection(SILevel.Debug, "%s http response [%s-%s] (headers)" % (tracePrefix, response.status_code, response.reason), response.headers.items())
+                # check for errors that are temporary in nature; for these errors, we will retry the 
+                # request for a specified number of tries with a small wait period in between.
+                if (response.status_code == 504):
 
-                # raise exception if we could not get the access token, or if a redirect occured.
-                # the redirect usually indicates the sp_dc and sp_key are expired, and it's redirecting to a login page.
-                respHdrLocation:str = response.headers.get("Location", None)
-                if (response.status_code == 302 and respHdrLocation == "/get_access_token?reason=transport&productType=web_player&_authfailed=1"):
-                    raise SpotifyApiError("Unsuccessful token request, received status 302 and Location header \"%s\". sp_dc and sp_key could be expired. Please update values in token storage file." % (respHdrLocation), None, logsi=_logsi)
+                    # only retry so many times before we give up.
+                    if (loopTotalDelay >= LOOP_TIMEOUT):
+                        raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_TIMEOUT % (loopTotalDelay), None, logsi=_logsi)
 
-                # if successful request, then break out of the retry loop.
-                if response.status_code == 200:
-                    _logsi.LogVerbose("Token exchange request was successful within %f seconds from initial request; processing results" % (loopTotalDelay))
+                    # trace.
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_RESPONSE_STATUS % (response.status_code, response.reason), colorValue=SIColors.Red)
+
+                    # wait just a bit between requests.
+                    _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_REQUEST_DELAY % (LOOP_DELAY))
+                    time.sleep(LOOP_DELAY)
+                    loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+                else:
+
+                    # otherwise, break out of retry loop and process response.
                     break
 
-                # any other status code besides 504 (gateway timeout) is an exception event!
-                if response.status_code != 504:
-                    raise SpotifyApiError("Token exchange request failed: %s - %s" % (response.status_code, response.reason), None, logsi=_logsi)
+            # trace.
+            if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, "%s http response object - type=\"%s\", module=\"%s\"" % (tracePrefix, type(response).__name__, type(response).__module__), response)
 
-                # only retry so many times before we give up;
-                if (loopTotalDelay > LOOP_TIMEOUT):
-                    raise SpotifyApiError("Timed out waiting for Spotify Gateway to become available; gave up after %f seconds from initial request" % (loopTotalDelay), None, logsi=_logsi)
+            # trace.
+            if _logsi.IsOn(SILevel.Debug):
+                _logsi.LogObject(SILevel.Debug, "%s http response [%s-%s] (response)" % (tracePrefix, response.status_code, response.reason), response)
+                if (response.headers):
+                    _logsi.LogCollection(SILevel.Debug, "%s http response [%s-%s] (headers)" % (tracePrefix, response.status_code, response.reason), response.headers.items())
 
-                # trace.
-                _logsi.LogVerbose("Spotify Web Player cookie credentials token exchange request returned with a 504 status (Gateway timeout); request will be retried")
+            # raise exception if we could not get the access token, or if a redirect occured.
+            # the redirect usually indicates the sp_dc and sp_key are expired, and it's redirecting to a login page.
+            respHdrLocation:str = response.headers.get("Location", None)
+            if (response.status_code == 302 and respHdrLocation == "/get_access_token?reason=transport&productType=web_player&_authfailed=1"):
+                raise SpotifyApiError("Unsuccessful token request, received status 302 and Location header \"%s\". sp_dc and sp_key could be expired. Please update values in token storage file." % (respHdrLocation), None, logsi=_logsi)
 
-                # wait just a bit between requests.
-                _logsi.LogVerbose("Delaying for %s seconds to allow Spotify Gateway to become available" % (LOOP_DELAY))
-                time.sleep(LOOP_DELAY)
-                loopTotalDelay = loopTotalDelay + LOOP_DELAY
+            # if successful request, then break out of the retry loop.
+            if (response.status_code == 200):
+                _logsi.LogVerbose("Token exchange request was successful within %f seconds from initial request; processing results" % (loopTotalDelay))
+            else:
+                raise SpotifyApiError("Token exchange request failed: %s - %s" % (response.status_code, response.reason), None, logsi=_logsi)
 
             # load request response.
             data = response.content.decode('utf-8')
