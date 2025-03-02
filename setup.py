@@ -7,7 +7,7 @@ from spotifywebapipython.const import (
 )
 
 # setup constants.
-NAME = 'spotifywebapiPython'
+NAME = 'spotifywebapipython'
 DESCRIPTION = 'Spotify Web API Python3 Library'
 
 # if installing using less than Python v3, then stop the install!
