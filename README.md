@@ -44,7 +44,7 @@ The following Python-related requirements must be met in order to utilize this A
 * Python 3.4 or greater (Python 2 not supported).
 * oauthlib (==3.2.2) - for OAuth support.
 * platformdirs (==4.1.0) - for platform dependent directory support.
-* smartinspectPython (==3.0.30) - for diagnostics and logging support.
+* smartinspectpython (>=3.0.35) - for diagnostics and logging support.
 * requests (==2.31.0) - for web service request support.
 * requests_oauthlib (==1.3.1) - for OAuth support.
 * urllib3 (==2.1.0) - for web service request support.

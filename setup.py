@@ -64,7 +64,7 @@ setup(
         'PyChromecast>=14.0.5',
         'requests>=2.31.0',
         'requests_oauthlib>=1.3.1',
-        'smartinspectPython>=3.0.34',
+        'smartinspectpython>=3.0.35',
         'soco>=0.30.6',
         'urllib3>=1.21.1,<1.27',
         'zeroconf>=0.132.2'
