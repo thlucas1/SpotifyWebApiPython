@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.183 ] - 2025/03/02
+
+  * Updated PDoc Documentation package name to lower-case, to match the PyPi.org package name.  This was to adhere to PyPI.org requirements for uploaded binary distribution filenames to comply with the binary distribution format.
+
 ###### [ 1.0.182 ] - 2025/03/02
 
   * Updated `setup.py` to adhere to PyPI.org requirements for uploaded binary distribution filenames to comply with the binary distribution format.  This changes the wheel filename that is generated from `spotifywebapiPython-1.0.182-py3-none-any.whl` to `spotifywebapipython-1.0.182-py3-none-any.whl` (same filename, just lower-case project name).

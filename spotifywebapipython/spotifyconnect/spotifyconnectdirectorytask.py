@@ -414,7 +414,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         The Spotify Cast application will automatically end after 20 seconds if playback
         is not transferred to it within the timeout period.  Note that any application can
         be used to transfer playback to the device (Spotify Mobile / Desktop / Web, spotipy,
-        spotifywebapiPython, etc).
+        spotifywebapipython, etc).
 
         Args:
             deviceName (str):

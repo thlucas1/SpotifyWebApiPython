@@ -9,7 +9,7 @@ try:
     
     # you will need to install the SpotifyWebApiPython requirement in order to run this
     # script.  Use the following PIP command to do so:
-    # -> pip install spotifywebapiPython
+    # -> pip install spotifywebapipython
     
     # set the following user-specific input parameters prior to running this script.
     
