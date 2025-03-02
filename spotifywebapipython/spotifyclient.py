@@ -16651,6 +16651,9 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
 
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
+
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -16662,10 +16665,6 @@ class SpotifyClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
-            # start / restart Zeroconf Directory task.
-            self._RestartSpotifyConnectDirectoryTask()
 
 
     def SetAuthTokenAuthorizationCodePKCE(
@@ -16841,6 +16840,9 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
 
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
+
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -16852,10 +16854,6 @@ class SpotifyClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
-            # start / restart Zeroconf Directory task.
-            self._RestartSpotifyConnectDirectoryTask()
 
 
     def SetAuthTokenClientCredentials(
@@ -16936,6 +16934,9 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
 
+            # start / restart Zeroconf Directory task.
+            self._RestartSpotifyConnectDirectoryTask()
+
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiError: raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
@@ -16949,10 +16950,6 @@ class SpotifyClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
-            # start / restart Zeroconf Directory task.
-            self._RestartSpotifyConnectDirectoryTask()
 
 
     def SetAuthTokenFromToken(
@@ -17050,6 +17047,9 @@ class SpotifyClient:
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)
 
+            # start / restart Zeroconf Directory task, if there was no exception.
+            self._RestartSpotifyConnectDirectoryTask()
+
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -17061,10 +17061,6 @@ class SpotifyClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
-
-            # we do this in the finalizer, so trace messages log correctly (due to multi-threading).
-            # start / restart Zeroconf Directory task.
-            self._RestartSpotifyConnectDirectoryTask()
 
 
     def ToString(self) -> str:

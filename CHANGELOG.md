@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.181 ] - 2025/03/01
+
+  * Updated logic to start / restart the Spotify Connect Directory task only if the authorization token setup was successful.  Prior logic was causing a misleading exception to be returned to the caller, and the original offending exception was only visible in the SmartInspect trace.
+
 ###### [ 1.0.180 ] - 2025/02/25
 
   * Updated Spotify Web API request logic to retry request failures with status code 504 (Gateway Timeout); request will be tried 5 times with a slight delay in between before giving up.
