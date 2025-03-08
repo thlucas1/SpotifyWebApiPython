@@ -39,6 +39,8 @@ class SpotifyWebPlayerToken:
         tokenProviderId:str=None,
         tokenStorageDir:str=None,
         tokenStorageFile:str=None,
+        spotifyWebPlayerCookieSpdc:str=None,
+        spotifyWebPlayerCookieSpkey:str=None,
         ) -> None:
         """
         Initializes a new instance of the class.
@@ -63,6 +65,16 @@ class SpotifyWebPlayerToken:
             tokenStorageFile (str):
                 The filename and extension of the Token Cache file.  
                 Default is `tokens.json`.
+            spotifyWebPlayerCookieSpdc (str):
+                Spotify Web Player Cookie credentials `sp_dc` value.  
+            spotifyWebPlayerCookieSpkey (str):
+                Spotify Web Player Cookie credentials `sp_key` value.
+
+        If the `spotifyWebPlayerCookieSpdc` and `spotifyWebPlayerCookieSpkey` values are specified,
+        then the Token Cache File parameters will be ignored and a token created from the specified
+        values.
+
+        Otherwise, the Token Cache File is queried to retrieve the `sp_dc` and `sp_key` values.
         """
         # validations.
         if clientId is None:
@@ -95,9 +107,27 @@ class SpotifyWebPlayerToken:
         self._TokenStorageDir:str = tokenStorageDir
         self._TokenStorageFile:str = tokenStorageFile
         self._TokenStoragePath:str = os.path.join(tokenStorageDir, tokenStorageFile)
+        self._sp_dc:str = spotifyWebPlayerCookieSpdc
+        self._sp_key:str = spotifyWebPlayerCookieSpkey
 
-        # load cookie credentials from the token storage file.
-        token:dict = self._LoadCookieCredentials()
+        # were cookie credentials provided?
+        if (spotifyWebPlayerCookieSpdc is not None) and (spotifyWebPlayerCookieSpkey is not None):
+
+            # yes - create cookie credentials dictionary from parameters.
+            token:dict = {
+                "sp_dc": spotifyWebPlayerCookieSpdc ,
+                "sp_key": spotifyWebPlayerCookieSpkey,
+                "title": "SpotifyClient Credentials for user: " + profileId,
+                "token_type": "CookieCredentials"
+            }
+
+            # trace.
+            _logsi.LogDictionary(SILevel.Verbose, "Cookie credentials were created from passed parameters for profileId: \"%s\"" % (profileId), token, prettyPrint=True)
+
+        else:
+
+            # no - load cookie credentials from the token storage file.
+            token:dict = self._LoadCookieCredentials()
 
         # get Spotify Web Player access token from stored Spotify Web Player cookie credentials.
         self.GetAccessTokenFromCookieCredentials()
@@ -220,8 +250,8 @@ class SpotifyWebPlayerToken:
 
                         # parse token for cookie data parameters.
                         token:dict = tokens[tokenKey]
-                        self._sp_dc:str = token.get("sp_dc", None)
-                        self._sp_key:str = token.get("sp_key", None)
+                        self._sp_dc = token.get("sp_dc", None)
+                        self._sp_key = token.get("sp_key", None)
 
                         # validation.
                         if (self._sp_dc is None):

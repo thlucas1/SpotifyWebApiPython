@@ -1770,6 +1770,21 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # trace.
                     _logsi.LogVerbose("Creating new SpotifyConnectDevice instance from ServiceInfo data: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
 
+                    # By default, the ZeroConf DeviceName is used for the device name value; this
+                    # will change later when the Spotify Connect `getInfo` call is made to retrieve the
+                    # RemoteName value, which is what Spotify Connect capable players display as a device name.
+                    # For most manufacturers, the ZeroConf DeviceName is an internal-use type of value (e.g. "sonosRINCON_38420B909DC801400").
+                    # For other manufacturers, this is a user-friendly type of value (e.g. "Bose-ST10-1").
+                    # Here are some examples (by manufacturer):
+
+                    # Manufacturer  ZeroConf DeviceName               getInfo Remotename
+                    # ------------  ------------------------------    -----------------------------------
+                    # Sonos         sonosRINCON_38420B909DC801400"    Office
+                    # Bose          Bose-ST10-1                       Bose-ST10-1
+                    # Bose          Bose-ST10-1 + Bose-ST10-2 (L+R)   Bose-ST10-1 (if stereo paired)
+                    # Bose          Bose-ST10-1 Group                 Bose-ST10-1 (if zoned)
+                    # Denon         0005cdb737b2LivingRoom            Living Room
+
                     # create a new Spotify Connect Device instance.
                     scDevice = SpotifyConnectDevice()
                     scDevice.Name = zeroconfDiscoveryResult.DeviceName
@@ -1800,17 +1815,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # retrieve initial spotify connect device information (by ip address).
                         scDevice.DeviceInfo = zconn.GetInformation()
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
-
-                        # if using remote name for the device name, then make it so.
-                        # by default, the ZeroConf DeviceName is used for the device name value.
-                        # for some manufacturers, we want to use the Spotify Connect `getInfo` RemoteName (more user-friendly).
-                        # some manufacturers use the same `getInfo` RemoteName for ALL members in the group!
-                        # Sonos: ZeroConf DeviceName = "sonosRINCON_38420B909DC801400", getInfo Remotename = "Office".
-                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1", getInfo Remotename = "Bose-ST10-1".
-                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1 + Bose-ST10-2 (L+R)", getInfo Remotename = "Bose-ST10-1" (if stereo paired).
-                        # Bose:  ZeroConf DeviceName = "Bose-ST10-1 Group", getInfo Remotename = "Bose-ST10-1" (if zoned).
-                        if (scDevice.DeviceInfo.UseRemoteNameForDeviceName):
-                            scDevice.Name = scDevice.DeviceInfo.RemoteName
+                        scDevice.Name = scDevice.DeviceInfo.RemoteName
 
                     except Exception as ex:
 
@@ -1872,8 +1877,14 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice.IsActiveDevice = spDynamicDevice.IsActiveDevice
                         scDevice.IsInDeviceList = spDynamicDevice.IsInDeviceList
 
-                        # remove the dynamic device from the collection.
-                        self.RemoveDevice(spDynamicDevice.Id, dynamicDeviceOnly=True)
+                        # at this point we will remove the device from the collection so that it can be
+                        # replaced with the static device entry; this will also remove any duplicate
+                        # device id entries, which can appear for some manufacturers when devices are 
+                        # grouped, zoned, or stereo paired (e.g. Bose).
+                        dynamicOnly:bool = True
+                        if (scDevice.DiscoveryResult.IsDynamicDevice == False) and (spDynamicDevice.DiscoveryResult.IsDynamicDevice == False):
+                            dynamicOnly = False
+                        self.RemoveDevice(spDynamicDevice.Id, dynamicDeviceOnly=dynamicOnly)
 
                     # add new Spotify Connect Device to devices collection.
                     self._SpotifyConnectDevices.Items.append(scDevice)

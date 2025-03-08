@@ -201,7 +201,9 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             _logsi.LogVerbose("%s - Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
             tokenWP = SpotifyWebPlayerToken(profileId=self.SpotifyClientInstance.SpotifyConnectLoginId,
                                             tokenStorageDir=self.SpotifyClientInstance.TokenStorageDir,
-                                            tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile)
+                                            tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile,
+                                            spotifyWebPlayerCookieSpdc=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpdc,
+                                            spotifyWebPlayerCookieSpkey=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpkey)
 
             # launch spotify chromecast app on the device, passing it the spotify web player access token info.
             _logsi.LogVerbose("%s - Launching Spotify Chromecast App for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))

@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.185 ] - 2025/03/08
+
+  * Fixed a bug in device name processing to properly display the Spotify Connect RemoteName value.  Prior code was causing the Zeroconf DeviceName to be displayed, which is sometimes not a user-friendly name.
+  * Added Spotify Web Player credentials to `SpotifyClient` class constructor.  If the `spotifyWebPlayerCookieSpdc` and `spotifyWebPlayerCookieSpkey` argument values are specified, then an "elevated" access token (created from the argument values) will be used for all player-control related methods.
+
 ###### [ 1.0.184 ] - 2025/03/02
 
   * Updated underlying `smartinspectpython` package requirement to version 3.0.35.

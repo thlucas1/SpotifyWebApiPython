@@ -426,23 +426,6 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
 
     @property
-    def UseRemoteNameForDeviceName(self) -> bool:
-        """ 
-        Returns True if the device should use the RemoteName from the Spotify 
-        Connect `getInfo` results as the device name; otherwise, False to use 
-        the ZeroConf discovery name as the device name.
-        
-        Determination is made based upon the `BrandDisplayName` property value.
-        """
-        result:bool = False
-        if (isinstance(self._BrandDisplayName, str)):
-            strBrandName:str = self._BrandDisplayName.lower().strip()
-            if (strBrandName == 'sonos'):
-                result = True
-        return result
-    
-
-    @property
     def Version(self) -> str:
         """ 
         ZeroConf API version number (e.g. "2.10.0").

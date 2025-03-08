@@ -110,6 +110,8 @@ class SpotifyClient:
         spotifyConnectLoginId:str=None,
         spotifyConnectDiscoveryTimeout:float=2.0,
         spotifyConnectDirectoryEnabled:bool=True,
+        spotifyWebPlayerCookieSpdc:str=None,
+        spotifyWebPlayerCookieSpkey:str=None,
         ) -> None:
         """
         Initializes a new instance of the class.
@@ -151,6 +153,10 @@ class SpotifyClient:
                 True to enable the Spotify Connect Directory task features.
                 otherwise, False to disable the Directory.
                 Default is True.
+            spotifyWebPlayerCookieSpdc (str):
+                Spotify Web Player Cookie credentials `sp_dc` value.  
+            spotifyWebPlayerCookieSpkey (str):
+                Spotify Web Player Cookie credentials `sp_key` value.
                 
         The `spotifyConnectUsername`, `spotifyConnectPassword` and `spotifyConnectLoginId` arguments are only used
         when a Spotify Connect account switch is performed on a selected player device.  Note that these credentials
@@ -173,6 +179,10 @@ class SpotifyClient:
         since Spotify Connect devices are not being tracked.  It is recommended that you disable the Directory task if
         you only wish to access methods that retrieve Spotify catalog information, as it speeds up the startup time of the
         client initialization and does not consume extra resources.
+
+        If the `spotifyWebPlayerCookieSpdc` and `spotifyWebPlayerCookieSpkey` argument values are specified, then an
+        "elevated" access token (created from the argument values) will be used for all player-control related methods.
+        This will give the endpoints the same access that the Spotify Web Player has.
         """
         # validations.
         if zeroconfClient is not None and (not isinstance(zeroconfClient, Zeroconf)):
@@ -209,6 +219,8 @@ class SpotifyClient:
         self._SpotifyConnectDiscoveryTimeout:float = float(spotifyConnectDiscoveryTimeout)
         self._SpotifyConnectDirectory:SpotifyConnectDirectoryTask = None
         self._SpotifyConnectDirectoryEnabled:bool = spotifyConnectDirectoryEnabled
+        self._SpotifyWebPlayerCookieSpdc:str = spotifyWebPlayerCookieSpdc
+        self._SpotifyWebPlayerCookieSpkey:str = spotifyWebPlayerCookieSpkey
         self._SpotifyWebPlayerToken:SpotifyWebPlayerToken = None
         self._SpotifyWebPlayerToken_RLock:threading.RLock = threading.RLock()
         self._TokenStorageDir:str = tokenStorageDir
@@ -424,6 +436,24 @@ class SpotifyClient:
         on a manufacturer device.               
         """
         return self._SpotifyConnectUsername
+    
+
+    @property
+    def SpotifyWebPlayerCookieSpdc(self) -> str:
+        """ 
+        Spotify Web Player Cookie credentials `sp_dc` value used to create an elevated access token
+        for accessing Spotify Web API services related to the player.
+        """
+        return self._SpotifyWebPlayerCookieSpdc
+    
+
+    @property
+    def SpotifyWebPlayerCookieSpkey(self) -> str:
+        """ 
+        Spotify Web Player Cookie credentials `sp_key` value used to create an elevated access token
+        for accessing Spotify Web API services related to the player.
+        """
+        return self._SpotifyWebPlayerCookieSpkey
     
 
     @property
@@ -820,7 +850,9 @@ class SpotifyClient:
                 self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
                     profileId=self._SpotifyConnectLoginId,
                     tokenStorageDir=self._TokenStorageDir,
-                    tokenStorageFile=self._TokenStorageFile)
+                    tokenStorageFile=self._TokenStorageFile,
+                    spotifyWebPlayerCookieSpdc=self._SpotifyWebPlayerCookieSpdc,
+                    spotifyWebPlayerCookieSpkey=self._SpotifyWebPlayerCookieSpkey)
 
                 if self._SpotifyWebPlayerToken is not None:
                     _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
@@ -837,7 +869,9 @@ class SpotifyClient:
                 self._SpotifyWebPlayerToken = SpotifyWebPlayerToken(
                     profileId=self._SpotifyConnectLoginId,
                     tokenStorageDir=self._TokenStorageDir,
-                    tokenStorageFile=self._TokenStorageFile)
+                    tokenStorageFile=self._TokenStorageFile,
+                    spotifyWebPlayerCookieSpdc=self._SpotifyWebPlayerCookieSpdc,
+                    spotifyWebPlayerCookieSpkey=self._SpotifyWebPlayerCookieSpkey)
 
                 if self._SpotifyWebPlayerToken is not None:
                     _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE, colorValue=SIColors.Gold)
