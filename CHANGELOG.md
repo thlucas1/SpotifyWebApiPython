@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.186 ] - 2025/03/08
+
+  * Fixed a bug in Spotify Web Player credentials processing.
+
 ###### [ 1.0.185 ] - 2025/03/08
 
   * Fixed a bug in device name processing to properly display the Spotify Connect RemoteName value.  Prior code was causing the Zeroconf DeviceName to be displayed, which is sometimes not a user-friendly name.

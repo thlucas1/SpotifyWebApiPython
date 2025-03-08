@@ -962,6 +962,9 @@ class SpotifyClient:
             # trace.
             _logsi.LogVerbose("SpotifyClient is initializing Spotify Connect Directory task")
 
+            # reset has credentials indicator.
+            self._HasSpotifyWebPlayerCredentials = False
+
             # if user profile is not set, then it denotes a token has not been assigned yet!
             # an authorization token MUST be assigned before we can start processing
             # Spotify Connect Directory requests!
@@ -976,15 +979,27 @@ class SpotifyClient:
 
             try:
 
-                # check if the Spotify Web Player cookie credentials are defined in Token cache File.
-                # Example: SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID
-                self._HasSpotifyWebPlayerCredentials = AuthClient.HasTokenForKey(
-                    clientId=None,
-                    tokenProviderId='SpotifyWebPlayerCookieCredentials',
-                    tokenProfileId=self._SpotifyConnectLoginId,
-                    tokenStorageDir=self._TokenStorageDir,
-                    tokenStorageFile=self._TokenStorageFile,
-                )
+                # were Spotify Web Player cookie credentials specified on the class constructor?
+                if (self._SpotifyWebPlayerCookieSpdc is not None) and (self._SpotifyWebPlayerCookieSpkey is not None):
+
+                    # yes - indicate we have Spotify Web Player cookie credentials.
+                    self._HasSpotifyWebPlayerCredentials = True
+                    _logsi.LogVerbose("Spotify Web Player cookie credentials were specified on the class constructor")
+
+                else:
+
+                    # no - check if the Spotify Web Player cookie credentials are defined in Token cache File.
+                    # Example: SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID
+                    self._HasSpotifyWebPlayerCredentials = AuthClient.HasTokenForKey(
+                        clientId=None,
+                        tokenProviderId='SpotifyWebPlayerCookieCredentials',
+                        tokenProfileId=self._SpotifyConnectLoginId,
+                        tokenStorageDir=self._TokenStorageDir,
+                        tokenStorageFile=self._TokenStorageFile,
+                    )
+
+                    if (self._HasSpotifyWebPlayerCredentials):
+                        _logsi.LogVerbose("Spotify Web Player cookie credentials were specified in the Token Cache File")
 
             except Exception as ex:
 
@@ -993,6 +1008,9 @@ class SpotifyClient:
 
                 # ignore exceptions, as transfer will still work.
                 pass
+
+            # trace.
+            _logsi.LogVerbose("Spotify Connect LoginId \"%s\" HasSpotifyWebPlayerCredentials flag: %s" % (self._SpotifyConnectLoginId, self._HasSpotifyWebPlayerCredentials), colorValue=SIColors.Coral)
 
             # create new Spotify Connect Directory instance.
             self._SpotifyConnectDirectory = SpotifyConnectDirectoryTask(self, self._ZeroconfClient, self._SpotifyConnectDiscoveryTimeout)
