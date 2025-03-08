@@ -264,7 +264,7 @@ class SpotifyWebPlayerToken:
                     
             # if we make it here, then it denotes that a token was not found
             # for the specified key.
-            raise SpotifyApiError("Cookie credentials storage key not found: \"%s\"" % (tokenKey), None, logsi=_logsi)
+            raise SpotifyApiError("Spotify Web Player Cookie credentials were not found for user: \"%s\"" % (self._ProfileId), None, logsi=_logsi)
                         
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
@@ -416,7 +416,7 @@ class SpotifyWebPlayerToken:
         except requests.TooManyRedirects as ex:
 
             # trace.
-            raise SpotifyApiError("Could not get Spotify Web Player access token; sp_dc and sp_key could be expired; Please update values in token storage file", ex, logsi=_logsi)
+            raise SpotifyApiError("Could not get Spotify Web Player access token; sp_dc and sp_key could be expired - please update values", ex, logsi=_logsi)
         
         except Exception as ex:
             

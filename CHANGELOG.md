@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.187 ] - 2025/03/08
+
+  * Cleaned up some error / trace messages related to Spotify Web Player credentials processing.
+
 ###### [ 1.0.186 ] - 2025/03/08
 
   * Fixed a bug in Spotify Web Player credentials processing.

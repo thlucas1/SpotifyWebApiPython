@@ -381,8 +381,8 @@ class SpotifyClient:
     @property
     def HasSpotifyWebPlayerCredentials(self) -> bool:
         """ 
-        Returns true if Spotify Web Player credentials have been configured in the Token Cache File
-        for the current UserProfile loginid; otherwise, False.
+        Returns true if Spotify Web Player credentials have been configured for the current 
+        UserProfile loginid; otherwise, False.
         """
         return self._HasSpotifyWebPlayerCredentials
     
@@ -812,7 +812,7 @@ class SpotifyClient:
         ) -> str:
         """
         Retrieves a SpotifyWebPlayer token header value, if Spotify Web Player cookie credentials 
-        are defined in the Token Cache File.
+        are defined.
 
         Args:
             scDevice (SpotifyConnectDevice):
@@ -825,9 +825,15 @@ class SpotifyClient:
         The value returned will be a `Bearer: token` string that can be used in a request header 
         authorization key for Spotify Web API endpoints that start playback on a device.
 
+        Credentials can be specified via the class constructor, or in the Token Cache File.  
+
+        The class constructor `spotifyWebPlayerCookieSpdc` and `spotifyWebPlayerCookieSpkey`
+        arguments are the easiest way to specify the values, as it eliminates JSON formatting errors.  
+
         The Token Cache File is queried for a key value of "SpotifyWebPlayerCookieCredentials/Shared/YOUR_SPOTIFY_LOGIN_ID",
-        which will contain the `sp_key` and `sp_dc` values of the cookie credentials.  These 
-        credentials are then converted into an authorization access token which is used by 
+        which will contain the `sp_key` and `sp_dc` values of the cookie credentials.  
+
+        The credentials are then converted into an authorization access token which is used by 
         Spotify Web API endpoints.
         """
         # are spotify web player credentials configured? if not, then don't bother!
