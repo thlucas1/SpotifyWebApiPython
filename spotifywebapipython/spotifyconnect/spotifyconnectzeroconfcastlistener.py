@@ -30,6 +30,8 @@ CAST_TYPE_AUDIO = "audio"
 """ Cast Audio device, supports only audio """
 CAST_TYPE_GROUP = "group" 
 """ Cast Audio group device, supports only audio """
+CAST_TYPE_NONE = None
+""" cast_type not set; assume it supports audio """
 
 
 class SpotifyConnectZeroconfCastListener(AbstractCastListener):
@@ -101,11 +103,9 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
             # trace.
             _logsi.LogObject(SILevel.Debug, "Chromecast Zeroconf service details: \"%s\" (%s) (CastInfo object)" % (castInfo.friendly_name, serviceName), castInfo) 
 
-            # TODO we may need to expand this check based on cast_type value ...
-
             # only certain cast_type values support Spotify Connect.
             castType:str = castInfo.cast_type
-            if (not (castType in [CAST_TYPE_AUDIO, CAST_TYPE_GROUP, CAST_TYPE_CHROMECAST])):
+            if (not (castType in [CAST_TYPE_AUDIO, CAST_TYPE_GROUP, CAST_TYPE_CHROMECAST, CAST_TYPE_NONE])):
                 _logsi.LogDebug("Chromecast device cast_type of \"%s\" is not supported; ignoring: \"%s\" (%s)" % (castType, castInfo.friendly_name, serviceName), colorValue=SIColors.Coral)
                 return None
             

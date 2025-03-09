@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.188 ] - 2025/03/09
+
+  * Added more device `cast_type` values to check for supported Chromecast devices: `null`; if `cast_type` is null, then assume it supports audio.  It appears that some manufacturers are not correctly setting this attribute (e.g. LG SN Series ThinQ Soundbar, JBL Authentics 200, etc).
+
 ###### [ 1.0.187 ] - 2025/03/08
 
   * Cleaned up some error / trace messages related to Spotify Web Player credentials processing.
