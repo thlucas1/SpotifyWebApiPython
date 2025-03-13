@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.189 ] - 2025/03/13
+
+  * Fixed a bug that was causing the device name to be blank when Aliases were returned in Spotify Connect `GetInfo` requests. The first alias name will be used as the device name when aliases are returned for a device.
+  * Defaulted Chromecast Zeroconf GetInformation BrandDisplayName value to "ChromeCast" if a manufacturer name was not supplied.
+
 ###### [ 1.0.188 ] - 2025/03/09
 
   * Added more device `cast_type` values to check for supported Chromecast devices: `null`; if `cast_type` is null, then assume it supports audio.  It appears that some manufacturers are not correctly setting this attribute (e.g. LG SN Series ThinQ Soundbar, JBL Authentics 200, etc).

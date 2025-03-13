@@ -1472,7 +1472,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     scDevice.DeviceInfo = ZeroconfGetInfo()
                     scDevice.DeviceInfo.DeviceId = scDevice.Id
                     scDevice.DeviceInfo.DeviceType = "CastAudio"
-                    scDevice.DeviceInfo.BrandDisplayName = castInfo.manufacturer
+                    scDevice.DeviceInfo.BrandDisplayName = castInfo.manufacturer or "ChromeCast"
                     scDevice.DeviceInfo.ModelDisplayName = castInfo.model_name
                     scDevice.DeviceInfo.RemoteName = castInfo.friendly_name
 
@@ -1817,6 +1817,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
                         scDevice.Name = scDevice.DeviceInfo.RemoteName
 
+                        # if remote name was not specified, then set device name to first alias name.
+                        if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
+                            if (scDevice.DeviceInfo.HasAliases):
+                                _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                                scDevice.Name = scDevice.DeviceInfo.Aliases[0]
+
                     except Exception as ex:
 
                         # trace.
@@ -1844,6 +1850,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.Id = scDevice.DeviceInfo.DeviceId
                             scDevice.Name = scDevice.DeviceInfo.RemoteName
                     
+                            # if remote name was not specified, then set device name to first alias name.
+                            if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
+                                if (scDevice.DeviceInfo.HasAliases):
+                                    _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                                    scDevice.Name = scDevice.DeviceInfo.Aliases[0]
+
+
                             # update HostIpAddress in discovery result so it knows to use the alias
                             # instead of the ip address.
                             _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation call for Instance Name \"%s\" (%s) was resolved using DNS Server alias; HostIpAddress will be updated with the resolved ip address" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Server))
