@@ -32,7 +32,7 @@ from spotifywebapipython import SpotifyApiError
 from spotifywebapipython.models import Device, PlayerPlayState, SpotifyConnectDevices, SpotifyConnectDevice, ZeroconfDiscoveryResult
 from spotifywebapipython.saappmessages import SAAppMessages
 from spotifywebapipython.sautils import Event, validateDelay
-from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfConnect, ZeroconfResponse
+from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfConnect, ZeroconfResponse, ZeroconfGetInfoAlias
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SIColors
@@ -1821,7 +1821,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
                             if (scDevice.DeviceInfo.HasAliases):
                                 _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                scDevice.Name = scDevice.DeviceInfo.Aliases[0]
+                                aliasInfo:ZeroconfGetInfoAlias = scDevice.DeviceInfo.Aliases[0]
+                                scDevice.Name = aliasInfo.Name
 
                     except Exception as ex:
 
@@ -1854,8 +1855,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
                                 if (scDevice.DeviceInfo.HasAliases):
                                     _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                    scDevice.Name = scDevice.DeviceInfo.Aliases[0]
-
+                                    aliasInfo:ZeroconfGetInfoAlias = scDevice.DeviceInfo.Aliases[0]
+                                    scDevice.Name = aliasInfo.Name
 
                             # update HostIpAddress in discovery result so it knows to use the alias
                             # instead of the ip address.

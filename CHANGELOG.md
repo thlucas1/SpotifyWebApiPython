@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.190 ] - 2025/03/14
+
+  * Fixed a bug that was causing `'ZeroconfGetInfoAlias' object has no attribute 'lower'` exceptions when Aliases were returned in Spotify Connect `GetInfo` requests. 
+
 ###### [ 1.0.189 ] - 2025/03/13
 
   * Fixed a bug that was causing the device name to be blank when Aliases were returned in Spotify Connect `GetInfo` requests. The first alias name will be used as the device name when aliases are returned for a device.
