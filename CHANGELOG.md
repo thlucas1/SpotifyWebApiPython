@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.191 ] - 2025/03/19
+
+  * Added Time-based One Time Password processing. 
+  * Added `pyotp` package requirement version >=2.9.0.
+
 ###### [ 1.0.190 ] - 2025/03/14
 
   * Fixed a bug that was causing `'ZeroconfGetInfoAlias' object has no attribute 'lower'` exceptions when Aliases were returned in Spotify Connect `GetInfo` requests. 

@@ -846,8 +846,6 @@ class ZeroconfConnect:
                 'scope': 'streaming',
                 'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token',
                 'subject_token': authToken.AccessToken,
-                # TEST TODO set subject token (for testing purposes).
-                #'subject_token': 'BQBBc-0WrN ... redacted ...',
             }
                 
             # trace.

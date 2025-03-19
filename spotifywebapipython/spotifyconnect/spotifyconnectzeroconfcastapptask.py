@@ -9,7 +9,7 @@ from spotifywebapipython.spotifywebplayertoken import SpotifyWebPlayerToken
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIColors
 import logging
 
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
@@ -198,12 +198,18 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                     self._CastDevice.wait(10)
 
             # get spotify chromecast app access token info from spotify web player cookie credentials.
-            _logsi.LogVerbose("%s - Converting Spotify Web Player cookie credentials to an access token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-            tokenWP = SpotifyWebPlayerToken(profileId=self.SpotifyClientInstance.SpotifyConnectLoginId,
-                                            tokenStorageDir=self.SpotifyClientInstance.TokenStorageDir,
-                                            tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile,
-                                            spotifyWebPlayerCookieSpdc=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpdc,
-                                            spotifyWebPlayerCookieSpkey=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpkey)
+            # if token already retrieved and has not expired, then use it; otherwise, retrieve it.
+            tokenWP:SpotifyWebPlayerToken = self.SpotifyClientInstance._SpotifyWebPlayerToken
+            if (tokenWP is not None) and (not tokenWP.IsExpired):
+                _logsi.LogVerbose("%s - Using existing Spotify Web Player authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
+            else:
+                _logsi.LogVerbose("%s - Converting Spotify Web Player cookie credentials to an authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
+                tokenWP = SpotifyWebPlayerToken(profileId=self.SpotifyClientInstance.SpotifyConnectLoginId,
+                                                tokenStorageDir=self.SpotifyClientInstance.TokenStorageDir,
+                                                tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile,
+                                                spotifyWebPlayerCookieSpdc=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpdc,
+                                                spotifyWebPlayerCookieSpkey=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpkey)
+                self.SpotifyClientInstance._SpotifyWebPlayerToken = tokenWP
 
             # launch spotify chromecast app on the device, passing it the spotify web player access token info.
             _logsi.LogVerbose("%s - Launching Spotify Chromecast App for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))

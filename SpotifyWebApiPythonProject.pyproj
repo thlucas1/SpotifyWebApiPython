@@ -329,6 +329,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />
     <Compile Include="test\test_SampleCode_PREMIUM.py" />
     <Compile Include="test\test_SampleCode_SpotifyConnect.py" />
+    <Compile Include="test\test_SpotifyConnectZeroconf_TOTP.py" />
     <Compile Include="test\test_SpotifyConnectZeroconf.py" />
     <Compile Include="test\test_SSDP_Discovery2.py" />
     <Compile Include="test\test_SSDP_Discovery.py" />
