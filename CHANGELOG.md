@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.192 ] - 2025/03/26
+
+  * Updated underlying `smartinspectpython` package requirement to version 3.0.36.
+
 ###### [ 1.0.191 ] - 2025/03/19
 
   * Added Time-based One Time Password processing. 
