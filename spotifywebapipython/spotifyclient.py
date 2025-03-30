@@ -10002,6 +10002,65 @@ class SpotifyClient:
                 _logsi.LogVerbose("Spotify Connect device %s is already active; no need to re-activate" % (scDevice.Title))
                 return scDevice
 
+            # is this an amazon device? if so, then we will issue a transfer playback call 
+            # to wake it up and make it the active device.  this call usually fails so we
+            # will wrap it up in a "try ... catch" block.  we will keep calling transfer
+            # playback until it activates the device, or we time out.
+            if (scDevice.IsAmazonDevice):
+                if (activateDevice):
+
+                    # wait for the amazon device to become the active device.
+                    loopTotalDelay:float = 0
+                    LOOP_DELAY:float = 0.500
+                    while True:
+                        
+                        try:
+                            _logsi.LogVerbose("Re-activating Amazon Spotify Connect device: %s" % (scDevice.Title))
+
+                            # are spotify web player credentials configured? if so, then we will use them to create
+                            # an elevated authorization access token for the Spotify Web API endpoint call.
+                            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+                            # build spotify web api request parameters.
+                            reqData:dict = \
+                            {
+                                'device_ids': [scDevice.Id],
+                                'play': False
+                            }
+
+                            # execute spotify web api request.
+                            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player')
+                            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
+                            msg.RequestJson = reqData
+                            self.MakeRequest('PUT', msg)
+            
+                        except Exception as ex:
+                            _logsi.LogVerbose("Ignored Amazon Spotify Connect reactivation exception for device: %s - %s" % (scDevice.Title, str(ex)))
+
+                        # wait just a bit between active device queries.
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % LOOP_DELAY)
+                        time.sleep(LOOP_DELAY)
+                        loopTotalDelay = loopTotalDelay + LOOP_DELAY
+
+                        # get the currently active player device.
+                        scActiveDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetActiveDevice(refresh=True)
+
+                        # is the amazon device the active player device? if so, then we are done.
+                        if (scActiveDevice is not None):
+                            if (scActiveDevice.Name == scDevice.Name) or (scActiveDevice.Id == scDevice.Id):
+                                _logsi.LogVerbose("Amazon Spotify Connect device %s is now the active player device; device found within %f seconds of Connect" % (scDevice.Title, loopTotalDelay))
+                                scDevice = scActiveDevice
+                                break
+
+                        # only check so many times before we give up;
+                        # we will keep checking until we find the device, or we exceed the verifyTimeout value.
+                        if (loopTotalDelay > verifyTimeout):
+                            _logsi.LogWarning("Verification timeout waiting for Amazon Spotify Connect device %s to become the active device; device not activated within %f seconds of Connect" % (scDevice.Title, verifyTimeout))
+                            break
+
+                    # return device to caller.
+                    return scDevice
+
             # is the device in the player device list? if so, then it's ready to be selected.
             # note that if another user is controlling the device, then it will not be in the 
             # active device list for the current user.

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.194 ] - 2025/03/29
+
+  * Added support for re-awakening Amazon devices from sleep mode.
+
 ###### [ 1.0.193 ] - 2025/03/27
 
   * Updated underlying `smartinspectpython` package requirement to version 3.0.37.

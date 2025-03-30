@@ -102,6 +102,21 @@ class SpotifyConnectDevice():
 
 
     @property
+    def IsAmazonDevice(self) -> bool:
+        """ 
+        True if the device is an Amazon device; otherwise, False.
+        """
+        if (isinstance(self._Id, str)):
+
+            # simple check for an Amazon-like device id (e.g. "04a02956-eb74-4a98-8bce-e37b21a8aee5_amzn_1").
+            value:str = self._Id.lower()
+            if (value.find("_amzn_") > -1) and (value.count("-") > 2):
+                return True
+
+        return False
+    
+
+    @property
     def IsChromeCast(self) -> bool:
         """ 
         True if the device is a Google ChromeCast device; otherwise, False.
