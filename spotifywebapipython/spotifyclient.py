@@ -13684,12 +13684,13 @@ class SpotifyClient:
                 return scDevice
 
             # before transferring playback to the device, we first need to check to see if anything
-            # is currently playing.  if nothing is playing then we have to start something, otherwise 
-            # the transfer playback will result in a `Restriction Violated` error!  
+            # is currently playing.  if nothing is playing, AND we are not using Spotify Web Player
+            # elevated access token, then we have to start something; otherwise the transfer playback 
+            # will result in a `Restriction Violated` error!  
 
             # get currently active player.
             scActiveDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetActiveDevice(refresh=False)
-            if (scActiveDevice is None):
+            if (scActiveDevice is None) and (accessTokenHeaderValue is None):
 
                 # if nothing is playing, then start playing track favorites instead of transferring playback.
                 _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device %s; playing track favorites on selected device instead of transferring playback" % (scDevice.Title))
@@ -13697,7 +13698,7 @@ class SpotifyClient:
                 return scDevice
 
             # is the resolved device already active?
-            if (scActiveDevice.Name == scDevice.Name):
+            if (scActiveDevice is not None) and (scActiveDevice.Name == scDevice.Name):
 
                 # trace.
                 _logsi.LogVerbose("Spotify Connect device %s is already active; no need to transfer playback" % (scDevice.Title))
