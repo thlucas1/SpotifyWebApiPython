@@ -24,24 +24,24 @@ try:
     imageSource:str = "https://i.scdn.co/image/ab67616d0000b2733deaee5f76ab2da15dd8db86"
     print('\nGetting vibrant colors for image https url:\n- "%s" ...' % imageSource)
     result:ImageVibrantColors = spotify.GetImageVibrantColors(imageSource)
-    print(str(result.ToString()))
+    print(result.ToString())
 
     # get the vibrant colors for an image http url.
     imageSource:str = "http://i.scdn.co/image/ab67616d0000b2733deaee5f76ab2da15dd8db86"
     print('\nGetting vibrant colors for image http url:\n- "%s" ...' % imageSource)
     result:ImageVibrantColors = spotify.GetImageVibrantColors(imageSource)
-    print(str(result.ToString()))
+    print(result.ToString())
 
     # get the vibrant colors for an image on the file system.
     imageSource:str = './test/testdata/PlaylistCoverImage.jpg'
     print('\nGetting vibrant colors for image file:\n- "%s" ...' % imageSource)
     result:ImageVibrantColors = spotify.GetImageVibrantColors(imageSource)
-    print(str(result.ToString()))
+    print(result.ToString())
 
     # get the vibrant colors for the currently playing Spotify item image url.
     print('\nGetting vibrant colors for currently playing image url ...')
     result:ImageVibrantColors = spotify.GetImageVibrantColors()
-    print(str(result.ToString()))
+    print(result.ToString())
 
 except Exception as ex:
 

@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.199 ] - 2025/04/07
+
+  * Updated `ImageVibrantColors` model to include the rgb, hsl, and population values along with the rgb_hex values.  
+
+###### [ 1.0.198 ] - 2025/04/06
+
+  * Changed `pillow>=11.1.0` requirement to `pillow>=10.3.0` for older versions of Home Assistant that have a `pillow>=10.3.0` requirement.
+
 ###### [ 1.0.197 ] - 2025/04/06
 
   * Removed version 1.0.196, as the `vibrant-python` namespace has a dependency that was not compatible with current version of Home Assistant: "pillow>=10.1.0,<11.0.0".

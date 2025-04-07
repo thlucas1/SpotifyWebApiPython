@@ -1,5 +1,5 @@
 # external package imports.
-from ..vibrant import Palette
+from ..vibrant import Palette, Swatch
 
 # our package imports.
 from ..sautils import export
@@ -19,26 +19,28 @@ class ImageVibrantColors:
                 Vibrant Palette object that contains extracted color information used to load object
                 attributes; otherwise, None to not load attributes.
         """
-        self._DarkMuted:str = None
-        self._DarkVibrant:str = None
-        self._LightMuted:str = None
-        self._LightVibrant:str = None
-        self._Muted:str = None
-        self._Vibrant:str = None
-        
+        self._EmptySwatch:Swatch = Swatch(rgb=[0,0,0], population=0, hsl=[0.0,0.0,0.0])
+
+        self._DarkMuted:Swatch = None
+        self._DarkVibrant:Swatch = None
+        self._LightMuted:Swatch = None
+        self._LightVibrant:Swatch = None
+        self._Muted:Swatch = None
+        self._Vibrant:Swatch = None
+
         if (not isinstance(root, Palette)):
 
             pass
         
         else:
 
-            # add vibrant color palette RGB information to results.
-            self._DarkMuted = f"#{root.dark_muted.rgb[0]:02x}{root.dark_muted.rgb[1]:02x}{root.dark_muted.rgb[2]:02x}"
-            self._DarkVibrant = f"#{root.dark_vibrant.rgb[0]:02x}{root.dark_vibrant.rgb[1]:02x}{root.dark_vibrant.rgb[2]:02x}"
-            self._LightMuted = f"#{root.light_muted.rgb[0]:02x}{root.light_muted.rgb[1]:02x}{root.light_muted.rgb[2]:02x}"
-            self._LightVibrant = f"#{root.light_vibrant.rgb[0]:02x}{root.light_vibrant.rgb[1]:02x}{root.light_vibrant.rgb[2]:02x}"
-            self._Muted = f"#{root.muted.rgb[0]:02x}{root.muted.rgb[1]:02x}{root.muted.rgb[2]:02x}"
-            self._Vibrant = f"#{root.vibrant.rgb[0]:02x}{root.vibrant.rgb[1]:02x}{root.vibrant.rgb[2]:02x}"
+            # store vibrant color palette information.
+            self._DarkMuted = root.dark_muted
+            self._DarkVibrant = root.dark_vibrant
+            self._LightMuted = root.light_muted
+            self._LightVibrant = root.light_vibrant
+            self._Muted = root.muted
+            self._Vibrant = root.vibrant
 
         
     def __repr__(self) -> str:
@@ -50,7 +52,7 @@ class ImageVibrantColors:
 
 
     @property
-    def DarkMuted(self) -> str:
+    def DarkMuted(self) -> Swatch:
         """ 
         A dark but muted version of the color palette.  
 
@@ -62,11 +64,11 @@ class ImageVibrantColors:
         to a design. It's great for backgrounds, sidebars, or any UI element where you want a muted, 
         non-intrusive tone.  
         """
-        return self._DarkMuted
+        return self._DarkMuted or self._EmptySwatch
 
 
     @property
-    def DarkVibrant(self) -> str:
+    def DarkVibrant(self) -> Swatch:
         """ 
         A darker and vibrant version of the dominant color.  
 
@@ -78,11 +80,11 @@ class ImageVibrantColors:
         palette, like header bars, call-to-action buttons, or elements that need to grab attention 
         but in a muted, dark fashion.  
         """
-        return self._DarkVibrant
+        return self._DarkVibrant or self._EmptySwatch
 
 
     @property
-    def LightMuted(self) -> str:
+    def LightMuted(self) -> Swatch:
         """ 
         A lighter but muted version of the color palette.  
 
@@ -93,11 +95,11 @@ class ImageVibrantColors:
         provides a harmonious tone. It can be used for backgrounds, UI components, or designs that need 
         to remain visually calm or neutral.  
         """
-        return self._LightMuted
+        return self._LightMuted or self._EmptySwatch
 
 
     @property
-    def LightVibrant(self) -> str:
+    def LightVibrant(self) -> Swatch:
         """ 
         A lighter and vibrant version of the dominant color.  
 
@@ -109,11 +111,11 @@ class ImageVibrantColors:
         overpowering. It's useful for buttons, highlights, or icons that need to stand out in a bright, 
         colorful design while maintaining a softer appearance compared to darker vibrant tones.  
         """
-        return self._LightVibrant
+        return self._LightVibrant or self._EmptySwatch
 
 
     @property
-    def Muted(self) -> str:
+    def Muted(self) -> Swatch:
         """ 
         A color that is less saturated and has a softer tone.  
 
@@ -125,11 +127,11 @@ class ImageVibrantColors:
         visual presence. It works well for backgrounds, borders, or UI components that should be visible without 
         grabbing too much attention.  
         """
-        return self._Muted
+        return self._Muted or self._EmptySwatch
 
 
     @property
-    def Vibrant(self) -> str:
+    def Vibrant(self) -> Swatch:
         """ 
         The most dominant, bright, and saturated color in the image.  
 
@@ -140,7 +142,7 @@ class ImageVibrantColors:
         accent colors, calls to action (CTAs), buttons, and any design element where you want the color to stand 
         out and be visually stimulating.  
         """
-        return self._Vibrant
+        return self._Vibrant or self._EmptySwatch
 
 
     def ToDictionary(self) -> dict:
@@ -149,12 +151,12 @@ class ImageVibrantColors:
         """
         result:dict = \
         {
-            'dark_muted': self._DarkMuted,
-            'dark_vibrant': self._DarkVibrant,
-            'light_muted': self._LightMuted,
-            'light_vibrant': self._LightVibrant,
-            'muted': self._Muted,
-            'vibrant': self._Vibrant,
+            'dark_muted': self.DarkMuted.ToDictionary(),
+            'dark_vibrant': self.DarkVibrant.ToDictionary(),
+            'light_muted': self.LightMuted.ToDictionary(),
+            'light_vibrant': self.LightVibrant.ToDictionary(),
+            'muted': self.Muted.ToDictionary(),
+            'vibrant': self.Vibrant.ToDictionary(),
         }
         return result
         
@@ -171,10 +173,10 @@ class ImageVibrantColors:
         if includeTitle: 
             msg = 'ImageVibrantColors:'
         
-        msg = '%s\n DarkMuted="%s"' % (msg, str(self._DarkMuted))
-        msg = '%s\n DarkVibrant="%s"' % (msg, str(self._DarkVibrant))
-        msg = '%s\n LightMuted="%s"' % (msg, str(self._LightMuted))
-        msg = '%s\n LightVibrant="%s"' % (msg, str(self._LightVibrant))
-        msg = '%s\n Muted="%s"' % (msg, str(self._Muted))
-        msg = '%s\n Vibrant="%s"' % (msg, str(self._Vibrant))
+        msg = '%s\n DarkMuted: %s' % (msg, self.DarkMuted.ToString(False))
+        msg = '%s\n DarkVibrant: %s' % (msg, self.DarkVibrant.ToString(False))
+        msg = '%s\n LightMuted: %s' % (msg, self.LightMuted.ToString(False))
+        msg = '%s\n LightVibrant: %s' % (msg, self.LightVibrant.ToString(False))
+        msg = '%s\n Muted: %s' % (msg, self.Muted.ToString(False))
+        msg = '%s\n Vibrant: %s' % (msg, self.Vibrant.ToString(False))
         return msg 

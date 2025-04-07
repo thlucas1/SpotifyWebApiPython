@@ -20,6 +20,44 @@ class Swatch:
             object.__setattr__(self, "rgb", hsl_to_rgb(hsl))
         object.__setattr__(self, "population", population)
 
+    @property
+    def rgb_hex(self) -> str:
+        """ 
+        The RGB value expressed in displayable hex string format (e.g. "#ff560a").  
+        """
+        return f"#{self.rgb[0]:02x}{self.rgb[1]:02x}{self.rgb[2]:02x}"
+
+    def ToDictionary(self) -> dict:
+        """
+        Returns a dictionary representation of the class.
+        """
+        result:dict = \
+        {
+            'rgb_hex': self.rgb_hex,
+            'rgb': self.rgb,
+            'population': self.population,
+            'hsl': self.hsl
+        }
+        return result
+
+    def ToString(self, includeTitle:bool=False) -> str:
+        """
+        Returns a displayable string representation of the class.
+        
+        Args:
+            includeTitle (str):
+                True to include the class name title prefix.
+        """
+        msg:str = ''
+        if includeTitle: 
+            msg = 'Swatch:'
+        
+        msg = '%s RGBHex="%s"' % (msg, self.rgb_hex)
+        msg = '%s RGB=%s' % (msg, str(self.rgb))
+        msg = '%s Population=%s' % (msg, str(self.population))
+        msg = '%s HSL=%s' % (msg, str(self.hsl))
+        return msg 
+
 
 @dataclass
 class Palette:
