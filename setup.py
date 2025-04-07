@@ -60,6 +60,7 @@ setup(
     install_requires=[
         'lxml>=5.2.0',
         'oauthlib>=3.2.2',
+        'pillow>=11.1.0',
         'platformdirs>=4.1.0',
         'PyChromecast>=14.0.5',
         'pyotp>=2.9.0',

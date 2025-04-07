@@ -6,6 +6,16 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.197 ] - 2025/04/06
+
+  * Removed version 1.0.196, as the `vibrant-python` namespace has a dependency that was not compatible with current version of Home Assistant: "pillow>=10.1.0,<11.0.0".
+  * Added namespace `vibrant` to library to support vibrant color extraction.
+
+###### [ 1.0.196 ] - 2025/04/06
+
+  * Added `ImageVibrantColors` model that contains vibrant colors extracted from a processed image.
+  * Added `SpotifyClient.GetImageVibrantColors` method that extracts vibrant color palette RGB values from the specified image url.
+
 ###### [ 1.0.195 ] - 2025/04/03
 
   * Changed transfer playback behavior to resume playback of the last playing track instead of defaulting to playing of track favorites if no active device was found and Spotify Web Player cookie credentials are in use.  Note that track favorites will be used if no active device was found and Spotify Web Player cookie credentials are NOT in use.

@@ -24,6 +24,7 @@ from .externalids import ExternalIds
 from .externalurls import ExternalUrls
 from .followers import Followers
 from .imageobject import ImageObject
+from .imagevibrantcolors import ImageVibrantColors
 from .narrator import Narrator
 from .owner import Owner
 from .pageobject import PageObject
@@ -81,6 +82,7 @@ __all__ = [
     'ExternalUrls',
     'Followers',
     'ImageObject',
+    'ImageVibrantColors',
     'Narrator',
     'Owner',
     'PageObject',
