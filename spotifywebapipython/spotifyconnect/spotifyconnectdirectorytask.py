@@ -1302,11 +1302,31 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 if (not self._SpotifyConnectDevices.ContainsDeviceId(device.Id)):
                     self.AddDynamicDevice(device)
                         
-                # is the device in the available device list for this user context?
-                # if not, then set an indicator so we can re-activate it later if need be.
+                # check all registered Spotify Connect device entries.
                 for scDevice in self._SpotifyConnectDevices.Items:
-                    if (scDevice.DeviceInfo.DeviceId == device.Id):
+        
+                    # do we have a match on the device id?
+                    if (scDevice.DeviceInfo.DeviceId == device.Id) and ((device.Id or "") != ""):
+
+                        # indicate the device is in the available device list.
                         scDevice.IsInDeviceList = True
+
+                        # did the player device remote name change?
+                        # if so, then update the collection RemoteName as well as the Name.
+                        # this can happen for devices that are added to / removed from groups
+                        # and do not correctly inform interested parties via a zeroconf 
+                        # OnServiceStateChange event that the name has changed (e.g. Denon HEOS devices, etc).
+                        if (scDevice.DeviceInfo.RemoteName != device.Name) and ((device.Name or "") != ""):
+                            _logsi.LogVerbose("Detected Spotify Connect RemoteName change for SpotifyConnectDevices collection entry %s - %s; updated Spotify Web API PlayerDevice Name is \"%s\" - this is usually caused by a Speaker Group membership change" % (scDevice.Title, scDevice.DiscoveryResult.Description, device.Name), colorValue=SIColors.ForestGreen)
+                            scDevice.DeviceInfo.RemoteName = device.Name
+                            scDevice.Name = device.Name
+                            self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
+                            # TODO - we should probably call getInfo again to update DeviceInfo since GroupStatus has 
+                            # probably changed from "NONE" to "GROUP" or vice versa!
+                            # we will start with this to see how it goes.
+                            self._RaiseDeviceUpdated(scDevice)
+
+                        # don't need to search any more devices since we found the device id.
                         break
 
             # remove stale dynamic devices from results collection;

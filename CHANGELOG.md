@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.200 ] - 2025/04/23
+
+  * Added logic to detect device name changes when speakers are grouped / ungrouped. This can happen for devices that are added to / removed from groups and do not correctly inform interested parties via a zeroconf OnServiceStateChange event that the name has changed (e.g. Denon HEOS devices, etc).
+
 ###### [ 1.0.199 ] - 2025/04/07
 
   * Updated `ImageVibrantColors` model to include the rgb, hsl, and population values along with the rgb_hex values.  
