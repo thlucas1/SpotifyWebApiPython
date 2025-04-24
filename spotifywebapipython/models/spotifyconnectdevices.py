@@ -205,6 +205,7 @@ class SpotifyConnectDevices():
         device name value; otherwise, None.
         
         Alias entries (if any) are also compared.
+        Prefers a device with IsActiveDevice == True if available.
         """
         result:SpotifyConnectDevice = None
         if value is None:
@@ -212,36 +213,35 @@ class SpotifyConnectDevices():
         
         # convert case for comparison.
         value = value.lower()
-        
-        # process all discovered devices.
-        scDevice:SpotifyConnectDevice
-        for scDevice in self._Items:
+        matches = []
 
+        # process all discovered devices.
+        for scDevice in self._Items:
             # search aliases (if defined).
             if (scDevice.DeviceInfo.HasAliases):
-                scAlias:ZeroconfGetInfoAlias
                 for scAlias in scDevice.DeviceInfo.Aliases:
-                    if (scAlias.Name is not None):
-                        if (scAlias.Name.lower() == value):
-                            result = scDevice
-                            break
-                if result is not None:
-                    break
-
+                    if (scAlias.Name is not None) and (scAlias.Name.lower() == value):
+                        matches.append(scDevice)
+                        break
             else:
-
                 # match on `getInfo` RemoteName value (if defined).
-                if (scDevice.DeviceInfo.RemoteName is not None):
-                    if (scDevice.DeviceInfo.RemoteName.lower() == value):
-                        result = scDevice
-                        break
-
+                if (scDevice.DeviceInfo.RemoteName is not None) and (scDevice.DeviceInfo.RemoteName.lower() == value):
+                    matches.append(scDevice)
+                    continue
                 # match on Zeroconf DeviceName value (if defined).
-                if (scDevice.DiscoveryResult.DeviceName is not None):
-                    if (scDevice.DiscoveryResult.DeviceName.lower() == value):
-                        result = scDevice
-                        break
-        return result
+                if (scDevice.DiscoveryResult.DeviceName is not None) and (scDevice.DiscoveryResult.DeviceName.lower() == value):
+                    matches.append(scDevice)
+                    continue
+
+        # Prefer active device if present
+        for device in matches:
+            if getattr(device, "IsActiveDevice", False):
+                return device
+            
+        # Otherwise return the first match, or None
+        if matches:
+            return matches[0]
+        return None
     
 
     def GetDeviceList(self) -> list[Device]:
@@ -345,4 +345,4 @@ class SpotifyConnectDevices():
             for item in self._Items:
                 msg = "%s\n- %s" % (msg, item.ToString(True))
             
-        return msg 
+        return msg
