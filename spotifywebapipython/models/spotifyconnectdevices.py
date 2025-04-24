@@ -232,16 +232,16 @@ class SpotifyConnectDevices():
                     matches.append(scDevice)
                     continue
 
-        # Prefer active device if present
+        # prefer active device if present
         for device in matches:
             if device.IsActiveDevice:
                 return device
             
-        # Otherwise return the first match, or None
+        # return the first device if there are no active devices
         if matches:
             return matches[0]
         
-        # no matches found
+        # return None if no matches are found at all
         return None
     
 
