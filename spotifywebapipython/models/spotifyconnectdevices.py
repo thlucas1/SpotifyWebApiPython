@@ -207,13 +207,12 @@ class SpotifyConnectDevices():
         Alias entries (if any) are also compared.
         Prefers a device with IsActiveDevice == True if available.
         """
-        result:SpotifyConnectDevice = None
         if value is None:
-            return result
+            return None
         
         # convert case for comparison.
         value = value.lower()
-        matches = []
+        matches: list[SpotifyConnectDevice] = []
 
         # process all discovered devices.
         for scDevice in self._Items:
@@ -235,12 +234,14 @@ class SpotifyConnectDevices():
 
         # Prefer active device if present
         for device in matches:
-            if getattr(device, "IsActiveDevice", False):
+            if device.IsActiveDevice:
                 return device
             
         # Otherwise return the first match, or None
         if matches:
             return matches[0]
+        
+        # no matches found
         return None
     
 
