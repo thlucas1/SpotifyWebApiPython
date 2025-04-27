@@ -13845,6 +13845,8 @@ class SpotifyClient:
             # sometimes the `play` argument to the Spotify Web API transfer playback command 
             # is not honored, so we do a pause / resume here to ensure it's correct.  
             try:
+                # if (play is None):
+                #     _logsi.LogVerbose("Resuming play on device was bypassed, as play argument was not supplied")
                 if (play):
                     _logsi.LogVerbose("Resuming play on device, in case it's not already playing")
                     self.PlayerMediaResume(scDevice)

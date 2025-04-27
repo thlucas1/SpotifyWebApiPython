@@ -456,9 +456,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # syncronize access via lock, as we are accessing the collection.
             with self._SpotifyConnectDevices_RLock:
 
-                scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByName(deviceName)
+                # search for device id first; if no matches, then search for name.
+                scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceById(deviceName)
                 if (scDevice is None):
-                    scDevice = self._SpotifyConnectDevices.GetDeviceById(deviceName)
+                    scDevice = self._SpotifyConnectDevices.GetDeviceByName(deviceName)
                 if (scDevice is None):
                     raise SpotifyApiError("Chromecast device \"%s\" could not be found in the SpotifyConnectDevices collection." % (deviceName), logsi=_logsi)
 
@@ -874,6 +875,19 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # check for the device name in the devices collection.
                 scDevice = self._SpotifyConnectDevices.GetDeviceByName(value)
                 if (scDevice is not None):
+
+                    # we have a device match by name!
+                    # is there an active player device? 
+                    if (scActiveDevice is not None):
+
+                        # does the active device have the same name, but a different device id?
+                        if (scActiveDevice.Name == scDevice.Name) and (scActiveDevice.Id != scDevice.Id):
+                            # this denotes that we have 2 devices in the device list with the same name
+                            # but different id's.  in this case we will use the active device, since it
+                            # is already active.
+                            _logsi.LogObject(SILevel.Verbose, "Spotify Player device %s was found in the Spotify Connect Devices collection (by Duplicate Name), which denotes that we have 2 devices in the device list with the same name but different id's; in this case we will use the active device (id=%s), since it is already active" % (scDevice.Title, scActiveDevice.Id), scDevice, excludeNonPublic=True)
+                            scDevice = scActiveDevice
+
                     _logsi.LogObject(SILevel.Verbose, "Spotify Player device %s was found in the Spotify Connect Devices collection (by Name)" % (scDevice.Title), scDevice, excludeNonPublic=True)
                     return copy.deepcopy(scDevice)
 
