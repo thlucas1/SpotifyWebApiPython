@@ -10221,7 +10221,7 @@ class SpotifyClient:
 
                 # activate the spotify cast application on the device.
                 _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s" % (scDevice.Title))
-                self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Name, transferPlayback=False)
+                self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
 
                 # re-fetch device instance, as it has updated Zeroconf Response data.
                 # do not need to refresh from Spotify Web API, as only zeroconf data was changed.
@@ -13815,10 +13815,15 @@ class SpotifyClient:
                 return scDevice
 
             # is the resolved device already active?
-            if (scActiveDevice is not None) and (scActiveDevice.Name == scDevice.Name):
+            if (scActiveDevice is not None) and (scActiveDevice.Id == scDevice.Id):
 
                 # trace.
-                _logsi.LogVerbose("Spotify Connect device %s is already active; no need to transfer playback" % (scDevice.Title))
+                _logsi.LogVerbose("Spotify Connect device %s is already active (by Id); no need to transfer playback" % (scDevice.Title))
+
+            elif (scActiveDevice is not None) and (scActiveDevice.Name == scDevice.Name) and ((scActiveDevice.Id or "") == ""):
+
+                # trace.
+                _logsi.LogVerbose("Spotify Connect device %s is already active (by Name); no need to transfer playback" % (scDevice.Title))
 
             else:
 

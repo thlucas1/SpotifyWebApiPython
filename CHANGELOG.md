@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.202 ] - 2025/04/27
+
+  * Corrected logic to resolve device object by device name when there are duplicate names defined to the device list.
+
 ###### [ 1.0.201 ] - 2025/04/26
 
   * Added logic to resolve device object by device name when there are duplicate names defined to the device list.  If the resolved device name is the same as the active device name, but the id's are different, then the active device is used instead of the resolved device.

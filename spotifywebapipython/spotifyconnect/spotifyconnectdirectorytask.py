@@ -677,6 +677,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 info.BrandDisplayName = 'Microsoft'
                 info.ModelDisplayName = 'Edge'
                 info.ProductId = 'Web Player'
+            elif (device.Name == "iPhone") and (device.Type == "Smartphone"):
+                info.BrandDisplayName = 'Apple'
+                info.ModelDisplayName = 'iPhone'
+                info.ProductId = 'Mobile Player'
             else:
                 info.BrandDisplayName = 'unknown'
                 info.ModelDisplayName = 'unknown'
@@ -1425,11 +1429,22 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     device = playerState.Device
                     for scDevice in self._SpotifyConnectDevices.Items:
                         scDevice.IsActiveDevice = False
-                        if (device.Name == scDevice.Name):
-                            _logsi.LogVerbose("Spotify Connect active device detected: %s" % (scDevice.Title))
-                            scDevice.IsActiveDevice = True
-                            if (playerState.Device is not None):
+
+                        # is a device id present?
+                        if ((device.Id or "") != ""):
+
+                            # yes - compare on the device id.
+                            if (device.Id == scDevice.Id):
+                                _logsi.LogVerbose("Spotify Connect active device detected (By Id): %s" % (scDevice.Title))
+                                scDevice.IsActiveDevice = True
                                 scDevice.IsRestricted = playerState.Device.IsRestricted
+                                result = copy.deepcopy(scDevice)
+
+                        # no - compare on the device name.
+                        elif (device.Name == scDevice.Name):
+                            _logsi.LogVerbose("Spotify Connect active device detected (By Name): %s" % (scDevice.Title))
+                            scDevice.IsActiveDevice = True
+                            scDevice.IsRestricted = playerState.Device.IsRestricted
                             result = copy.deepcopy(scDevice)
 
             # returns null if the `playerState` argument was not specified; 
