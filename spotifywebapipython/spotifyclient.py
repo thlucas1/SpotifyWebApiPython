@@ -10283,6 +10283,10 @@ class SpotifyClient:
                 # if not, then it's a lost cause at this point since it's probably in an UNKNOWN state.
                 if sonosMusicSource != "SPOTIFY_CONNECT":
                     _logsi.LogVerbose("Sonos device %s music source after Connect is not SPOTIFY_CONNECT; it will probably fail to play" % (scDevice.Title))
+                elif (self.HasSpotifyWebPlayerCredentials):
+                    # if using Spotify Web Player credentials, then we don't have to wait for device.
+                    _logsi.LogVerbose("Sonos device with Spotify Web Player Credentials detected; no need to wait for device active player device")
+                    return scDevice
 
             # at this point the Sonos music source should be set to SPOTIFY_CONNECT, and control
             # transferred to the device.  note that the Sonos device will still NOT appear in the 
@@ -10291,7 +10295,9 @@ class SpotifyClient:
             # wait for the device to enter the Spotify Web API player device list, or
             # to become the active device.  
             # Sonos devices are famous for not showing up in the device list, but DO 
-            # appear as the active (restricted) device!
+            # appear as the active (restricted) device!  Note that if using Spotify Web Player 
+            # Credentials, they will not appear as the active device until AFTER the transfer
+            # playback endpoint has been called.
             loopTotalDelay:float = 0
             LOOP_DELAY:float = 0.350
             while True:

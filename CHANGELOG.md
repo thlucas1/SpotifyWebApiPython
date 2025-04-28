@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.203 ] - 2025/04/28
+
+  * Fixed a bug that was causing Sonos devices to transfer playback after a 5 second delay.  Delay can be removed if using Spotify Web Player Credentials for control.
+
 ###### [ 1.0.202 ] - 2025/04/27
 
   * Corrected logic to resolve device object by device name when there are duplicate names defined to the device list.
