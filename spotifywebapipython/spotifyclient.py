@@ -1281,7 +1281,8 @@ class SpotifyClient:
                 
             # trace.
             if (msg.HasRequestHeaders):
-                # "User-Agent: Spotify/8.9.76 iOS/18.1 (iPhone17,1)"
+                # msg.RequestHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
+                # msg.RequestHeaders["User-Agent"] = "Spotify/8.9.76 iOS/18.1 (iPhone17,1)"
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
             # *** IMPORTANT ***
@@ -7131,6 +7132,10 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
+            # as of 2025/05/03, Spotify removed functionality for this endpoint even if Spotify Web Player Credentials are used!
+            # the following will force a deprecated exception, and allow us to leave the code in place in case this changes in the future.
+            accessTokenHeaderValue = None
+
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
@@ -9187,7 +9192,11 @@ class SpotifyClient:
                 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+            #accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # as of 2025/05/03, Spotify removed inclusion of Spotify Algorithmic playlists for this endpoint even if Spotify Web Player Credentials are used!
+            # a `404 Not Found` error will be returned if the Spotify Web Player Credentials are used!
+            accessTokenHeaderValue = None
 
             # validations.
             if limit is None: 
@@ -10937,9 +10946,18 @@ class SpotifyClient:
                 'ids': ids
             }
 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
@@ -11239,6 +11257,10 @@ class SpotifyClient:
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # as of 2025/05/03, Spotify removed functionality for this endpoint even if Spotify Web Player Credentials are used!
+            # the following will force a deprecated exception, and allow us to leave the code in place in case this changes in the future.
+            accessTokenHeaderValue = None
 
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.

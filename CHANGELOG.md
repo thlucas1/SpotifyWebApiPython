@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.204 ] - 2025/05/04
+
+  * Updated `SpotifyClient` methods to return an exception due to the functions being removed by the Spotify development team (without warning, as usual).  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.  The following methods will now raise a `SpotifyApiError` exception due to the Spotify development team changes: `GetTrackRecommendations`, `GetGenres`.  
+  * Updated `SpotifyClient.GetPlaylistFavorites` method to not use the Spotify Web Player Credentials, as it was returning a `404 Not Found`.  It seems that the Spotify developers disabled the extended functionality, so that any "Made For You" playlists cannot be returned in the results.  User-defined playlist favorites will be returned as normal.
+
 ###### [ 1.0.203 ] - 2025/04/28
 
   * Fixed a bug that was causing Sonos devices to transfer playback after a 5 second delay.  Delay can be removed if using Spotify Web Player Credentials for control.
