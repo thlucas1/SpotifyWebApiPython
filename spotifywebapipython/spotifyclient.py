@@ -10298,6 +10298,10 @@ class SpotifyClient:
                     # if using Spotify Web Player credentials, then we don't have to wait for device.
                     _logsi.LogVerbose("Sonos device with Spotify Web Player Credentials detected; no need to wait for device active player device")
                     return scDevice
+                else:
+                    # if not using Spotify Web Player credentials, then resume play on the device.
+                    # at this point the music source is "SPOTIFY_CONNECT", so it should transfer control.
+                    self.PlayerMediaResume(scDevice)
 
             # at this point the Sonos music source should be set to SPOTIFY_CONNECT, and control
             # transferred to the device.  note that the Sonos device will still NOT appear in the 

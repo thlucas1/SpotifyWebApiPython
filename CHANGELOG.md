@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.206 ] - 2025/05/08
+
+  * Added logic to transfer playback corectly for Sonos devices after Spotify API changes that broke functionaity.
+
 ###### [ 1.0.205 ] - 2025/05/08
 
   * Updated `SpotifyClient` methods to change the default Spotify Developer App Redirect URL to comply with Spotify guidance; value was changed from `localhost` to `127.0.0.1`.  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2025-02-12-increasing-the-security-requirements-for-integrating-with-spotify) that was conveyed on February 12, 2025.
