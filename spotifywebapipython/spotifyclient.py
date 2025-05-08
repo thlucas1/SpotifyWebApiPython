@@ -1281,8 +1281,10 @@ class SpotifyClient:
                 
             # trace.
             if (msg.HasRequestHeaders):
-                # msg.RequestHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
+                # msg.RequestHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.178 Spotify/1.2.62.580 Safari/537.36"
                 # msg.RequestHeaders["User-Agent"] = "Spotify/8.9.76 iOS/18.1 (iPhone17,1)"
+                # msg.RequestHeaders["Authority"] = "spclient.wg.spotify.com"     # TEST TODO REMOVEME
+                # msg.RequestHeaders["Content-Type"] = "text/plain;charset=UTF-8" # TEST TODO REMOVEME
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
             # *** IMPORTANT ***
@@ -16750,7 +16752,7 @@ class SpotifyClient:
         scope:str=None, 
         tokenProfileId:str=None,
         forceAuthorize:bool=False,
-        redirectUriHost:str='localhost', 
+        redirectUriHost:str='127.0.0.1', 
         redirectUriPort:int=8080,
         redirectUriPath:str='/',
         ) -> None:
@@ -16779,7 +16781,7 @@ class SpotifyClient:
                 Default is False.
             redirectUriHost (str):
                 The value to use for the host portion of the redirect URI.  
-                Default is 'localhost'.
+                Default is '127.0.0.1'.
             redirectUriPort (int):
                 The value to use for the port portion of the redirect URI.  You can specify a
                 single port as an integer, or a port range as a list (e.g. [8080,8090]).  If a 
@@ -16817,7 +16819,7 @@ class SpotifyClient:
         authorization code from the response and shutdown. The authorization code is then exchanged 
         for a Spotify authorization token.
 
-        Note that you must have 'http://localhost:8080/' in the Redirect URI allowlist that you 
+        Note that you must have 'http://127.0.0.1:8080/' in the Redirect URI allowlist that you 
         specified when you registered your application in the Spotify Developer Portal.  The
         redirect URI is case-sensitive, and must contain the trailing slash.  You will need to
         adjust the redirect URI value if you specify custom values using the `redirectUriHost`,
@@ -16843,7 +16845,7 @@ class SpotifyClient:
                         
             # validation.
             if redirectUriHost is None or len(redirectUriHost.strip()) == 0:
-                redirectUriHost = 'localhost'
+                redirectUriHost = '127.0.0.1'
             if redirectUriPort is None:
                 redirectUriPort = 8080
             if scope is not None:
@@ -16943,7 +16945,7 @@ class SpotifyClient:
         scope:str=None, 
         tokenProfileId:str=None,
         forceAuthorize:bool=False,
-        redirectUriHost:str='localhost', 
+        redirectUriHost:str='127.0.0.1', 
         redirectUriPort:int=8080, 
         redirectUriPath:str='/'
         ) -> None:
@@ -16970,7 +16972,7 @@ class SpotifyClient:
                 Default is False.
             redirectUriHost (str):
                 The value to use for the host portion of the redirect URI.  
-                Default is 'localhost'.
+                Default is '127.0.0.1'.
             redirectUriPort (int):
                 The value to use for the port portion of the redirect URI.  You can specify a
                 single port as an integer, or a port range as a list (e.g. [8080,8090]).  If a 
@@ -17007,7 +17009,7 @@ class SpotifyClient:
         authorization code from the response and shutdown. The authorization code is then exchanged 
         for a Spotify authorization token.
 
-        Note that you must have 'http://localhost:8080/' in the Redirect URI allowlist that you 
+        Note that you must have 'http://127.0.0.1:8080/' in the Redirect URI allowlist that you 
         specified when you registered your application in the Spotify Developer Portal.  The
         redirect URI is case-sensitive, and must contain the trailing slash.  You will need to
         adjust the redirect URI value if you specify custom values using the `redirectUriHost`,
@@ -17032,7 +17034,7 @@ class SpotifyClient:
                 
             # validation.
             if redirectUriHost is None or len(redirectUriHost.strip()) == 0:
-                redirectUriHost = 'localhost'
+                redirectUriHost = '127.0.0.1'
             if redirectUriPort is None:
                 redirectUriPort = 8080
             if scope is not None:

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.205 ] - 2025/05/08
+
+  * Updated `SpotifyClient` methods to change the default Spotify Developer App Redirect URL to comply with Spotify guidance; value was changed from `localhost` to `127.0.0.1`.  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2025-02-12-increasing-the-security-requirements-for-integrating-with-spotify) that was conveyed on February 12, 2025.
+
 ###### [ 1.0.204 ] - 2025/05/04
 
   * Updated `SpotifyClient` methods to return an exception due to the functions being removed by the Spotify development team (without warning, as usual).  More information can be found on the [Spotify Developer Forum Blog post](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) that was conveyed on November 27, 2024.  The following methods will now raise a `SpotifyApiError` exception due to the Spotify development team changes: `GetTrackRecommendations`, `GetGenres`.  
