@@ -5,8 +5,15 @@ import time
 
 # our package imports.
 from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController, TYPE_LAUNCH_ERROR
-from spotifywebapipython.spotifywebplayertoken import SpotifyWebPlayerToken
+from spotifywebapipython.spotifyauthtoken import SpotifyAuthToken
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
+from spotifywebapipython.oauthcli.authclient import AuthClient
+from spotifywebapipython.const import (
+    SPOTIFY_API_AUTHORIZE_URL,
+    SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DESKTOP_APP_CLIENT_ID,
+    TRACE_METHOD_RESULT,
+)
 
 # get smartinspect logger reference; create a new session for this module name.
 from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIColors
@@ -197,23 +204,18 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                     self._CastDevice.start()
                     self._CastDevice.wait(10)
 
-            # get spotify chromecast app access token info from spotify web player cookie credentials.
-            # if token already retrieved and has not expired, then use it; otherwise, retrieve it.
-            tokenWP:SpotifyWebPlayerToken = self.SpotifyClientInstance._SpotifyWebPlayerToken
-            if (tokenWP is not None) and (not tokenWP.IsExpired):
-                _logsi.LogVerbose("%s - Using existing Spotify Web Player authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
-            else:
-                _logsi.LogVerbose("%s - Converting Spotify Web Player cookie credentials to an authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
-                tokenWP = SpotifyWebPlayerToken(profileId=self.SpotifyClientInstance.SpotifyConnectLoginId,
-                                                tokenStorageDir=self.SpotifyClientInstance.TokenStorageDir,
-                                                tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile,
-                                                spotifyWebPlayerCookieSpdc=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpdc,
-                                                spotifyWebPlayerCookieSpkey=self.SpotifyClientInstance.SpotifyWebPlayerCookieSpkey)
-                self.SpotifyClientInstance._SpotifyWebPlayerToken = tokenWP
+            # get spotify desktop authorization token.
+            _logsi.LogVerbose("%s - Retrieving Spotify Desktop authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
+            tokenSP:SpotifyAuthToken = self._GetSpotifyDesktopAuthorizationToken(self.SpotifyClientInstance.SpotifyConnectLoginId)
 
-            # launch spotify chromecast app on the device, passing it the spotify web player access token info.
+            # if token was not created, then an exception occured during the launch.
+            # in this case, we can't do anything else.
+            if (tokenSP is None):
+                return
+
+            # launch spotify chromecast app on the device, passing it the spotify desktop player authorization token info.
             _logsi.LogVerbose("%s - Launching Spotify Chromecast App for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenWP.AccessToken, tokenWP.ExpiresAt)
+            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenSP.AccessToken, tokenSP.ExpiresAt)
             self._CastDevice.register_handler(self._SpotifyConnectZeroconfCastController)
             self._SpotifyConnectZeroconfCastController.launch_app(10)
 
@@ -351,3 +353,90 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
 
             # ignore exceptions, as there is nothing we can do about them.
             pass
+
+
+
+    def _GetSpotifyDesktopAuthorizationToken(
+            self,    
+            loginId:str,
+            ) -> SpotifyAuthToken:
+        """
+        Retrieve Spotify Desktop authorrization access token from the token cache file.
+        The resulting token will be used to launch the Spotify cast app.
+        """
+        apiMethodName:str = '_GetSpotifyDesktopAuthorizationToken'
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Retrieving Spotify Desktop authorization access token for Spotify LoginId: '%s'" % (loginId))
+
+            # Spotify Desktop App scopes requested for Spotify Connect (streaming only as of 2024/08/13)
+            SPOTIFY_SCOPES:list = \
+            [
+                'streaming',
+            ]
+                
+            # create oauth provider for spotify authentication code with pkce.
+            _logsi.LogVerbose('creating OAuth2 provider for Spotify Authentication Code with PKCE')
+            authClient:AuthClient = AuthClient(
+                authorizationType='Authorization Code PKCE',
+                authorizationUrl=SPOTIFY_API_AUTHORIZE_URL,
+                tokenUrl=SPOTIFY_API_TOKEN_URL,
+                scope=SPOTIFY_SCOPES,
+                clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
+                tokenStorageDir=self._SpotifyClientInstance.TokenStorageDir,
+                tokenStorageFile=self._SpotifyClientInstance.TokenStorageFile,
+                tokenProviderId='SpotifyWebApiAuthCodePkce',
+                tokenProfileId=loginId,
+            )
+           
+            # raise an exception if the authorization token is not present, or the scope has changed.
+            # the user must create the authorization token outside of this process, as the Spotify
+            # authorization token is driven by responding to a web request for access using OAuth.
+            # as this process is running on a server, there is no way for the user to respond to the
+            # request (e.g. via browser nor command-line).
+            isAuthorized = authClient.IsAuthorized
+            _logsi.LogVerbose('Checking OAuth2 authorization status: IsAuthorized=%s' % isAuthorized)
+            if (isAuthorized == False):
+                raise Exception("Spotify Desktop Player authorization token was not found in the token cache file.")
+            else:
+                _logsi.LogVerbose('OAuth2 authorization token has previously been authorized')
+
+            # process results.
+            oauth2token:dict = authClient.Session.token
+            authToken = SpotifyAuthToken(authClient.AuthorizationType, authClient.TokenProfileId, root=oauth2token)
+            
+            # does token need to be refreshed?
+            if authToken.IsExpired:
+
+                # refresh the token.  
+                # this will also store the refreshed token to disk to be used later if required.
+                _logsi.LogVerbose('OAuth2 authorization token has expired, or is about to; token will be refreshed')
+                oauth2token:dict = authClient.RefreshToken()
+                authToken = SpotifyAuthToken(authClient.AuthorizationType, authClient.TokenProfileId, root=oauth2token)
+                _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, authToken, excludeNonPublic=True)
+            
+            else:
+                
+                _logsi.LogVerbose('OAuth2 authorization token has not expired')
+
+            # return spotify desktop token to caller.
+            return authToken
+        
+        except Exception as ex:
+
+            # post launchError event with exception details.
+            # this will also log a trace message.
+            self._PostLaunchErrorEvent(1003, str(ex))
+
+            # trace.
+            _logsi.LogVerbose("%s - Thread task is ending due to exception" % (self.name))
+
+            #ignore exceptions, as there is nothing we can do about them!
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)

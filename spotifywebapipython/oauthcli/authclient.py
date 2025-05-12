@@ -469,10 +469,11 @@ class AuthClient:
 
                     # return if token key exists or not.
                     if tokenKey in tokens:
-                        _logsi.LogDictionary(SILevel.Verbose, 'Token was found in token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
+                        _logsi.LogDictionary(SILevel.Verbose, 'Token was found in token storage file for key: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
                         return True
         
             # indicate token was not found.
+            _logsi.LogVerbose('Token was not found in token storage file for key: "%s"' % (tokenKey))           
             return False
         
         except Exception as ex:
@@ -525,8 +526,10 @@ class AuthClient:
 
                     # if token key exists then load the token.
                     if tokenKey in tokens:
-                        _logsi.LogDictionary(SILevel.Verbose, 'Token was loaded from token storage file for provider: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
+                        _logsi.LogDictionary(SILevel.Verbose, 'Token was loaded from token storage file for key: "%s"' % (tokenKey), tokens[tokenKey], prettyPrint=True)
                         return tokens[tokenKey]
+                    else:
+                        _logsi.LogVerbose('Token was not found in token storage file for key: "%s"' % (tokenKey))           
                         
         except Exception as ex:
             

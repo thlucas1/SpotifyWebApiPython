@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.207 ] - 2025/05/12
+
+  * Updated `SpotifyConnectZeroconfCastAppTask` logic to use the Spotify Desktop Player OAuth2 token to activate Google Chromecast devices.  This was necessary due to changes made by Spotify to disable Spotify Web Player Cookie credential access token usage with their Spotify Web API.
+
 ###### [ 1.0.206 ] - 2025/05/08
 
   * Added logic to transfer playback corectly for Sonos devices after Spotify API changes that broke functionaity.
