@@ -1008,6 +1008,14 @@ class SpotifyClient:
                     if (self._HasSpotifyWebPlayerCredentials):
                         _logsi.LogVerbose("Spotify Web Player cookie credentials were specified in the Token Cache File")
 
+                # NOTE: as of 2025/05/12, Spotify removed access to Spotify Web Player Credentials functionality;
+                # the `self._HasSpotifyWebPlayerCredentials = False` flag is set here to automatically disable the functionality.
+                # I left the code that checks this flag in place elsewhere in case credentials are re-enabled in the future.
+
+                # disable Spotify Web Player Cookie Credentials functionality.
+                _logsi.LogVerbose("Spotify Web Player cookie credentials are no longer supported by Spotify as of 2025/05/12!", colorValue=SIColors.Red)
+                self._HasSpotifyWebPlayerCredentials = False
+
             except Exception as ex:
 
                 # could not detect player credentials; assume none.
@@ -1283,8 +1291,8 @@ class SpotifyClient:
             if (msg.HasRequestHeaders):
                 # msg.RequestHeaders["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.178 Spotify/1.2.62.580 Safari/537.36"
                 # msg.RequestHeaders["User-Agent"] = "Spotify/8.9.76 iOS/18.1 (iPhone17,1)"
-                # msg.RequestHeaders["Authority"] = "spclient.wg.spotify.com"     # TEST TODO REMOVEME
-                # msg.RequestHeaders["Content-Type"] = "text/plain;charset=UTF-8" # TEST TODO REMOVEME
+                # msg.RequestHeaders["Authority"] = "spclient.wg.spotify.com"
+                # msg.RequestHeaders["Content-Type"] = "text/plain;charset=UTF-8"
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
             # *** IMPORTANT ***
@@ -7134,10 +7142,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # as of 2025/05/03, Spotify removed functionality for this endpoint even if Spotify Web Player Credentials are used!
-            # the following will force a deprecated exception, and allow us to leave the code in place in case this changes in the future.
-            accessTokenHeaderValue = None
-
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
@@ -9194,11 +9198,7 @@ class SpotifyClient:
                 
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
-            #accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # as of 2025/05/03, Spotify removed inclusion of Spotify Algorithmic playlists for this endpoint even if Spotify Web Player Credentials are used!
-            # a `404 Not Found` error will be returned if the Spotify Web Player Credentials are used!
-            accessTokenHeaderValue = None
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
             # validations.
             if limit is None: 
@@ -10231,7 +10231,7 @@ class SpotifyClient:
             if (scDevice.IsChromeCast):
 
                 # activate the spotify cast application on the device.
-                _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s" % (scDevice.Title))
+                _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
                 self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
 
                 # re-fetch device instance, as it has updated Zeroconf Response data.
@@ -11263,10 +11263,6 @@ class SpotifyClient:
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # as of 2025/05/03, Spotify removed functionality for this endpoint even if Spotify Web Player Credentials are used!
-            # the following will force a deprecated exception, and allow us to leave the code in place in case this changes in the future.
-            accessTokenHeaderValue = None
 
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
@@ -12300,7 +12296,7 @@ class SpotifyClient:
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
-
+            
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
             # if spotify web player credentials are NOT configured, then we will transfer control to the

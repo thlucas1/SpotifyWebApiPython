@@ -187,7 +187,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                     return
 
                 # let the parent handle the event.
-                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName)
+                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName, apiMethodName)
 
             except Exception as ex:
             
@@ -307,7 +307,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                     return
 
                 # let the parent handle the event.
-                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName)
+                self._ParentDirectory.OnServiceInfoAddedUpdatedChromecast(result, argsUuid, argsServiceName, apiMethodName)
 
             except Exception as ex:
             

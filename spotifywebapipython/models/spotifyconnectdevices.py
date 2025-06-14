@@ -244,6 +244,56 @@ class SpotifyConnectDevices():
         return result
     
 
+    def GetDeviceByNameAndId(self, deviceName:str, deviceId:str) -> int:
+        """ 
+        Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
+        device name and id value; otherwise, None.
+        
+        Alias entries (if any) are NOT compared.
+        """
+        result:SpotifyConnectDevice = None
+        if deviceName is None:
+            return result
+        if deviceId is None:
+            return deviceId
+        
+        # convert case for comparison.
+        deviceName = deviceName.lower()
+        deviceId = deviceId.lower()
+
+        # process all devices, comparing device name and id.
+        scDevice:SpotifyConnectDevice
+        for scDevice in self._Items:
+            if (scDevice.Name is not None) and (scDevice.Id is not None):
+                if (scDevice.Name.lower() == deviceName) and (scDevice.Id.lower() == deviceId):
+                    result = scDevice
+                    break       
+        return result
+
+
+    def GetDeviceIndexByDiscoveryName(self, value:str) -> int:
+        """ 
+        Returns the index of the `Items` collection entry that contains 
+        the specified device zeroconf discovery results name value if found; 
+        otherwise, -1.
+        """
+        result:int = -1
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+
+        # process all devices, comparing discovery keys.
+        for i in range(len(self._Items)):
+            if (self._Items[i].DiscoveryResult is not None):
+                if (self._Items[i].DiscoveryResult.Name is not None):
+                    if (self._Items[i].DiscoveryResult.Name.lower() == value):
+                        result = i
+                        break       
+        return result
+
+
     def GetDeviceList(self) -> list[Device]:
         """
         Returns a list of `Device` objects that can be used to build a selection list
@@ -289,29 +339,6 @@ class SpotifyConnectDevices():
 
         return result
     
-
-    def GetDeviceIndexByDiscoveryName(self, value:str) -> int:
-        """ 
-        Returns the index of the `Items` collection entry that contains 
-        the specified device zeroconf discovery results name value if found; 
-        otherwise, -1.
-        """
-        result:int = -1
-        if value is None:
-            return result
-        
-        # convert case for comparison.
-        value = value.lower()
-
-        # process all devices, comparing discovery keys.
-        for i in range(len(self._Items)):
-            if (self._Items[i].DiscoveryResult is not None):
-                if (self._Items[i].DiscoveryResult.Name is not None):
-                    if (self._Items[i].DiscoveryResult.Name.lower() == value):
-                        result = i
-                        break       
-        return result
-
 
     def ToDictionary(self) -> dict:
         """

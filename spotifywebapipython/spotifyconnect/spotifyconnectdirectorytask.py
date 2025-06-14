@@ -5,6 +5,7 @@ import copy
 from datetime import datetime
 import hashlib
 from pychromecast import CastBrowser, CastInfo, Chromecast, get_chromecast_from_cast_info
+from pychromecast.const import CAST_TYPE_GROUP
 import socket
 from soco import SoCo
 import threading
@@ -1114,6 +1115,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         ) -> str:
         """
         Retrieve the Spotify deviceID from provided user-friendly name.
+
+        DeviceId is just the md5 hash representation of the user-friendly-name.
         """
         if (name is None):
             name = ""
@@ -1457,7 +1460,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         self, 
         zeroconfDiscoveryResult:ZeroconfDiscoveryResult,
         uuid:UUID, 
-        serviceName:str
+        serviceName:str,
+        serviceType:str,
         ) -> None:
         """
         Called when a Chromecast MDNS service record has been discovered
@@ -1471,6 +1475,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 metadata in CastBrowser.devices and CastBrowser.services collection.
             serviceName (str):
                 First known MDNS service name or host:port.
+            serviceType (str):
+                Service call type (e.g. "add_cast", "update_cast").
 
         This method will be called in a thread-safe manner, as the caller is using
         the `_Zeroconf_RLock` object to control access.
@@ -1483,7 +1489,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # trace.
                 _logsi.EnterMethod(SILevel.Debug)
 
-                # add / update discovered results by serviceinfo key (e.g. uuid) value. 
+                # add / update discovered results by serviceinfo name value.
+                # examples: 
+                # - "SHIELD-Android-TV-72735c92dead1a2d62df0229b1590a65._googlecast._tcp.local."
+                # - "Google-Cast-Group-B85B00FE5F514A40BF6AFBBCCEB7C8DF._googlecast._tcp.local."
                 scDevice:SpotifyConnectDevice = None
                 idx:int = self._SpotifyConnectDevices.GetDeviceIndexByDiscoveryName(zeroconfDiscoveryResult.Name)
                 if (idx == -1):
@@ -1541,6 +1550,44 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # remove the dynamic device from the collection.
                         self.RemoveDevice(spDynamicDevice.Id, dynamicDeviceOnly=True)
 
+                    # is this a Google Cast Group?
+                    if (castInfo.cast_type == CAST_TYPE_GROUP):
+
+                        # if so, then "add_cast" entries will occur for every member of the group.
+                        # we only want to keep the LAST group entry zeroconfDiscoveryResult on file,
+                        # and ignore all of the others; otherwise, it creates duplicate entries in the 
+                        # devices collection for each member device of the group!
+
+                        # example: RemoteName = "Kitchen Parlor", DeviceID = 3fb9b12379e4fa1957d065b4c4568939
+                        # - (add_cast) "Google-Cast-Group-B85B00FE5F514A40BF6AFBBCCEB7C8DF-1._googlecast._tcp.local."
+                        #   HostIPAddr = 192.168.1.14:32139
+                        #   GroupMembr = "Kitchen Speakers", 192.168.1.14:8009
+                        #   RemoteName = "Kitchen Parlor"
+                        #   DeviceID   = 3fb9b12379e4fa1957d065b4c4568939
+                        # - (add_cast) "Google-Cast-Group-B85B00FE5F514A40BF6AFBBCCEB7C8DF._googlecast._tcp.local."
+                        #   HostIPAddr = 192.168.1.186:32139
+                        #   GroupMembr = "Parlor Speakers", 192.168.1.186:8009
+                        #   RemoteName = "Kitchen Parlor"
+                        #   DeviceID   = 3fb9b12379e4fa1957d065b4c4568939
+
+                        # ignore "update_cast" entries, as we don't want to create duplicates.
+                        if (serviceType == "update_cast"):
+                            _logsi.LogVerbose("SpotifyConnectDevice instance will be ignored for Google Cast Group data: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                            return
+
+                        # does the device name and id already exist?
+                        groupDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByNameAndId(scDevice.Name, scDevice.Id)
+                        if (groupDevice is not None):
+                            _logsi.LogVerbose("SpotifyConnectDevice instance already exists for Google Cast Group data: \"%s\" (%s), Group RemoteName=%s, Host IP=%s" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, groupDevice.Title, groupDevice.DiscoveryResult.HostIpTitle))
+
+                            # set zeroconf discovery result properties.
+                            scDevice.DiscoveryResult = zeroconfDiscoveryResult
+
+                            # update existing Spotify Connect Device in devices collection.
+                            self._SpotifyConnectDevices.Items[idx] = scDevice
+                            self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
+                            return
+
                     # add new Spotify Connect Device to devices collection.
                     self._SpotifyConnectDevices.Items.append(scDevice)
                     self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
@@ -1568,8 +1615,34 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # were any changes made to the zeroconf discovery results?
                     if (not scDevice.DiscoveryResult.Equals(zeroconfDiscoveryResult)):
 
+                        # trace.
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult
+
+                        # did the device name change?  if so, then update name and id properties,
+                        # as well as the corresponding getInfo properties.
+                        if (scDevice.Name != zeroconfDiscoveryResult.DeviceName):
+                            newDeviceName:str = zeroconfDiscoveryResult.DeviceName
+                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(zeroconfDiscoveryResult.DeviceName)
+                            _logsi.LogVerbose("Chromecast Zeroconf SpotifyConnectDevice entry name and id changed from %s to \"%s\" (%s)" % (scDevice.Title, newDeviceName, newDeviceId))
+                            scDevice.Name = newDeviceName
+                            scDevice.Id = newDeviceId
+                            scDevice.DeviceInfo.DeviceId = newDeviceId
+                            scDevice.DeviceInfo.RemoteName = newDeviceName
+
+                            # if Spotify Cast App is active on the cast device then request that it stop
+                            # as it will need to re-register the new device name and device id.
+                            castAppTask:SpotifyConnectZeroconfCastAppTask = self._CastAppTasks.get(scDevice.DiscoveryResult.Key, None)
+                            if (castAppTask is not None):
+                                if (castAppTask.is_alive()):
+                                    _logsi.LogVerbose("%s - Stopping Spotify Cast App task (due to device rename)" % (self.name))
+                                    castAppTask.IsStopRequested = True
+                                    castAppTask.join()
+                                    _logsi.LogVerbose("%s - Spotify Cast App task was stopped successfully (due to device rename)" % (self.name))
+                                self._CastAppTasks.pop(scDevice.DiscoveryResult.Key, None)
 
                         # update existing Spotify Connect Device in devices collection.
                         self._SpotifyConnectDevices.Items[idx] = scDevice

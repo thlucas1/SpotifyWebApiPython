@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.208 ] - 2025/06/14
+
+  * Updated `SpotifyConnectDirectoryTask` to handle Google Cast device rename changes.
+  * Updated `SpotifyConnectDirectoryTask` to properly handle Google Cast Group `add_cast` notifications.  There should only be 1 instance of the Group Name registered in the SpotifyConnectDevices collection.  The issue was that the Cast protocol generates an `add_cast` operation for each member of the group and the code was processing each `add_cast` entry as a new device entry. 
+
 ###### [ 1.0.207 ] - 2025/05/12
 
   * Updated `SpotifyConnectZeroconfCastAppTask` logic to use the Spotify Desktop Player OAuth2 token to activate Google Chromecast devices.  This was necessary due to changes made by Spotify to disable Spotify Web Player Cookie credential access token usage with their Spotify Web API.

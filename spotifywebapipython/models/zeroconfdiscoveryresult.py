@@ -159,6 +159,17 @@ class ZeroconfDiscoveryResult:
 
 
     @property
+    def HostIpTitle(self) -> int:
+        """ 
+        Host IP Address and Port number for the service on the host (e.g. 8080).
+
+        Note that this value is a convenience property derived from the following
+        properties: `HostIpAddress`,`HostIpPort`.
+        """
+        return "%s:%s" % (self.HostIpAddress or "", self.HostIpPort or "")
+    
+
+    @property
     def HostTTL(self) -> int:
         """ 
         Host Time-To-Live value (as an integer) for the service on the host (e.g. 1200).
