@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.209 ] - 2025/06/17
+
+  * Updated `SpotifyClient.PlayerMediaPlayContext` method, adding the `shuffle` argument: True to enable player shuffle mode; False to disable player shuffle mode; None to use current player shuffle mode. Default is None.  
+  * Updated `SpotifyClient.PlayerMediaPlayTracks` method, adding the `shuffle` argument: True to enable player shuffle mode; False to disable player shuffle mode; None to use current player shuffle mode. Default is None.  
+
 ###### [ 1.0.208 ] - 2025/06/14
 
   * Updated `SpotifyConnectDirectoryTask` to handle Google Cast device rename changes.

@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
+import random
 from soco import SoCo
 from soco.core import (
     PLAY_MODE_BY_MEANING as SONOS_PLAY_MODE_BY_MEANING,
@@ -12188,6 +12189,7 @@ class SpotifyClient:
         deviceId:str=None,
         delay:float=0.50,
         resolveDeviceId:bool=True,
+        shuffle:bool=None,
         ) -> None:
         """
         Start playing one or more tracks of the specified context on a Spotify Connect device.
@@ -12204,12 +12206,14 @@ class SpotifyClient:
                 Indicates from what Uri in the context playback should start.  
                 Only available when contextUri corresponds to an artist, album or playlist.  
                 The offsetPosition argument will be used if this value is null.  
+                This value is ignored if the `shuffle` argument is True.  
                 Default is null.  
                 Example: `spotify:track:1301WleyT98MSxVHPZCA6M` start playing at the specified track Uri.  
             offsetPosition (int):
                 Indicates from what position in the context playback should start.  
                 The value is zero-based, and can't be negative.  
                 Only available when contextUri corresponds to an album or playlist.  
+                This value is ignored if the `shuffle` argument is True.  
                 Default is `0`.  
                 Example: `3`  start playing at track number 4.
             positionMS (int):
@@ -12233,6 +12237,10 @@ class SpotifyClient:
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
                 DEPRECATED - no longer used, but left here to maintain compatibility.
+            shuffle (bool):
+                True to enable player shuffle mode; False to disable player shuffle mode; 
+                None to use current player shuffle mode.  
+                Default is None.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -12244,6 +12252,10 @@ class SpotifyClient:
         This API only works for users who have Spotify Premium. 
         
         The order of execution is not guaranteed when you use this API with other Player API endpoints.
+
+        For Sonos devices that have shuffle enabled, the first item of the first context uri will always 
+        be played first; subsequent items will be played in shuffled order.  
+        This is due to the way the Sonos local queue is used to play the context uri items.
         
         <details>
           <summary>Sample Code - Play Album</summary>
@@ -12281,6 +12293,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("shuffle", shuffle)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
             # validations.
@@ -12289,6 +12302,13 @@ class SpotifyClient:
                 positionMS = 0
             if (offsetPosition is None) or (offsetPosition < 0):
                 offsetPosition = 0
+
+            # if shuffle specified, then we will reset the offset argument values
+            # since we are playing things in random order anyway.
+            if (shuffle):
+                _logsi.LogVerbose("Shuffle=True was specified; ignoring offsetPosition and offsetUri values")
+                offsetPosition = 0
+                offsetUri = None
 
             # resolve the device object from the device idl activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
@@ -12307,6 +12327,16 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Context will be played on Sonos local queue for device: %s" % (scDevice.Title))
+
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+
+                    # give Sonos Controller time to process the change.
+                    if delay > 0:
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        time.sleep(delay)
 
                 # Sonos cannot handle playing an artist context!
                 # if this is an artist context, then we will get a list of the artist's albums
@@ -12332,6 +12362,13 @@ class SpotifyClient:
                     for idx in range(0, len(arrUris)):
                         arrUris[idx] = arrUris[idx].strip()
 
+                # if shuffle enabled, then randomize the context uri's.
+                # note that this randomizes the list of context uri's, and NOT the items
+                # contained within each context uri (e.g. playlist items, album tracks, etc).
+                if (shuffle):
+                    _logsi.LogVerbose("Shuffle enabled; randomizing list of track uri's to play")
+                    random.shuffle(arrUris)
+
                 # get the Sonos Controller player instance.
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
 
@@ -12356,11 +12393,6 @@ class SpotifyClient:
                         _logsi.LogVerbose("Issuing command to Sonos device \"%s\": PLAY_FROM_QUEUE (index=%s)" % (scDevice.Name, offsetPosition))
                         sonosPlayer.play_from_queue(index=offsetPosition)
                 
-                        # # give Sonos Controller time to process the change.
-                        # if delay > 0:
-                        #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
-                        #     time.sleep(delay)
-
                         # was a track seek position specified?
                         if (positionMS > 0):
 
@@ -12374,6 +12406,20 @@ class SpotifyClient:
                                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
                                 time.sleep(delay)
 
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+
+                    # give Sonos Controller time to process the change.
+                    if delay > 0:
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        time.sleep(delay)
+
+                    # set shuffle mode.
+                    # note that we already did this before loading the Sonos local queue.
+                    # we do it again, as the `add_share_link_to_queue` method seems to cause
+                    # the shuffle mode to change in some instances (a SoCo API bug maybe?).
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+
             else:
 
                 # was the deviceId resolved? 
@@ -12382,6 +12428,10 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
+
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -12414,6 +12464,15 @@ class SpotifyClient:
                 if delay > 0:
                     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                     time.sleep(delay)
+
+                # if offset was not specified, or shuffle is enabled, then check shuffle state.
+                # if shuffle state is enabled, then immediately skip to next track.
+                # we have to do it this way due to a bug in the Spotify Web API that does not honor 
+                # existing shuffle state when playing context.
+                if ((offsetUri is None) and (offsetPosition == 0)) or (shuffle):
+                    playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
+                    if (playerState.IsShuffleEnabled):
+                        self.PlayerMediaSkipNext(scDevice)
 
             # process results.
             # no results to process - this is pass or fail.
@@ -12563,6 +12622,7 @@ class SpotifyClient:
         deviceId:str=None,
         delay:float=0.50,
         resolveDeviceId:bool=True,
+        shuffle:bool=None,
         ) -> None:
         """
         Start playing one or more tracks on the specified Spotify Connect device.
@@ -12597,6 +12657,10 @@ class SpotifyClient:
                 Default is 0.50; value range is 0 - 10.
             resolveDeviceId (bool):
                 DEPRECATED - no longer used, but left here to maintain compatibility.
+            shuffle (bool):
+                True to enable player shuffle mode; False to disable player shuffle mode; 
+                None to use current player shuffle mode.  
+                Default is None.  
                 
         Raises:
             SpotifyWebApiError: 
@@ -12629,6 +12693,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("deviceId", deviceId)
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
+            apiMethodParms.AppendKeyValue("shuffle", shuffle)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play tracks", apiMethodParms)
                 
             # validations.
@@ -12647,6 +12712,11 @@ class SpotifyClient:
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
         
+            # if shuffle enabled, then randomize the track uri's.
+            if (shuffle):
+                _logsi.LogVerbose("Shuffle enabled; randomizing list of track uri's to play")
+                random.shuffle(arrUris)
+
             # resolve the device object from the device id; activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
 
@@ -12664,6 +12734,16 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Tracks will be played on Sonos local queue for device: %s" % (scDevice.Title))
+
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+
+                    # give Sonos Controller time to process the change.
+                    if delay > 0:
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        time.sleep(delay)
 
                 # get the Sonos Controller player instance.
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
@@ -12689,11 +12769,6 @@ class SpotifyClient:
                         _logsi.LogVerbose("Issuing command to Sonos device \"%s\": PLAY_FROM_QUEUE (index=%s)" % (scDevice.Name, offsetPosition))
                         sonosPlayer.play_from_queue(index=offsetPosition)
                 
-                        # # give Sonos Controller time to process the change.
-                        # if delay > 0:
-                        #     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
-                        #     time.sleep(delay)
-
                         # was a track seek position specified?
                         if (positionMS > 0):
 
@@ -12707,6 +12782,20 @@ class SpotifyClient:
                                 _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
                                 time.sleep(delay)
 
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+
+                    # give Sonos Controller time to process the change.
+                    if delay > 0:
+                        _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                        time.sleep(delay)
+
+                    # set shuffle mode.
+                    # note that we already did this before loading the Sonos local queue.
+                    # we do it again, as the `add_share_link_to_queue` method seems to cause
+                    # the shuffle mode to change in some instances (a SoCo API bug maybe?).
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+
             else:
 
                 # was the deviceId resolved? 
@@ -12715,6 +12804,10 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Tracks will be played on the Spotify Connect device via Spotify Web API")
+
+                # set desired shuffle mode (if specified).
+                if (shuffle is not None):
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
 
                 # build spotify web api request parameters.
                 reqData:dict = \
