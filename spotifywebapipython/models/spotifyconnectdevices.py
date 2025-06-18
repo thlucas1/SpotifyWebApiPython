@@ -169,11 +169,16 @@ class SpotifyConnectDevices():
         """ 
         Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
         device id value; otherwise, None.
-        
-        Alias entries (if any) are also compared.
+
+        All Spotify Connect Zeroconf GetInfo response `DeviceId` entries are checked
+        first; if not resolved, then base device `Id` entries are checked.  We do it
+        this way in case a Spotify Connect Zeroconf GetInfo response has not been 
+        recevied for a device yet.
         """
         result:SpotifyConnectDevice = None
         if value is None:
+            return result
+        if value == "":
             return result
         
         # convert case for comparison.
@@ -182,20 +187,33 @@ class SpotifyConnectDevices():
         # process all discovered devices.
         scDevice:SpotifyConnectDevice
         for scDevice in self._Items:
-            if (scDevice.DeviceInfo.HasAliases):
-                scAlias:ZeroconfGetInfoAlias
-                for scAlias in scDevice.DeviceInfo.Aliases:
-                    if (scAlias.Id is not None):
-                        if (scAlias.Id.lower() == value):
-                            result = scDevice
-                            break
-                if result:
+
+            # check for id in the Spotify Connect Zeroconf GetInfo response.
+            if (scDevice.DeviceInfo.DeviceId is not None):
+                if (scDevice.DeviceInfo.DeviceId.lower() == value):
+                    result = scDevice
+                    _logsi.LogVerbose("GetDeviceById found SpotifyConnectDevices collection entry: %s (DeviceInfo.DeviceId)" % scDevice.Title)
                     break
-            else:
-                if (scDevice.DeviceInfo.DeviceId is not None):
-                    if (scDevice.DeviceInfo.DeviceId.lower() == value):
+
+
+        # if not resolved, then check for id in the base device definition.
+        if (result is None):
+
+            # process all discovered devices.
+            scDevice:SpotifyConnectDevice
+            for scDevice in self._Items:
+
+                # check for id in the base device definition.
+                if (scDevice.Id is not None):
+                    if (scDevice.Id.lower() == value):
                         result = scDevice
+                        _logsi.LogVerbose("GetDeviceById found SpotifyConnectDevices collection entry: %s (Device.Id)" % scDevice.Title)
                         break
+
+        # trace.
+        if (result is None):
+            _logsi.LogVerbose("GetDeviceById could not find SpotifyConnectDevices collection entry: \"%s\"" % value)
+
         return result
     
 
@@ -204,10 +222,16 @@ class SpotifyConnectDevices():
         Returns a `SpotifyConnectDevice` instance if the `Items` collection contains the specified 
         device name value; otherwise, None.
         
-        Alias entries (if any) are also compared.
+        All Spotify Connect Zeroconf GetInfo response `RemoteName` / Zeroconf DiscoveryResult 
+        `DeviceName` entries are checked first; if not resolved, then Spotify Connect Zeroconf 
+        GetInfo `Alias` entries are checked.  We do it this way in case an alias name is defined 
+        for a Spotify Connect Zeroconf entry that already exists with the same name (e.g. the 
+        RemoteName entry will take precedence).
         """
         result:SpotifyConnectDevice = None
         if value is None:
+            return result
+        if value == "":
             return result
         
         # convert case for comparison.
@@ -217,30 +241,43 @@ class SpotifyConnectDevices():
         scDevice:SpotifyConnectDevice
         for scDevice in self._Items:
 
-            # search aliases (if defined).
-            if (scDevice.DeviceInfo.HasAliases):
-                scAlias:ZeroconfGetInfoAlias
-                for scAlias in scDevice.DeviceInfo.Aliases:
-                    if (scAlias.Name is not None):
-                        if (scAlias.Name.lower() == value):
-                            result = scDevice
-                            break
-                if result is not None:
+            # match on `getInfo` RemoteName value (if defined).
+            if (scDevice.DeviceInfo.RemoteName is not None):
+                if (scDevice.DeviceInfo.RemoteName.lower() == value):
+                    result = scDevice
+                    _logsi.LogVerbose("GetDeviceByName found SpotifyConnectDevices collection entry: %s (DeviceInfo.RemoteName)" % scDevice.Title)
                     break
 
-            else:
+            # match on Zeroconf DeviceName value (if defined).
+            if (scDevice.DiscoveryResult.DeviceName is not None):
+                if (scDevice.DiscoveryResult.DeviceName.lower() == value):
+                    result = scDevice
+                    _logsi.LogVerbose("GetDeviceByName found SpotifyConnectDevices collection entry: %s (DiscoveryResult.DeviceName)" % scDevice.Title)
+                    break
 
-                # match on `getInfo` RemoteName value (if defined).
-                if (scDevice.DeviceInfo.RemoteName is not None):
-                    if (scDevice.DeviceInfo.RemoteName.lower() == value):
-                        result = scDevice
+        # if not resolved, then search by alias name.
+        if (result is None):
+
+            # process all discovered devices.
+            scDevice:SpotifyConnectDevice
+            for scDevice in self._Items:
+
+                # search aliases (if defined).
+                if (scDevice.DeviceInfo.HasAliases):
+                    scAlias:ZeroconfGetInfoAlias
+                    for scAlias in scDevice.DeviceInfo.Aliases:
+                        if (scAlias.Name is not None):
+                            if (scAlias.Name.lower() == value):
+                                result = scDevice
+                                _logsi.LogVerbose("GetDeviceByName found SpotifyConnectDevices collection entry: %s (DeviceInfo.Aliases)" % scDevice.Title)
+                                break
+                    if result is not None:
                         break
 
-                # match on Zeroconf DeviceName value (if defined).
-                if (scDevice.DiscoveryResult.DeviceName is not None):
-                    if (scDevice.DiscoveryResult.DeviceName.lower() == value):
-                        result = scDevice
-                        break
+        # trace.
+        if (result is None):
+            _logsi.LogVerbose("GetDeviceByName could not find SpotifyConnectDevices collection entry: \"%s\"" % value)
+
         return result
     
 
@@ -267,7 +304,13 @@ class SpotifyConnectDevices():
             if (scDevice.Name is not None) and (scDevice.Id is not None):
                 if (scDevice.Name.lower() == deviceName) and (scDevice.Id.lower() == deviceId):
                     result = scDevice
+                    _logsi.LogVerbose("GetDeviceByNameAndId found SpotifyConnectDevices collection entry: %s" % scDevice.Title)
                     break       
+
+        # trace.
+        if (result is None):
+            _logsi.LogVerbose("GetDeviceByNameAndId could not find SpotifyConnectDevices collection entry: \"%s\"" % value)
+
         return result
 
 

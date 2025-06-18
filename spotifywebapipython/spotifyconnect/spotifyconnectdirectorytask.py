@@ -1158,6 +1158,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # trace.
                 apiMethodParms:SIMethodParmListContext = _logsi.EnterMethodParmList(SILevel.Debug)
                 _logsi.LogMethodParmList(SILevel.Verbose, "Refreshing Spotify Connect dynamic device list", apiMethodParms)
+                _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (before refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
 
                 # update player devices known to the Spotify Web API (e.g. dynamic devices).
                 self.UpdatePlayerDevices()
@@ -1166,6 +1167,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 scDevice:SpotifyConnectDevice = self.UpdateActiveDevice()
 
                 # trace.
+                _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (after refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
                 if (scDevice is None):
                     _logsi.LogVerbose("Spotify Player playstate device is not present; no active device")
                 else:
@@ -1338,7 +1340,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # and do not correctly inform interested parties via a zeroconf 
                         # OnServiceStateChange event that the name has changed (e.g. Denon HEOS devices, etc).
                         if (scDevice.DeviceInfo.RemoteName != device.Name) and ((device.Name or "") != ""):
-                            _logsi.LogVerbose("Detected Spotify Connect RemoteName change for SpotifyConnectDevices collection entry %s - %s; updated Spotify Web API PlayerDevice Name is \"%s\" - this is usually caused by a Speaker Group membership change" % (scDevice.Title, scDevice.DiscoveryResult.Description, device.Name), colorValue=SIColors.ForestGreen)
+                            _logsi.LogVerbose("Detected Spotify Connect RemoteName change for SpotifyConnectDevices collection entry %s [%s]; updated Spotify Web API PlayerDevice Name is \"%s\" - this is usually caused by a Speaker Group membership change" % (scDevice.Title, scDevice.DiscoveryResult.Description, device.Name), colorValue=SIColors.ForestGreen)
                             scDevice.DeviceInfo.RemoteName = device.Name
                             scDevice.Name = device.Name
                             self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
@@ -1899,13 +1901,14 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # For other manufacturers, this is a user-friendly type of value (e.g. "Bose-ST10-1").
                     # Here are some examples (by manufacturer):
 
-                    # Manufacturer  ZeroConf DeviceName               getInfo Remotename
-                    # ------------  ------------------------------    -----------------------------------
-                    # Sonos         sonosRINCON_38420B909DC801400"    Office
-                    # Bose          Bose-ST10-1                       Bose-ST10-1
-                    # Bose          Bose-ST10-1 + Bose-ST10-2 (L+R)   Bose-ST10-1 (if stereo paired)
-                    # Bose          Bose-ST10-1 Group                 Bose-ST10-1 (if zoned)
-                    # Denon         0005cdb737b2LivingRoom            Living Room
+                    # Manufacturer  ZeroConf DeviceName               getInfo Remotename                     getInfo Alias
+                    # ------------  ------------------------------    -----------------------------------    -----------------------
+                    # Sonos         sonosRINCON_38420B909DC801400"    Office                                 n/a
+                    # Bose          Bose-ST10-1                       Bose-ST10-1                            n/a
+                    # Bose          Bose-ST10-1 + Bose-ST10-2 (L+R)   Bose-ST10-1 (if stereo paired)         n/a
+                    # Bose          Bose-ST10-1 Group                 Bose-ST10-1 (if zoned)                 n/a
+                    # Denon         0005cdb737b2LivingRoom            Living Room                            n/a
+                    # Wiim          FF98F35902BB6CA851FE34D5          n/a (uses Alias)                       "Kitchen Speakers"
 
                     # create a new Spotify Connect Device instance.
                     scDevice = SpotifyConnectDevice()
@@ -2081,8 +2084,23 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # were any changes made to the zeroconf discovery results?
                     if (not scDevice.DiscoveryResult.Equals(zeroconfDiscoveryResult)):
 
+                        # trace.
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult
+
+                        # did the device name change?  if so, then update name and id properties,
+                        # as well as the corresponding getInfo properties.
+                        if (scDevice.Name != zeroconfDiscoveryResult.DeviceName):
+                            newDeviceName:str = zeroconfDiscoveryResult.DeviceName
+                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(zeroconfDiscoveryResult.DeviceName)
+                            _logsi.LogVerbose("Spotify Connect Zeroconf SpotifyConnectDevice entry name and id changed from %s to \"%s\" (%s)" % (scDevice.Title, newDeviceName, newDeviceId))
+                            scDevice.Name = newDeviceName
+                            scDevice.Id = newDeviceId
+                            scDevice.DeviceInfo.DeviceId = newDeviceId
+                            scDevice.DeviceInfo.RemoteName = newDeviceName
 
                         # update existing Spotify Connect Device in devices collection.
                         self._SpotifyConnectDevices.Items[idx] = scDevice

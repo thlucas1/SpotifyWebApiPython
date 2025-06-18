@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.210 ] - 2025/06/18
+
+  * Updated `SpotifyConnectDevices.GetDeviceById` device resolution processing.  All Spotify Connect Zeroconf GetInfo response `DeviceId` entries are checked first; if not resolved, then base device `Id` entries are checked.  We do it this way in case a Spotify Connect Zeroconf GetInfo response has not been recevied for a device yet.
+  * Updated `SpotifyConnectDevices.GetDeviceByName` device resolution processing.  All Spotify Connect Zeroconf GetInfo response `RemoteName` / Zeroconf DiscoveryResult `DeviceName` entries are checked first; if not resolved, then Spotify Connect Zeroconf GetInfo `Alias` entries are checked.  We do it this way in case an alias name is defined for a Spotify Connect Zeroconf entry that already exists with the same name (e.g. the RemoteName entry will take precedence).
+  * Added additional tracing messages for diagnosing device resolution / connection issues.
+
 ###### [ 1.0.209 ] - 2025/06/17
 
   * Updated `SpotifyClient.PlayerMediaPlayContext` method, adding the `shuffle` argument: True to enable player shuffle mode; False to disable player shuffle mode; None to use current player shuffle mode. Default is None.  

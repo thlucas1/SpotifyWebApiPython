@@ -44,7 +44,11 @@ class ZeroconfGetInfoAlias:
     @property
     def Id(self) -> str:
         """ 
-        Unique identifier of the alias.
+        Unique identifier of the alias (e.g. '1', '2', etc).
+
+        Note that this appears to be different than the `ZeroconfGetInfo.DeviceId` value.
+        Spotify Connect documentation is sparse, but I believe it's just a number from 1-8,
+        with eight being the maximum number of allowable alias names.
         """
         return self._Id
 
@@ -60,7 +64,7 @@ class ZeroconfGetInfoAlias:
     @property
     def Name(self) -> str:
         """ 
-        Display name of the alias.
+        Display name of the alias (e.g. "Kitchen Speakers").
         """
         return self._Name
 
@@ -68,7 +72,7 @@ class ZeroconfGetInfoAlias:
     @property
     def Title(self) -> str:
         """ 
-        Alias name and id value (e.g. '"Bose-ST10-1" (30fbc80e35598f3c242f2120413c943dfd9715fe)').
+        Alias name and id value (e.g. '"Kitchen Speakers" (1)').
         """
         return '"%s" (%s)' % (self._Name, self._Id)
     
