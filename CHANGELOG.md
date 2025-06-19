@@ -6,6 +6,18 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.213 ] - 2025/06/19
+
+  * Rebuilt, as v1.0.212 did not contain documentation updates.
+
+###### [ 1.0.212 ] - 2025/06/19
+
+  * Updated `SpotifyConnectDirectoryTask.OnServiceInfoAddedUpdatedSpotifyConnect` method to handle Spotify Connect Zeroconf device name changes.
+
+###### [ 1.0.211 ] - 2025/06/19
+
+  * Updated `SpotifyConnectDevices.GetDeviceByNameAndId` device resolution processing to correct a bug that was causing Google Cast Group devices to not be detected.
+
 ###### [ 1.0.210 ] - 2025/06/18
 
   * Updated `SpotifyConnectDevices.GetDeviceById` device resolution processing.  All Spotify Connect Zeroconf GetInfo response `DeviceId` entries are checked first; if not resolved, then base device `Id` entries are checked.  We do it this way in case a Spotify Connect Zeroconf GetInfo response has not been recevied for a device yet.

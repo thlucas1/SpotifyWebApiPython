@@ -309,7 +309,7 @@ class SpotifyConnectDevices():
 
         # trace.
         if (result is None):
-            _logsi.LogVerbose("GetDeviceByNameAndId could not find SpotifyConnectDevices collection entry: \"%s\"" % value)
+            _logsi.LogVerbose("GetDeviceByNameAndId could not find SpotifyConnectDevices collection entry: \"%s\" (%s)" % (deviceName, deviceId))
 
         return result
 

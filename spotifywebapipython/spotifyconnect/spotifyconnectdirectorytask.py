@@ -1158,7 +1158,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # trace.
                 apiMethodParms:SIMethodParmListContext = _logsi.EnterMethodParmList(SILevel.Debug)
                 _logsi.LogMethodParmList(SILevel.Verbose, "Refreshing Spotify Connect dynamic device list", apiMethodParms)
-                _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (before refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
+
+                # trace.
+                if (_logsi.IsOn(SILevel.Verbose)):
+                    _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (before refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
 
                 # update player devices known to the Spotify Web API (e.g. dynamic devices).
                 self.UpdatePlayerDevices()
@@ -1167,11 +1170,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 scDevice:SpotifyConnectDevice = self.UpdateActiveDevice()
 
                 # trace.
-                _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (after refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
-                if (scDevice is None):
-                    _logsi.LogVerbose("Spotify Player playstate device is not present; no active device")
-                else:
-                    _logsi.LogObject(SILevel.Verbose, "Spotify Player playstate active device instance: %s" % (scDevice.Title), scDevice, excludeNonPublic=True)
+                if (_logsi.IsOn(SILevel.Verbose)):
+                    _logsi.LogDictionary(SILevel.Verbose, "Current Spotify Connect device list (after refresh)", self.GetDevices().ToDictionary(), prettyPrint=True)
+                    if (scDevice is None):
+                        _logsi.LogVerbose("Spotify Player playstate device is not present; no active device")
+                    else:
+                        _logsi.LogObject(SILevel.Verbose, "Spotify Player playstate active device instance: %s" % (scDevice.Title), scDevice, excludeNonPublic=True)
 
                 # return real-time active Spotify Player device.
                 return scDevice
