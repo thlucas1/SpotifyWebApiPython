@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.215 ] - 2025/06/20
+
+  * Updated `SpotifyConnectDirectoryTask.OnServiceInfoAddedUpdatedChromecast` method to dscover Google Cast devices in the device collection by their discovery KEY (e.g. UUID) value rather than their NAME value.  The discovery name value cannot be used, as Google Group updates use slightly different names that refer to the same key value!  This was causing duplicate group names to be added to the devices collection, as well as host ip address and port details to be wrong which prevented devices from being activated in the group.
+
 ###### [ 1.0.214 ] - 2025/06/19
 
   * Updated `SpotifyConnectDirectoryTask.UpdatePlayerDevices` method to check each entry in the Spotify Web API device list for alias indicators.  If a Spotify Web API device entry is an alias, then the device id and device name values will be the same (e.g. a device id value) and the SpotifyConnectDevices collection entry's DeviceInfo.RemoteName value will be an empty string (e.g. ""). If so then we don't want to update the RemoteName value, as an alias is in use; if not, then the RemoteName was changed and we need to update the device collection.

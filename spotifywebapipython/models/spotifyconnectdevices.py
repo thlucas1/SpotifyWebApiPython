@@ -314,6 +314,29 @@ class SpotifyConnectDevices():
         return result
 
 
+    def GetDeviceIndexByDiscoveryKey(self, value:str) -> int:
+        """ 
+        Returns the index of the `Items` collection entry that contains 
+        the specified device zeroconf discovery results key value if found; 
+        otherwise, -1.
+        """
+        result:int = -1
+        if value is None:
+            return result
+        
+        # convert case for comparison.
+        value = value.lower()
+
+        # process all devices, comparing discovery keys.
+        for i in range(len(self._Items)):
+            if (self._Items[i].DiscoveryResult is not None):
+                if (self._Items[i].DiscoveryResult.Key is not None):
+                    if (self._Items[i].DiscoveryResult.Key.lower() == value):
+                        result = i
+                        break       
+        return result
+
+
     def GetDeviceIndexByDiscoveryName(self, value:str) -> int:
         """ 
         Returns the index of the `Items` collection entry that contains 

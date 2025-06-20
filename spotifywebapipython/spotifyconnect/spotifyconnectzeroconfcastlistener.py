@@ -324,7 +324,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
                 apiMethodParms.AppendKeyValue("uuid", argsUuid)
                 apiMethodParms.AppendKeyValue("serviceName", argsServiceName)
-                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (str(argsUuid), apiMethodName), apiMethodParms)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, apiMethodName), apiMethodParms)
 
                 # build discovery result instance from service state information.
                 # if nothing returned, then don't bother!

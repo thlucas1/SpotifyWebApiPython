@@ -1506,16 +1506,28 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # trace.
                 _logsi.EnterMethod(SILevel.Debug)
 
-                # add / update discovered results by serviceinfo name value.
+                # add / update discovered results by serviceinfo key value.
                 # examples: 
-                # - "SHIELD-Android-TV-72735c92dead1a2d62df0229b1590a65._googlecast._tcp.local."
-                # - "Google-Cast-Group-B85B00FE5F514A40BF6AFBBCCEB7C8DF._googlecast._tcp.local."
+                # - Name="SHIELD-Android-TV-72735c92dead1a2d62df0229b1590a65._googlecast._tcp.local.",   Key="72735c92-dead-1a2d-62df-0229b1590a65"
+                # - Name="LS50-Wireless-II-5b1bb9c433d5bc1f7c8bf208c0cdda3f._googlecast._tcp.local.",    Key="5b1bb9c4-33d5-bc1f-7c8b-f208c0cdda3f"
+
+                # note that for "Google-Cast-Group-x" entries, the name will vary slightly with each member of
+                # the group, but the key value will be the same.  this is important because for groups you want
+                # to update the same group KEY as group updates are made (e.g. group / ungroup devices).
+                # examples: 
+                # - Name="Google-Cast-Group-631B535F21D3408A8EE2C52BEBDB99E7._googlecast._tcp.local.",   Key="631b535f-21d3-408a-8ee2-c52bebdb99e7"
+                # - Name="Google-Cast-Group-631B535F21D3408A8EE2C52BEBDB99E7-1._googlecast._tcp.local.", Key="631b535f-21d3-408a-8ee2-c52bebdb99e7"
+                # - Name="Google-Cast-Group-631B535F21D3408A8EE2C52BEBDB99E7-2._googlecast._tcp.local.", Key="631b535f-21d3-408a-8ee2-c52bebdb99e7"
+
+                # get cast device instance by discovery key.
+                # note that we cannot use discovery name here, as Google Groups use different
+                # names that refer to the same key value!
                 scDevice:SpotifyConnectDevice = None
-                idx:int = self._SpotifyConnectDevices.GetDeviceIndexByDiscoveryName(zeroconfDiscoveryResult.Name)
+                idx:int = self._SpotifyConnectDevices.GetDeviceIndexByDiscoveryKey(zeroconfDiscoveryResult.Key)
                 if (idx == -1):
 
                     # trace.
-                    _logsi.LogVerbose("Creating new SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                    _logsi.LogVerbose("Creating new SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s) [key=%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key))
 
                     # connect to the device using CastInfo to get more details.
                     castInfo:CastInfo = self._CastBrowser.services[uuid]
@@ -1529,7 +1541,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # wait for the device to become ready (5 seconds max).
                     castDevice.wait(5)
-                    _logsi.LogObject(SILevel.Verbose, "Chromecast device instance \"%s\" (%s)" % (castInfo.friendly_name, str(uuid)), castDevice)
+                    _logsi.LogObject(SILevel.Verbose, "Chromecast device instance \"%s\" (%s)" % (castInfo.friendly_name, zeroconfDiscoveryResult.Name), castDevice)
 
                     # create a new Spotify Connect Device instance.
                     scDevice = SpotifyConnectDevice()
@@ -1611,8 +1623,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # trace.
                     _logsi.LogObject(SILevel.Verbose, "Chromecast Zeroconf added SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                     # sort devices collection by device name.
                     if (len(self._SpotifyConnectDevices.Items) > 0):
@@ -1624,7 +1636,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 else:
 
                     # trace.
-                    _logsi.LogDebug("Updating existing SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                    _logsi.LogDebug("Updating existing SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s) [key=%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key))
 
                     # get existing Spotify Connect Device instance.
                     scDevice = self._SpotifyConnectDevices.Items[idx]
@@ -1633,8 +1645,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     if (not scDevice.DiscoveryResult.Equals(zeroconfDiscoveryResult)):
 
                         # trace.
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult
@@ -1642,13 +1654,6 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # did the device name change?  if so, then update name and id properties,
                         # as well as the corresponding getInfo properties.
                         if (scDevice.Name != zeroconfDiscoveryResult.DeviceName):
-                            newDeviceName:str = zeroconfDiscoveryResult.DeviceName
-                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(zeroconfDiscoveryResult.DeviceName)
-                            _logsi.LogVerbose("Chromecast Zeroconf SpotifyConnectDevice entry name and id changed from %s to \"%s\" (%s)" % (scDevice.Title, newDeviceName, newDeviceId))
-                            scDevice.Name = newDeviceName
-                            scDevice.Id = newDeviceId
-                            scDevice.DeviceInfo.DeviceId = newDeviceId
-                            scDevice.DeviceInfo.RemoteName = newDeviceName
 
                             # if Spotify Cast App is active on the cast device then request that it stop
                             # as it will need to re-register the new device name and device id.
@@ -1661,14 +1666,23 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                                     _logsi.LogVerbose("%s - Spotify Cast App task was stopped successfully (due to device rename)" % (self.name))
                                 self._CastAppTasks.pop(scDevice.DiscoveryResult.Key, None)
 
+                            # update name and id properties, as well as the corresponding getInfo properties.
+                            newDeviceName:str = zeroconfDiscoveryResult.DeviceName
+                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(zeroconfDiscoveryResult.DeviceName)
+                            _logsi.LogVerbose("Chromecast Zeroconf SpotifyConnectDevice entry name and id changed from %s to \"%s\" (%s)" % (scDevice.Title, newDeviceName, newDeviceId))
+                            scDevice.Name = newDeviceName
+                            scDevice.Id = newDeviceId
+                            scDevice.DeviceInfo.DeviceId = newDeviceId
+                            scDevice.DeviceInfo.RemoteName = newDeviceName
+
                         # update existing Spotify Connect Device in devices collection.
                         self._SpotifyConnectDevices.Items[idx] = scDevice
                         self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
 
                         # trace.
                         _logsi.LogObject(SILevel.Verbose, "Chromecast Zeroconf updated SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                         # sort devices collection by device name.
                         if (len(self._SpotifyConnectDevices.Items) > 0):
@@ -1731,17 +1745,19 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # trace.
                 _logsi.EnterMethod(SILevel.Debug)
 
-                # remove discovered results by serviceinfo key value. 
-                idx:int = self._SpotifyConnectDevices.GetDeviceIndexByDiscoveryName(zeroconfDiscoveryResult.Name)
+                # get cast device instance by discovery key.
+                # note that we cannot use discovery name here, as Google Groups use different
+                # names that refer to the same key value!
+                idx:int = self._SpotifyConnectDevices.GetDeviceIndexByDiscoveryKey(zeroconfDiscoveryResult.Key)
                 if (idx == -1):
 
                     # trace.
-                    _logsi.LogVerbose("SpotifyConnectDevice instance could not be found to remove: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                    _logsi.LogVerbose("SpotifyConnectDevice instance could not be found to remove: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key))
 
                 else:
 
                     # trace.
-                    _logsi.LogVerbose("Removing existing SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
+                    _logsi.LogVerbose("Removing existing SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key))
 
                     # remove existing Spotify Connect Device instance from devices collection.
                     scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.Items.pop(idx)
@@ -1749,8 +1765,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # trace.
                     _logsi.LogObject(SILevel.Verbose, "Chromecast Zeroconf removed SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.DarkOrange)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                     # raise event.
                     self._RaiseDeviceRemoved(scDevice)
@@ -1828,7 +1844,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 scDevice.DeviceInfo.StatusString = info.StatusString
 
                 # trace.
-                _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
+                _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
 
 
     def OnCastZeroconfResponseReceived(
@@ -2046,8 +2062,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # trace.
                     _logsi.LogObject(SILevel.Verbose, "Spotify Connect Zeroconf added SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                     # sort devices collection by device name.
                     if (len(self._SpotifyConnectDevices.Items) > 0):
@@ -2100,8 +2116,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     if (not scDevice.DiscoveryResult.Equals(zeroconfDiscoveryResult)):
 
                         # trace.
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult
@@ -2123,8 +2139,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                         # trace.
                         _logsi.LogObject(SILevel.Verbose, "Spotify Connect Zeroconf updated SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                        _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                         # sort devices collection by device name.
                         if (len(self._SpotifyConnectDevices.Items) > 0):
@@ -2193,8 +2209,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # trace.
                     _logsi.LogObject(SILevel.Verbose, "Spotify Connect Zeroconf removed SpotifyConnectDevices collection entry: \"%s\" (%s)" % (scDevice.Name, scDevice.DiscoveryResult.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.DarkOrange)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DeviceInfo / getInfo)" % (scDevice.Name), scDevice.DeviceInfo, excludeNonPublic=True)
-                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (DiscoveryResult)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                    _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
                     # raise event.
                     self._RaiseDeviceRemoved(scDevice)
