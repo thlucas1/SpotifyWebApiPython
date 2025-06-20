@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.214 ] - 2025/06/19
+
+  * Updated `SpotifyConnectDirectoryTask.UpdatePlayerDevices` method to check each entry in the Spotify Web API device list for alias indicators.  If a Spotify Web API device entry is an alias, then the device id and device name values will be the same (e.g. a device id value) and the SpotifyConnectDevices collection entry's DeviceInfo.RemoteName value will be an empty string (e.g. ""). If so then we don't want to update the RemoteName value, as an alias is in use; if not, then the RemoteName was changed and we need to update the device collection.
+  * Updated `SpotifyConnectZeroconfCastListener._GetZeroconfDiscoveryResult` method to retrieve IPV4 host information if necessary.  The CastInfo object will sometimes contain IPV6 data in the base object; if found, then the CastInfo.services array must be iterated to find the IPV4 HostServiceInfo record that will contain IPV4 address format.  IPV4 is preferred over IPV6.
+
 ###### [ 1.0.213 ] - 2025/06/19
 
   * Rebuilt, as v1.0.212 did not contain documentation updates.

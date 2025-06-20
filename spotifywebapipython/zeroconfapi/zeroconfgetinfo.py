@@ -121,7 +121,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
 
     @property
-    def Aliases(self) -> list:
+    def Aliases(self) -> list[ZeroconfGetInfoAlias]:
         """ 
         Device alias information, IF the device supports aliases.  
         

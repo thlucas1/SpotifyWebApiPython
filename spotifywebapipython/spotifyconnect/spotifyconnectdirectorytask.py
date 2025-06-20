@@ -1338,20 +1338,31 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # indicate the device is in the available device list.
                         scDevice.IsInDeviceList = True
 
-                        # did the player device remote name change?
-                        # if so, then update the collection RemoteName as well as the Name.
-                        # this can happen for devices that are added to / removed from groups
-                        # and do not correctly inform interested parties via a zeroconf 
-                        # OnServiceStateChange event that the name has changed (e.g. Denon HEOS devices, etc).
-                        if (scDevice.DeviceInfo.RemoteName != device.Name) and ((device.Name or "") != ""):
-                            _logsi.LogVerbose("Detected Spotify Connect RemoteName change for SpotifyConnectDevices collection entry %s [%s]; updated Spotify Web API PlayerDevice Name is \"%s\" - this is usually caused by a Speaker Group membership change" % (scDevice.Title, scDevice.DiscoveryResult.Description, device.Name), colorValue=SIColors.ForestGreen)
-                            scDevice.DeviceInfo.RemoteName = device.Name
-                            scDevice.Name = device.Name
-                            self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
-                            # TODO - we should probably call getInfo again to update DeviceInfo since GroupStatus has 
-                            # probably changed from "NONE" to "GROUP" or vice versa!
-                            # we will start with this to see how it goes.
-                            self._RaiseDeviceUpdated(scDevice)
+                        # is the device an alias entry?
+                        # if Spotify Web API device entry is an alias, then the device id and device name
+                        # values will USUALLY be the same (e.g. a device id value) and the SpotifyConnectDevices
+                        # collection entry's DeviceInfo.RemoteName value will be an empty string (e.g. "").
+                        if (scDevice.DeviceInfo.HasAliases) and (device.Id == device.Name):
+
+                            # yes - DO NOT change the RemoteName value, as an alias is in use.
+                            _logsi.LogVerbose("Detected Spotify Connect Alias in use for SpotifyConnectDevices collection entry %s [%s]; first Alias name is \"%s\"; RemoteName is \"%s\"" % (scDevice.Title, scDevice.DiscoveryResult.Description, scDevice.DeviceInfo.Aliases[0].Name, scDevice.DeviceInfo.RemoteName), colorValue=SIColors.Coral)
+
+                        else:
+
+                            # did the player device remote name change?
+                            # if so, then update the collection RemoteName as well as the Name.
+                            # this can happen for devices that are added to / removed from groups
+                            # and do not correctly inform interested parties via a zeroconf 
+                            # OnServiceStateChange event that the name has changed (e.g. Denon HEOS devices, etc).
+                            if (scDevice.DeviceInfo.RemoteName != device.Name) and ((device.Name or "") != ""):
+                                _logsi.LogVerbose("Detected Spotify Connect RemoteName change for SpotifyConnectDevices collection entry %s [%s]; updated Spotify Web API PlayerDevice Name is \"%s\" - this is usually caused by a Speaker Group membership change" % (scDevice.Title, scDevice.DiscoveryResult.Description, device.Name), colorValue=SIColors.Coral)
+                                scDevice.DeviceInfo.RemoteName = device.Name
+                                scDevice.Name = device.Name
+                                self._SpotifyConnectDevices.DateLastRefreshed = datetime.utcnow().timestamp()
+                                # ???? - we should probably call getInfo again to update DeviceInfo since GroupStatus has 
+                                # probably changed from "NONE" to "GROUP" or vice versa!
+                                # we will start with this to see how it goes.
+                                self._RaiseDeviceUpdated(scDevice)
 
                         # don't need to search any more devices since we found the device id.
                         break
@@ -1947,11 +1958,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice.Name = scDevice.DeviceInfo.RemoteName
 
                         # if remote name was not specified, then set device name to first alias name.
+                        # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
                         if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
                             if (scDevice.DeviceInfo.HasAliases):
                                 _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                aliasInfo:ZeroconfGetInfoAlias = scDevice.DeviceInfo.Aliases[0]
-                                scDevice.Name = aliasInfo.Name
+                                scDevice.Name = scDevice.DeviceInfo.Aliases[0].Name
 
                     except Exception as ex:
 
@@ -1981,13 +1992,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.Name = scDevice.DeviceInfo.RemoteName
                     
                             # if remote name was not specified, then set device name to first alias name.
+                            # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
                             if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
                                 if (scDevice.DeviceInfo.HasAliases):
                                     _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                    aliasInfo:ZeroconfGetInfoAlias = scDevice.DeviceInfo.Aliases[0]
-                                    scDevice.Name = aliasInfo.Name
+                                    scDevice.Name = scDevice.DeviceInfo.Aliases[0].Name
 
-                            # update HostIpAddress in discovery result so it knows to use the alias
+                            # update HostIpAddress in discovery result so it knows to use the dns alias
                             # instead of the ip address.
                             _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation call for Instance Name \"%s\" (%s) was resolved using DNS Server alias; HostIpAddress will be updated with the resolved ip address" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Server))
                             resolvedIpAddress = socket.gethostbyname(zeroconfDiscoveryResult.Server)
