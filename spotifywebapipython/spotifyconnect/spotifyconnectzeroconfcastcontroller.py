@@ -241,6 +241,28 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 #                'status': 101,
                 #                'statusString': 'OK'}}
 
+                # example payload response (Cast Group):
+                # { 'type': 'getInfoResponse',
+                #   'payload': { 'remoteName': 'Nest Group 01',
+                #                'deviceID': 'c40cf ...',
+                #                'deviceAPI_isGroup': True,
+                #                'version': '2.9.0',
+                #                'publicKey': 'empty',
+                #                'deviceType': 'cast_audio',
+                #                'brandDisplayName': 'google',
+                #                'modelDisplayName': 'Google_Home',
+                #                'libraryVersion': '5.48.2',
+                #                'resolverVersion': '1',
+                #                'groupStatus': 'GROUP',
+                #                'tokenType': 'accesstoken',
+                #                'clientID': 'd7df0 ...',
+                #                'productID': 0,
+                #                'scope': 'streaming',
+                #                'availability': '',
+                #                'spotifyError': 0,
+                #                'status': 101,
+                #                'statusString': 'OK'}}
+
                 # process message payload data.
                 self.zeroconfGetInfo = ZeroconfGetInfo(payloadData)
                 if (self.zeroconfGetInfo.PublicKey == 'empty'):
@@ -567,13 +589,16 @@ class SpotifyConnectZeroconfCastController(BaseController):
             self.waitGetInfo.clear()
             self.isGetInfoError = False
 
+            # determine if this is a cast group or not.
+            isGroup:bool = (self.castDevice.model_name == "Google Cast Group")
+
             # send request to cast app.
             castMsg:dict = {
                 "type": TYPE_GET_INFO,
                 "payload": {
                     "remoteName": self.castDevice.cast_info.friendly_name,
                     "deviceID": self.getSpotifyDeviceID(),
-                    "deviceAPI_isGroup": False,
+                    "deviceAPI_isGroup": isGroup,
                 },
             }
             _logsi.LogDictionary(SILevel.Debug, "Sending Spotify Connect Zeroconf Getinformation message to Chromecast device (ip=%s:%s)" % (self.castDevice.socket_client.host, self.castDevice.socket_client.port), castMsg, prettyPrint=True)

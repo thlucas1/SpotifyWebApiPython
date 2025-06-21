@@ -6,9 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.216 ] - 2025/06/21
+
+  * Updated `SpotifyConnectZeroconfCastController.GetInformation` method to properly set the Cast `getInfo.deviceAPI_isGroup` parameter, which indicates if the remote device is part of a group or not.
+
 ###### [ 1.0.215 ] - 2025/06/20
 
-  * Updated `SpotifyConnectDirectoryTask.OnServiceInfoAddedUpdatedChromecast` method to dscover Google Cast devices in the device collection by their discovery KEY (e.g. UUID) value rather than their NAME value.  The discovery name value cannot be used, as Google Group updates use slightly different names that refer to the same key value!  This was causing duplicate group names to be added to the devices collection, as well as host ip address and port details to be wrong which prevented devices from being activated in the group.
+  * Updated `SpotifyConnectDirectoryTask.OnServiceInfoAddedUpdatedChromecast` method to discover Google Cast devices in the device collection by their discovery KEY (e.g. UUID) value rather than their NAME value.  The discovery name value cannot be used, as Google Group updates use slightly different names that refer to the same key value!  This was causing duplicate group names to be added to the devices collection, as well as host ip address and port details to be wrong which prevented devices from being activated in the group.
 
 ###### [ 1.0.214 ] - 2025/06/19
 

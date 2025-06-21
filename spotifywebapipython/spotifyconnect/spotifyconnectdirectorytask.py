@@ -501,7 +501,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 self._CastAppTasks.pop(scDevice.DiscoveryResult.Key, None)
 
             # get CastInfo details of the specified device.
-            _logsi.LogVerbose("%s - Getting Chromecast information for device: \"%s\"" % (self.name, deviceName))
+            _logsi.LogVerbose("%s - Getting Chromecast information for device: \"%s\" [%s]" % (self.name, deviceName, scDevice.DiscoveryResult.HostIpTitle))
             castInfo:CastInfo = self._CastBrowser.devices[UUID(scDevice.DiscoveryResult.Key)]
 
             # syncronize access via lock, as we are accessing the collection.
