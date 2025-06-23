@@ -5,6 +5,8 @@ import copy
 from datetime import datetime
 import hashlib
 from pychromecast import CastBrowser, CastInfo, Chromecast, get_chromecast_from_cast_info
+from pychromecast.dial import DeviceStatus, MultizoneStatus, get_multizone_status, get_device_info
+#from pychromecast.controllers.multizone import MultizoneManager
 from pychromecast.const import CAST_TYPE_GROUP
 import socket
 from soco import SoCo
@@ -17,6 +19,7 @@ from zeroconf import Zeroconf, ServiceBrowser
 from .spotifyconnectzeroconfexceptions import SpotifyConnectDeviceNotFound
 from .spotifyconnectzeroconfcastapptask import SpotifyConnectZeroconfCastAppTask
 from .spotifyconnectzeroconfcastlistener import SpotifyConnectZeroconfCastListener
+#from .spotifyconnectzeroconfcastmultizonelistener import SpotifyConnectZeroconfCastMultiZoneListener
 from .spotifyconnectdeviceeventargs import SpotifyConnectDeviceEventArgs
 from .spotifyconnectzeroconflistener import ZEROCONF_SERVICETYPE_SPOTIFYCONNECT, SpotifyConnectZeroconfListener
 from .spotifyconnectzeroconfcastcontroller import (
@@ -103,6 +106,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         # initialize storage.
         self._CastAppTasks:Mapping[str, SpotifyConnectZeroconfCastAppTask] = {}
         self._CastBrowser:CastBrowser = None
+        #self._CastMultiZoneManager:MultizoneManager = MultizoneManager()
         self._InitialDiscoveryTimeout = initialDiscoveryTimeout
         self._IsStopRequested:bool = False
         self._SonosPlayers:dict = {}
@@ -419,7 +423,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
         Args:
             deviceName (str):
-                Chromecast device friendly name to activate.
+                Chromecast device friendly name (or device id) to activate.
             transferPlayback (bool):
                 True to transfer playback to the device; otherwise, False to just activate
                 the Spotify Cast App on the device.
@@ -520,6 +524,18 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             # wait for the device to become ready (5 seconds max).
             castDevice.wait(5)
+
+            # TEST TODO REMOVEME
+            # is this a group?  if so, then log the current device status.
+            if (castInfo.cast_type == CAST_TYPE_GROUP):
+
+                # trace.
+                if (_logsi.IsOn(SILevel.Verbose)):
+                    _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s [%s] TODO REMOVEME" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castDevice.status, colorValue=SIColors.Red)
+                    castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, castInfo.services, self.ZeroconfInstance, 5)
+                    _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s [%s] (get_multizone_status) TODO REMOVEME" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Red)
+                    castDeviceStatus:DeviceStatus = get_device_info(scDevice.DiscoveryResult.HostIpAddress, castInfo.services, self.ZeroconfInstance, 5)
+                    _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s [%s] (get_device_info) TODO REMOVEME" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castDeviceStatus, colorValue=SIColors.Red)
 
             # start the Spotify Cast application on the Chromecast device.
             # this will start the spotify app on the cast device.
@@ -1579,8 +1595,45 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # remove the dynamic device from the collection.
                         self.RemoveDevice(spDynamicDevice.Id, dynamicDeviceOnly=True)
 
+                    # # is this an add_cast event?
+                    # if (serviceType == "add_cast"):
+
+                    #     # add cast device to multizone manager instance.  this will add a listener
+                    #     # for multizone status events to be processed, which allows us to keep track
+                    #     # of which device is a group leader.
+                    #     self._CastMultiZoneManager.add_multizone(castDevice)
+                    #     self._CastMultiZoneManager.register_listener(castDevice.uuid, SpotifyConnectZeroconfCastMultiZoneListener(self, self.ZeroconfInstance))
+
+
                     # is this a Google Cast Group?
                     if (castInfo.cast_type == CAST_TYPE_GROUP):
+
+                        # try:
+
+                        #     # is this an add_cast event? we don't need to do this for update_cast.
+                        #     if (serviceType == "add_cast"):
+
+                        #         # add cast device to multizone manager instance.  this will add a listener
+                        #         # for multizone status events to be processed, which allows us to keep track
+                        #         # of which device is a group leader.
+                        #         self._CastMultiZoneManager.add_multizone(castDevice)
+                        #         self._CastMultiZoneManager.register_listener(castDevice.uuid, SpotifyConnectZeroconfCastMultiZoneListener(self, self.ZeroconfInstance))
+
+                        #     # query all HostServiceInfo entries to find the group coordinator.
+                        #     castMdnsSvcInfo:MDNSServiceInfo = None
+                        #     for castSvc in castInfo.services:
+                        #         if (isinstance(castSvc, MDNSServiceInfo)):
+                        #             # get multi-zone status.
+                        #             castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, castInfo.services, self.ZeroconfInstance, 5)
+                        #             castDeviceStatus:DeviceStatus = get_device_info(scDevice.DiscoveryResult.HostIpAddress, castInfo.services, self.ZeroconfInstance, 5)
+                        #             break
+
+                        # except Exception as ex:
+
+                        #     # trace.
+                        #     _logsi.LogException("%s - get_multizone_status Exception: %s" % (self.name, str(ex)), ex, logToSystemLogger=False)
+
+
 
                         # if so, then "add_cast" entries will occur for every member of the group.
                         # we only want to keep the LAST group entry zeroconfDiscoveryResult on file,
@@ -1758,6 +1811,23 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # trace.
                     _logsi.LogVerbose("Removing existing SpotifyConnectDevice instance from CastInfo data: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key))
+
+                    # # is this a Google Cast Group?
+                    # if (castInfo.cast_type == CAST_TYPE_GROUP):
+
+                    #     try:
+
+                    #             # deregister our MultiZoneManagerListener instance for this device.
+                    #             self._CastMultiZoneManager.deregister_listener(castInfo.uuid, None)
+
+                    #             #multizoneListener:SpotifyConnectZeroconfCastMultiZoneListener = SpotifyConnectZeroconfCastMultiZoneListener(self, self.ZeroconfInstance)
+                    #             #castDevice.multizone_manager.register_listener(multizoneListener)
+
+                    #     except Exception as ex:
+
+                    #         # trace.
+                    #         _logsi.LogException("%s - get_multizone_status Exception: %s" % (self.name, str(ex)), ex, logToSystemLogger=False)
+
 
                     # remove existing Spotify Connect Device instance from devices collection.
                     scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.Items.pop(idx)

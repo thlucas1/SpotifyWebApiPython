@@ -86,6 +86,8 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                 a CastInfo object for the specified uuid.
         """
         result:ZeroconfDiscoveryResult = None
+        castInfoHost:str = None
+        castInfoPort:int = 0
 
         try:
 
@@ -101,8 +103,8 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
                 # map the CastInfo object.
                 castInfo:CastInfo = self._ParentDirectory._CastBrowser.services[uuid]
-                castInfoHost:str = castInfo.host
-                castInfoPort:int = castInfo.port
+                castInfoHost = castInfo.host
+                castInfoPort = castInfo.port
 
                 # find ipv4 host and port number.
                 # if the base CastInfo object is ipv6, then find the ipv4 HostServiceInfo
@@ -125,6 +127,12 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
                     # zeroconf requires an IPV4 address structure.
                     if (castHostIpv4 is None):
                         _logsi.LogDebug("Chromecast Zeroconf discovery service notification did not contain IPV4 HostServiceInfo service entry: \"%s\" (%s)" % (serviceName, "IPV6 HostServiceInfo may fail"), colorValue=SIColors.Coral)
+
+            else:
+
+                # set host and port number for remove request.
+                castInfoHost = castInfo.host
+                castInfoPort = castInfo.port
 
             # trace.
             _logsi.LogObject(SILevel.Debug, "Chromecast Zeroconf service details: \"%s\" (%s) (CastInfo object)" % (castInfo.friendly_name, serviceName), castInfo) 

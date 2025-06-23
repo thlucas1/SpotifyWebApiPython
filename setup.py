@@ -62,7 +62,7 @@ setup(
         'oauthlib>=3.2.2',
         'pillow>=10.3.0',
         'platformdirs>=4.1.0',
-        'PyChromecast>=14.0.5',
+        'PyChromecast>=14.0.7',
         'pyotp>=2.9.0',
         'requests>=2.31.0',
         'requests_oauthlib>=1.3.1',

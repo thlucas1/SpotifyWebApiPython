@@ -279,6 +279,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectdirectorytask.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastapptask.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastcontroller.py" />
+    <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastmultizonelistener.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfexceptions.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconfcastlistener.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconflistener.py" />

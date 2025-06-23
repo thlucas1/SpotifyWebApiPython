@@ -590,7 +590,8 @@ class SpotifyConnectZeroconfCastController(BaseController):
             self.isGetInfoError = False
 
             # determine if this is a cast group or not.
-            isGroup:bool = (self.castDevice.model_name == "Google Cast Group")
+            isGroup:bool = False
+            #isGroup:bool = (self.castDevice.model_name == "Google Cast Group")  # TEST TODO REMOVEME
 
             # send request to cast app.
             castMsg:dict = {

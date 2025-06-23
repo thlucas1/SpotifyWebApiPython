@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.217 ] - 2025/06/23
+
+  * Updated underlying `PyChromecast` package requirement from version `>=14.0.5` to `>=14.0.7`.
+
 ###### [ 1.0.216 ] - 2025/06/21
 
   * Updated `SpotifyConnectZeroconfCastController.GetInformation` method to properly set the Cast `getInfo.deviceAPI_isGroup` parameter, which indicates if the remote device is part of a group or not.
