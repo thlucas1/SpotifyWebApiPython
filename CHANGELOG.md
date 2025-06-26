@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.220 ] - 2025/06/26
+
+  * Updated requirements: restored `urllib3>=1.21.1,<1.27` from `urllib3>=2.0` due to Home Assistant issues.
+
 ###### [ 1.0.219 ] - 2025/06/25
 
   * Updated `SpotifyConnectZeroconfCastController.launch_app` method to add a slight delay before we query the Spotify Cast App for Spotify Connect device information.  This should allow time for devices whose group leader has changed to promote the change throughout the group membership, so the group leader contains the correct getInfo response.
