@@ -41,13 +41,7 @@ The following requirements must be met in order to utilize this API:
 
 The following Python-related requirements must be met in order to utilize this API:
 
-* Python 3.4 or greater (Python 2 not supported).
-* oauthlib (==3.2.2) - for OAuth support.
-* platformdirs (==4.1.0) - for platform dependent directory support.
-* smartinspectpython (>=3.0.35) - for diagnostics and logging support.
-* requests (==2.31.0) - for web service request support.
-* requests_oauthlib (==1.3.1) - for OAuth support.
-* urllib3 (==2.1.0) - for web service request support.
+* Python 3.9 or greater (Python 2 not supported).
 
 ## Documentation
 Documentation is located in the package library under the 'docs' folder; use the index.html as your starting point. 

@@ -328,10 +328,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     # ignore exceptions, as we can't do anything about them.
 
             # at this point we have been requested to stop;
-            # loop through all active cast app tasks and request that they stop.
-            castAppTask:SpotifyConnectZeroconfCastAppTask
+            # loop through all active cast app tasks and unregister handlers.
+            # note that this will not stop the Spotify App Task that is running
+            # on the device; we don't stop the app because it would remove the
+            # Spotify Connect registration.
+            castAppTask:SpotifyConnectZeroconfCastAppTask = None
             for castAppTask in self._CastAppTasks.values():
-                if (not castAppTask.is_alive()):
+                if (castAppTask.is_alive()):
                     _logsi.LogVerbose("%s - Stopping %s" % (self.name, castAppTask.name))
                     castAppTask.IsStopRequested = True
                     castAppTask.join()
@@ -494,7 +497,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             self.WaitForActivationComplete.clear()
             self.WaitForTransferComplete.clear()
 
-            # if Spotify Cast App is active on a cast device then request that it stop.
+            # if Spotify Cast App is active on a cast device then request that
+            # it stop, as we will add a new one below.
+            # note that this will not stop the Spotify App Task that is running
+            # on the device; we don't stop the app because it would remove the
+            # Spotify Connect registration.
             castAppTask:SpotifyConnectZeroconfCastAppTask = self._CastAppTasks.get(scDevice.DiscoveryResult.Key, None)
             if (castAppTask is not None):
                 if (not castAppTask.is_alive()):
@@ -507,6 +514,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # get CastInfo details of the specified device.
             _logsi.LogVerbose("%s - Getting Chromecast information for device: \"%s\" [%s]" % (self.name, deviceName, scDevice.DiscoveryResult.HostIpTitle))
             castInfo:CastInfo = self._CastBrowser.devices[UUID(scDevice.DiscoveryResult.Key)]
+            _logsi.LogObject(SILevel.Verbose, "%s - Chromecast CastInfo details: \"%s\" (ip=%s:%s)" % (self.name, castInfo.friendly_name, castInfo.host, castInfo.port), castInfo) 
 
             # syncronize access via lock, as we are accessing the collection.
             with self._SpotifyConnectDevices_RLock:
@@ -530,8 +538,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # the group leader host address, and start the SpotifyCastApp on that specific host.
 
                 # get current multizone status for all groups.
-                castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, castInfo.services, self.ZeroconfInstance, 5)
-                _logsi.LogObject(SILevel.Verbose, "%s - Chromecast group multizone status for device: %s [%s]" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Coral)
+                castMultiZoneStatus:MultizoneStatus = get_multizone_status(castInfo.host, castInfo.services, self.ZeroconfInstance, 5)
+                _logsi.LogObject(SILevel.Verbose, "%s - Chromecast group multizone status for device: %s [ip=%s:%s]" % (self.name, scDevice.Title, castInfo.host, castInfo.port), castMultiZoneStatus, colorValue=SIColors.Coral)
 
                 # default host ip and port in case we don't find the group coordinator.
                 groupHost:str = scDevice.DiscoveryResult.HostIpAddress
@@ -574,7 +582,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             else:
 
-                # note a group; just use the current CastInfo object.
+                # not a group; just use the current CastInfo object.
 
                 # connect to the device and build a Chromecast instance from a CastInfo object.
                 castDevice = get_chromecast_from_cast_info(
@@ -588,7 +596,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 castDevice.wait(5)
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s [%s]" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castDevice.status, colorValue=SIColors.Coral)
+            if (_logsi.IsOn(SILevel.Verbose)):
+                _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device object: \"%s\" (ip=%s:%s)" % (self.name, castInfo.friendly_name, castDevice.socket_client.host, castDevice.socket_client.port), castDevice) 
+                _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s [ip=%s:%s]" % (self.name, scDevice.Title, castDevice.socket_client.host, castDevice.socket_client.port), castDevice.status, colorValue=SIColors.Coral)
 
             # start the Spotify Cast application on the Chromecast device.
             # this will start the spotify app on the cast device.
@@ -1702,9 +1712,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
 
                     # TEST TODO REMOVEME
-                    # # if it's not a cast group, then we need to register a multizone listener to
-                    # # the multizone manager instance to listen for group change events; these
-                    # # events will tell us what cast device is the leader of a group.
+                    # # register a multizone listener to listen for group change events; these
+                    # # events will tell us what cast device is currently the leader of a group.
 
                     # try:
 
@@ -1986,7 +1995,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 scDevice.DeviceInfo.StatusString = info.StatusString
 
                 # trace.
-                _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+                _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo, OnCastGetInfoResponseReceived)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
+
+                # log a warning if the received deviceId did not match the expected deviceId.
+                if (scDevice.Id != info.DeviceId):
+                    _logsi.LogVerbose("OnCastGetInfoResponseReceived deviceId mismatch for device: %s - expected \"%s\", but received \"%s\"" % (scDevice.Title, scDevice.Id, info.DeviceId), colorValue=SIColors.Red)
 
 
     def OnCastZeroconfResponseReceived(

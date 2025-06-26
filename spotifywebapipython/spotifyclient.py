@@ -1297,6 +1297,7 @@ class SpotifyClient:
                 _logsi.LogCollection(SILevel.Verbose, "SpotifyClient http request: '%s' (headers)" % (url), msg.RequestHeaders.items())
 
             # *** IMPORTANT ***
+            # for HA versions prior to 2025.03:
             # in the logic below, ensure that ALL urllib3.request method calls conform to version 1.26.18.
             # urllib3 version 2.0 is not supported!  see internal developer notes for more details.
 

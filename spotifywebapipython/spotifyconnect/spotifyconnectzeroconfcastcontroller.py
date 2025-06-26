@@ -5,8 +5,10 @@ import json
 import pychromecast
 from pychromecast import Chromecast
 from pychromecast.controllers import BaseController
+from pychromecast.const import CAST_TYPE_GROUP
 import requests
 import threading
+import time
 
 # our package imports.
 from .spotifyconnectzeroconfexceptions import SpotifyConnectZeroconfLaunchError
@@ -21,7 +23,7 @@ from spotifywebapipython.const import (
 )
 
 # get smartinspect logger reference; create a new session for this module name.
-from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext
+from smartinspectpython.siauto import SIAuto, SILevel, SISession, SIMethodParmListContext, SIColors
 import logging
 
 _logsi:SISession = SIAuto.Si.GetSession(__name__)
@@ -139,6 +141,13 @@ class SpotifyConnectZeroconfCastController(BaseController):
             """
             Callback function
             """
+            # for cast groups, we will wait a couple of seconds for any cast messages to be
+            # processed, before we query the device for Spotify Connect getInfo.
+            if (self.castDevice.cast_type == CAST_TYPE_GROUP):
+                delay:float = 3.0
+                _logsi.LogVerbose("Cast controller is for a Cast Group request; delaying processing for %s seconds to allow cast zeroconf responses to be processed" % (str(delay)), colorValue=SIColors.Red)
+                time.sleep(delay)
+
             # send the initial getInfo request after launching the app.
             # this will trigger an `addUser` request if the getInfo Response was successful.
             self.GetInformation()
@@ -168,6 +177,31 @@ class SpotifyConnectZeroconfCastController(BaseController):
             raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "GetInformation request failed", "launch_app", self.zeroconfResponse.StatusString)
         if (not self.isLaunched):
             raise SpotifyConnectZeroconfLaunchError("Spotify Cast App could not be launched")
+
+
+    def stop_app(
+        self,
+    ) -> None:
+        """
+        Stops Spotify Cast Application on the remote cast device.
+
+        This will also log the user out of Spotify on the device, as well as cause a
+        `remove_cast` event to occur.
+        """
+        def callback(*_):
+            """
+            Callback function
+            """
+            # nothing to do here, but left the callback code here in case we need it in the future.
+            pass
+
+        # if socket is connected and running, then try to stop the Spotify Cast App.
+        if self._socket_client is not None:
+            if self._socket_client.is_connected:
+                if self._socket_client.receiver_controller is not None:
+                    self._socket_client.receiver_controller.stop_app(
+                        callback_function=callback,
+                    )
 
 
     def receive_message(

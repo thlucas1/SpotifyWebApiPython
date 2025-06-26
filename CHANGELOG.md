@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.219 ] - 2025/06/25
+
+  * Updated `SpotifyConnectZeroconfCastController.launch_app` method to add a slight delay before we query the Spotify Cast App for Spotify Connect device information.  This should allow time for devices whose group leader has changed to promote the change throughout the group membership, so the group leader contains the correct getInfo response.
+  * Updated requirements: from `urllib3>=1.21.1,<1.27` to `urllib3>=2.0`.  Due to HA core 2025.07.00 update requirements.
+
 ###### [ 1.0.218 ] - 2025/06/24
 
   * Updated `SpotifyConnectDirectoryTask.ActivateCastAppSpotify` method to ensure that the SpotifyAppTask is activated on the group leader if the device name is a cast group.

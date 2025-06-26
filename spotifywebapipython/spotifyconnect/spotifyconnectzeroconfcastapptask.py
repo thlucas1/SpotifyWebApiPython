@@ -213,10 +213,16 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             if (tokenSP is None):
                 return
 
+            # create cast controller to control the Spotify Cast App on the device.
+            _logsi.LogVerbose("%s - Creating Spotify Cast App controller for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
+            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenSP.AccessToken, tokenSP.ExpiresAt)
+
+            # register handler for the cast controller;
+            _logsi.LogVerbose("%s - Registering handler for Cast Controller" % (self.name))
+            self._CastDevice.register_handler(self._SpotifyConnectZeroconfCastController)
+
             # launch spotify chromecast app on the device, passing it the spotify desktop player authorization token info.
             _logsi.LogVerbose("%s - Launching Spotify Chromecast App for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenSP.AccessToken, tokenSP.ExpiresAt)
-            self._CastDevice.register_handler(self._SpotifyConnectZeroconfCastController)
             self._SpotifyConnectZeroconfCastController.launch_app(10)
 
             # at this point the cast app should be either fully launched, or an error
@@ -320,10 +326,10 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
         finally:
 
             try:
-                # stop the cast app on the device.
-                # this will logout the current user from Spotify Connect Zeroconf as well.
+                # unregister handler for the cast controller.
                 if (self._SpotifyConnectZeroconfCastController is not None):
-                    _logsi.LogVerbose("%s - Stopping Cast App" % (self.name))
+                    _logsi.LogVerbose("%s - Unregistering handler for Cast Controller" % (self.name))
+                    self._CastDevice.unregister_handler(self._SpotifyConnectZeroconfCastController)
                     self._SpotifyConnectZeroconfCastController.tear_down()
             except:
                 pass

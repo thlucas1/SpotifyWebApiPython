@@ -12,8 +12,8 @@ DESCRIPTION = 'Spotify Web API Python3 Library'
 
 # if installing using less than Python v3, then stop the install!
 import sys
-if sys.version_info < (3,5):
-    sys.exit('Sorry, Python < 3.5 is not supported.')
+if sys.version_info < (3,9):
+    sys.exit('Sorry, Python < 3.9 is not supported.')
 
 # function to read the contents of the README.md file, and return it to the caller.
 def readme(pathName:str):
@@ -56,7 +56,6 @@ setup(
     python_requires='>3.11.0',
     
     # set minimum dependencies requirements.
-    # note that urllib3 version must be less than 2!
     install_requires=[
         'lxml>=5.2.0',
         'oauthlib>=3.2.2',
@@ -68,7 +67,7 @@ setup(
         'requests_oauthlib>=1.3.1',
         'smartinspectpython>=3.0.37',
         'soco>=0.30.6',
-        'urllib3>=1.21.1,<1.27',
+        'urllib3>=2.0',
         'zeroconf>=0.132.2'
     ],
 
@@ -78,8 +77,6 @@ setup(
     # set classifiers to associate this package with on Pypi.org.
     classifiers=[
         'Development Status :: 5 - Production/Stable',
-#       'Development Status :: 4 - Beta',
-#       'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Programming Language :: Python :: 3',
         'Operating System :: Microsoft :: Windows',
