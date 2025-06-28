@@ -530,9 +530,9 @@ class SpotifyClient:
 
             # if deviceId could not be resolved, then it's an error.
             if (deviceId is None) or (deviceId == "*"):
-                raise SpotifyConnectDeviceNotFound("There is no active Spotify player device, and a default player device was not configured.")
+                raise SpotifyConnectDeviceNotFound("There is no active Spotify player device, and a default player device was not configured.", logsi=_logsi)
             else:
-                raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found in the Spotify Connect device list; verify the device is discoverable via Zeroconf on the local network." % (deviceId))
+                raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found in the Spotify Connect device list; verify the device is discoverable via Zeroconf on the local network." % (deviceId), logsi=_logsi)
 
 
     def _CheckForNextPageWithOffset(

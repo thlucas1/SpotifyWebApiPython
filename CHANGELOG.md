@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.221 ] - 2025/06/28
+
+  * Updated `SpotifyConnectZeroconfCastListener._GetZeroconfDiscoveryResult` method to remove IPV4 host resolution, as both IPV4 and IPV6 are supported types for casting.  The `get_multizone_status` call will only return IPV6 information in some instances anyway.
+  * Updated `SpotifyConnectDirectoryTask.ActivateCastAppSpotify` method to increase wait times for cast objects to become available.  More time is needed for cast group processing.
+  * Updated calls made to `SpotifyConnectDeviceNotFound` to include the `logsi=` parameter, so that trace dumps are not generated in the system logger.
+
 ###### [ 1.0.220 ] - 2025/06/26
 
   * Updated requirements: restored `urllib3>=1.21.1,<1.27` from `urllib3>=2.0` due to Home Assistant issues.

@@ -577,8 +577,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     retry_wait=0.5,
                     timeout=5)
 
-                # wait for the device to become ready (5 seconds max).
-                castDevice.wait(5)
+                # wait for the device to become ready (15 seconds max).
+                castDevice.wait(15)
 
             else:
 
@@ -592,8 +592,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     retry_wait=0.5,
                     timeout=3)
 
-                # wait for the device to become ready (5 seconds max).
-                castDevice.wait(5)
+                # wait for the device to become ready (10 seconds max).
+                castDevice.wait(10)
 
             # trace.
             if (_logsi.IsOn(SILevel.Verbose)):
@@ -996,7 +996,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # at this point we could not resolve the device name / id, and there is no active player
                 # available; raise exception / return null as requested by the caller.
                 if (raiseExceptionIfNotFound):
-                    raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found, and there is no active Spotify player" % (value))
+                    raise SpotifyConnectDeviceNotFound("Spotify Player device \"%s\" was not found, and there is no active Spotify player" % (value), logsi=_logsi)
                 else:
                     _logsi.LogVerbose("Spotify Player device \"%s\" was not found, and there is no active Spotify player" % (value))
                     return None
@@ -1618,8 +1618,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         retry_wait=0.5,
                         timeout=5)
 
-                    # wait for the device to become ready (5 seconds max).
-                    castDevice.wait(5)
+                    # wait for the device to become ready (10 seconds max).
+                    castDevice.wait(10)
                     _logsi.LogObject(SILevel.Verbose, "Chromecast device instance \"%s\" (%s)" % (castInfo.friendly_name, zeroconfDiscoveryResult.Name), castDevice)
 
                     # create a new Spotify Connect Device instance.
