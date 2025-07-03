@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.222 ] - 2025/07/02
+
+  * Updated requirements: from `urllib3>=1.21.1,<1.27` to `urllib3>=2.0`.  Due to Home Assistant Core 2025.7.0 update requirements.
+
 ###### [ 1.0.221 ] - 2025/06/28
 
   * Updated `SpotifyConnectZeroconfCastListener._GetZeroconfDiscoveryResult` method to remove IPV4 host resolution, as both IPV4 and IPV6 are supported types for casting.  The `get_multizone_status` call will only return IPV6 information in some instances anyway.
