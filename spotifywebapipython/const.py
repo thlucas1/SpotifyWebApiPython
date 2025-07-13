@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.222"
+VERSION:str = "1.0.223"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """
@@ -54,7 +54,7 @@ Default value is "US".
 
 SPOTIFY_DESKTOP_APP_CLIENT_ID:str = '65b708073fc0480ea92a077233ca87bd'
 """
-Spotify Desktop Application client id.
+Spotify Desktop Application client id (e.g. `65b708073fc0480ea92a077233ca87bd`).
 """
 
 SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE:str = 'SpotifyWebApiPython_tokens.json'

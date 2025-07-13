@@ -103,7 +103,10 @@ class ZeroconfResponse:
     @property
     def StatusString(self) -> str:
         """ 
-        The string describing the status code (e.g. "OK", "ERROR-SPOTIFY-ERROR", etc).
+        The string describing the status code; some examples are:
+        - "OK" (kSpErrorOk)
+        - "ERROR-SPOTIFY-ERROR"
+        - "ERROR-LOGIN-FAILED" (kSpErrorZeroConfLoginFailed )
         """
         return self._StatusString
     

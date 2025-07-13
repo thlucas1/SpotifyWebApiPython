@@ -8687,11 +8687,11 @@ class SpotifyClient:
                 A dot separator can be used to specify non-reoccurring fields, while parentheses can be used 
                 to specify reoccurring fields within objects. For example, to get just the added date and user 
                 ID of the adder:  
-                `fields=tracks.items(added_at,added_by.id)`.   
+                `fields=items(added_at,added_by.id)`.   
                 Use multiple parentheses to drill down into nested objects, for example:  
-                `fields=tracks.items(track(name,href,album(name,href)))`.  
+                `fields=items(track(name,href,album(name,href)))`.  
                 Fields can be excluded by prefixing them with an exclamation mark, for example:  
-                `fields=tracks.items(track(name,href,album(!name,href)))`  
+                `fields=items(track(name,href,album(!name,href)))`  
                 Example: fields=items(added_by.id,track(name,href,album(name,href)))
             additionalTypes (str):
                 A comma-separated list of item types that your client supports besides the default track type.  
@@ -8939,11 +8939,11 @@ class SpotifyClient:
                 A dot separator can be used to specify non-reoccurring fields, while parentheses can be used 
                 to specify reoccurring fields within objects. For example, to get just the added date and user 
                 ID of the adder:  
-                `fields=tracks.items(added_at,added_by.id)`.   
+                `fields=items(added_at,added_by.id)`.   
                 Use multiple parentheses to drill down into nested objects, for example:  
-                `fields=tracks.items(track(name,href,album(name,href)))`.  
+                `fields=items(track(name,href,album(name,href)))`.  
                 Fields can be excluded by prefixing them with an exclamation mark, for example:  
-                `fields=tracks.items(track(name,href,album(!name,href)))`  
+                `fields=items(track(name,href,album(!name,href)))`  
                 Example: fields=items(added_by.id,track(name,href,album(name,href)))
             additionalTypes (str):
                 A comma-separated list of item types that your client supports besides the default track type.  
@@ -12069,6 +12069,50 @@ class SpotifyClient:
         return result
 
 
+    @staticmethod
+    def IsSpotifyUri(
+        uri:str, 
+        ) -> bool:
+        """
+        Determines if the specified value is a Spotify URI or not.
+        
+        Args:
+            uri (str):  
+                The possible Spotify URI value.
+                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`
+                
+        Returns:
+            True if the value is a Spotify URI value; otherwise, false.
+            
+        No exceptions are raised with this method.
+
+        Simple tests are used to determine if the value is a Spotify URI.
+        - 2 colons must be present.
+        - value must start with "spotify:".
+        """
+        try:
+            
+            # validations.
+            if uri is None or len(uri.strip()) == 0:
+                return False
+
+            # convert case for comparison.
+            uri = uri.lower()
+
+            # simple test for Spotify URI format.
+            if (uri.count(':') != 2):
+                return False
+            if (not uri.startswith("spotify:")):
+                return False
+
+            # if it passed the test, then it must be true.
+            return True
+
+        except Exception:
+            
+            return False
+
+
     def PlayerMediaPause(
         self, 
         deviceId:str=None,
@@ -12257,6 +12301,14 @@ class SpotifyClient:
         For Sonos devices that have shuffle enabled, the first item of the first context uri will always 
         be played first; subsequent items will be played in shuffled order.  
         This is due to the way the Sonos local queue is used to play the context uri items.
+
+        A `Player command failed: Restriction violated` error will occur if the `offset_position` value exceeds 
+        the number of items in the context.  For example, if there are 500 entries in the playlist context and 
+        you specify 501 for the `offset_position` value.
+
+        A `Can't have offset for context type: ARTIST` error will occur if the `offsetPosition` or `offsetUri`
+        argument is specified for an artist context.
+
         
         <details>
           <summary>Sample Code - Play Album</summary>
@@ -12430,9 +12482,53 @@ class SpotifyClient:
                 # trace.
                 _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
 
-                # set desired shuffle mode (if specified).
+                # get current player state.
+                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
+
+                # if shuffle was specified, then verify current player shuffle state.
+                # this will enable / disable the player shuffle state PRIOR to starting context play.
+                # if shuffle is None, then the current shuffle mode is not changed.
                 if (shuffle is not None):
-                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                    if (shuffle != playerState.IsShuffleEnabled):
+                        self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                        playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+
+                # is shuffle enabled? and is this a Spotify URI value (e.g. `spotify:type:id`)?
+                if (shuffle or playerState.IsShuffleEnabled) and (self.IsSpotifyUri(contextUri)):
+
+                    # get uri parts.
+                    uriType:str = self.GetTypeFromUri(contextUri)
+                    uriId:str = self.GetIdFromUri(contextUri)
+                    uriItems:PageObject = None
+
+                    # wrap this in a try, as errors will be returned if context contains
+                    # spotify algorithmic data (e.g. Made For You, Daily Mix n, etc).
+                    try:
+
+                        # trace.
+                        _logsi.LogVerbose("Shuffle is enabled; getting context item count (50 max)")
+
+                        # get number of items in the context, up to 50 max.
+                        # we limit it to 50 to keep it fast, as some context lists are quite large!
+                        # note that playlist type is the only type we can limit the amount of data returned.
+                        # note that offset cannot be specified for artist context type; a `400 - Bad Request
+                        # Can't have offset for context type: ARTIST` error is returned if specified.
+                        if (uriType == "playlist"):
+                            uriItems = self.GetPlaylistItems(uriId, limitTotal=50, fields="items(track(name))")
+                        elif (uriType == "album"):
+                            uriItems = self.GetAlbumTracks(uriId, limitTotal=50)
+
+                    except Exception as ex:
+
+                        # ignore exceptions.
+                        # trace.
+                        _logsi.LogVerbose("Could not get first 50 (max) items in context: %s" % str(ex))
+                        
+                    # set random offset position based on how many context items there are
+                    # if context items were obtained (0 to 50 max).
+                    if (uriItems is not None) and (uriItems.ItemsCount > 0):
+                        offsetPosition = random.randint(0, uriItems.ItemsCount - 1)
+                        _logsi.LogVerbose("Shuffle is enabled; setting random offsetPosition to %s" % str(offsetPosition))
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -12465,15 +12561,6 @@ class SpotifyClient:
                 if delay > 0:
                     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                     time.sleep(delay)
-
-                # if offset was not specified, or shuffle is enabled, then check shuffle state.
-                # if shuffle state is enabled, then immediately skip to next track.
-                # we have to do it this way due to a bug in the Spotify Web API that does not honor 
-                # existing shuffle state when playing context.
-                if ((offsetUri is None) and (offsetPosition == 0)) or (shuffle):
-                    playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
-                    if (playerState.IsShuffleEnabled):
-                        self.PlayerMediaSkipNext(scDevice)
 
             # process results.
             # no results to process - this is pass or fail.
@@ -12590,13 +12677,9 @@ class SpotifyClient:
             # resolve the device object from the device id.
             scDevice = self._ResolveDeviceObject(deviceId, False)
 
-            # set desired shuffle mode.
-            if (shuffle == True):
-                self.PlayerSetShuffleMode(shuffle, scDevice, delay)
-
             # play the tracks.
             # indicate device id has already been resolved.
-            self.PlayerMediaPlayTracks(arrUris, deviceId=scDevice, delay=delay)
+            self.PlayerMediaPlayTracks(arrUris, deviceId=scDevice, shuffle=shuffle, delay=delay)
             
             # process results.
             # no results to process - this is pass or fail.
@@ -12712,11 +12795,6 @@ class SpotifyClient:
                 arrUris = uris.split(',')
                 for idx in range(0, len(arrUris)):
                     arrUris[idx] = arrUris[idx].strip()
-        
-            # if shuffle enabled, then randomize the track uri's.
-            if (shuffle):
-                _logsi.LogVerbose("Shuffle enabled; randomizing list of track uri's to play")
-                random.shuffle(arrUris)
 
             # resolve the device object from the device id; activate if it's dormant.
             scDevice = self._ResolveDeviceObject(deviceId, True)
@@ -12735,6 +12813,11 @@ class SpotifyClient:
 
                 # trace.
                 _logsi.LogVerbose("Tracks will be played on Sonos local queue for device: %s" % (scDevice.Title))
+
+                # if shuffle enabled, then randomize the track uri's.
+                if (shuffle):
+                    _logsi.LogVerbose("Shuffle enabled; randomizing list of track uri's to play")
+                    random.shuffle(arrUris)
 
                 # set desired shuffle mode (if specified).
                 if (shuffle is not None):
@@ -12806,9 +12889,21 @@ class SpotifyClient:
                 # trace.
                 _logsi.LogVerbose("Tracks will be played on the Spotify Connect device via Spotify Web API")
 
-                # set desired shuffle mode (if specified).
+                # get current player state.
+                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
+
+                # if shuffle was specified, then verify current player shuffle state.
+                # this will enable / disable the player shuffle state PRIOR to starting track play.
+                # if shuffle is None, then the current shuffle mode is not changed.
                 if (shuffle is not None):
-                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                    if (shuffle != playerState.IsShuffleEnabled):
+                        self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                        playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+
+                # if shuffle enabled, then randomize the track uri's.
+                if (shuffle or playerState.IsShuffleEnabled):
+                    _logsi.LogVerbose("Shuffle enabled; randomizing list of track uri's to play")
+                    random.shuffle(arrUris)
 
                 # build spotify web api request parameters.
                 reqData:dict = \
@@ -13591,6 +13686,11 @@ class SpotifyClient:
                 sonosPlayer:SoCo = self.SpotifyConnectDirectory.GetSonosPlayer(scDevice)
                 sonosPlayer.play_mode = playMode
 
+                # give Sonos Controller time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE_SONOS % delay)
+                    time.sleep(delay)
+
             else:
 
                 # was the deviceId resolved? 
@@ -13611,10 +13711,10 @@ class SpotifyClient:
                 msg.UrlParameters = urlParms
                 self.MakeRequest('PUT', msg)
             
-            # give spotify web api time to process the change.
-            if delay > 0:
-                _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
-                time.sleep(delay)
+                # give spotify web api time to process the change.
+                if delay > 0:
+                    _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
+                    time.sleep(delay)
 
             # process results.
             # no results to process - this is pass or fail.

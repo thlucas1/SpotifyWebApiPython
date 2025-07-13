@@ -547,6 +547,10 @@ class ZeroconfConnect:
                 "Connection": "close"
             }
 
+            # prepare values for parsing.
+            infoBrandDisplayName:str = (info.BrandDisplayName or "").lower()
+            infoModelDisplayName:str = (info.ModelDisplayName or "").lower()
+
             # set defaults used by most manufacturers - we will tailor these in the
             # logic below for specific manufacturers / devices as required.
             # - exclude origin device information from the addUser request.
@@ -618,7 +622,7 @@ class ZeroconfConnect:
                 # set defaults used by token type "authorization_code".
                 # - set the clientKey value to null, as it is not used to encrypt / decrypt anything.
                 # - include origin device information in the addUser request.
-                # - set the tokenType to 'authorization_code'.
+                # - set the tokenType to what is returned from the getInfo response.
                 clientKey = ''
                 includeOriginDeviceInfo = True
                 tokenType = info.TokenType
@@ -651,6 +655,11 @@ class ZeroconfConnect:
                 includeOriginDeviceInfo = False
                 tokenType = "default"
             
+                # include the origin device information for specified manufacturers.
+                if (infoBrandDisplayName == 'bluesound' and infoModelDisplayName == 'powernode'):
+                    includeOriginDeviceInfo = True
+                    tokenType = info.TokenType
+
                 # formulate the blob.
                 blob = builder.build()
 

@@ -295,6 +295,14 @@ class PlayerPlayState:
             return True
         return False
 
+    @IsShuffleEnabled.setter
+    def IsShuffleEnabled(self, value:bool):
+        """ 
+        Sets the IsShuffleEnabled property value.
+        """
+        if isinstance(value, bool):
+            self._ShuffleState = value
+
 
     @property
     def IsSmartShuffleEnabled(self) -> bool:
