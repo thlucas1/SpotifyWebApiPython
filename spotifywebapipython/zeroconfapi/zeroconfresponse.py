@@ -18,6 +18,7 @@ class ZeroconfResponse:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
+        self._InteractionIDs:list[str] = []
         self._SpotifyError:int = None
         self._Status:int = None
         self._StatusString:str = None
@@ -37,6 +38,12 @@ class ZeroconfResponse:
             self.Status = root.get('status', None)
             self._StatusString = root.get('statusString', None)
             
+            # process all collections and objects.
+            items:list = root.get('interactionIDs',None)
+            if items is not None:
+                for item in items:
+                    self._InteractionIDs.append(item)
+
     
     def __repr__(self) -> str:
         return self.ToString()
@@ -44,6 +51,32 @@ class ZeroconfResponse:
 
     def __str__(self) -> str:
         return self.ToString()
+
+
+    @property
+    def HasInteractionIDs(self) -> bool:
+        """
+        Returns True if interactionIDs entries defined;
+        otherwise, False.
+        """
+        return (len(self._InteractionIDs) > 0)
+
+
+    @property
+    def InteractionIDs(self) -> list[str]:
+        """ 
+        In a Google Cast Spotify Connect session, the interactionId (sometimes seen as interactionIDs, 
+        interaction_id, or similar in logs or APIs) is a unique identifier assigned to track and correlate 
+        events or commands related to a specific user interaction or session lifecycle (e.g. play, pause, 
+        volume change, add user, etc).
+
+        Spotify client apps (e.g. mobile app, desktop app, or embedded SDK like Librespot) are responsible 
+        for generating and attaching the interactionId.  This is usually done just before the getInfo
+        message call, so that it can be included in the getInfo payload.
+
+        It is usually a UUID (Universally Unique Identifier) or similarly unique string.
+        """
+        return self._InteractionIDs
 
 
     @property
@@ -129,6 +162,7 @@ class ZeroconfResponse:
             'Status': self._Status,
             'StatusString': self._StatusString,
             'ResponseSource': self._ResponseSource,
+            'InteractionIDs': [ item.ToDictionary() for item in self._InteractionIDs ],
         }
         return result
         
@@ -149,4 +183,5 @@ class ZeroconfResponse:
         if self._Status is not None: msg = '%s\n Status="%s"' % (msg, str(self._Status))
         if self._StatusString is not None: msg = '%s\n StatusString="%s"' % (msg, str(self._StatusString))
         if self._ResponseSource is not None: msg = '%s\n ResponseSource="%s"' % (msg, str(self._ResponseSource))
+        if self._InteractionIDs is not None: msg = '%s\n InteractionIDs=%s' % (msg, str(self._InteractionIDs))
         return msg 

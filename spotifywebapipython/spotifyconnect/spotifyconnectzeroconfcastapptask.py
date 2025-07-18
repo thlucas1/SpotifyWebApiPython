@@ -4,7 +4,7 @@ import threading
 import time
 
 # our package imports.
-from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController, TYPE_LAUNCH_ERROR
+from .spotifyconnectzeroconfcastcontroller import SpotifyConnectZeroconfCastController, TYPE_LAUNCH_ERROR, WAIT_INTERVAL
 from spotifywebapipython.spotifyauthtoken import SpotifyAuthToken
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfResponse
 from spotifywebapipython.oauthcli.authclient import AuthClient
@@ -215,7 +215,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
 
             # create cast controller to control the Spotify Cast App on the device.
             _logsi.LogVerbose("%s - Creating Spotify Cast App controller for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenSP.AccessToken, tokenSP.ExpiresAt)
+            self._SpotifyConnectZeroconfCastController = SpotifyConnectZeroconfCastController(self._CastDevice, tokenSP.AccessToken, tokenSP.ExpiresAt, self.SpotifyClientInstance.SpotifyConnectLoginId)
 
             # register handler for the cast controller;
             _logsi.LogVerbose("%s - Registering handler for Cast Controller" % (self.name))
@@ -280,10 +280,10 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # wait for the launched spotify app to receive transfer playback control, either
             # through the `PlayerTransferPlayback` executed above OR from another Spotify Connect 
             # capable player.
-            timeout:int = 20
-            counter = 0
+            timeout:float = 20.0
+            counter:float = 0
             while counter < (timeout + 1):
-                if (self._SpotifyConnectZeroconfCastController.waitPlaybackTransfer.wait(1)):
+                if (self._SpotifyConnectZeroconfCastController.waitPlaybackTransfer.wait(WAIT_INTERVAL)):
                     if (self._SpotifyConnectZeroconfCastController.isPlaybackTransferError):
                         self._PostLaunchErrorEvent(1001, "Playback transfer error: %s" % (self._SpotifyConnectZeroconfCastController.zeroconfResponse.StatusString))
                         return
@@ -291,7 +291,8 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                 if (counter >= timeout):
                     self._PostLaunchErrorEvent(1002, "Playback transfer error - Timed out waiting for playback transfer to device.")
                     return
-                counter += 1
+                counter += WAIT_INTERVAL
+                _logsi.LogVerbose("Waiting for transferSuccess Chromecast Message payload (%f seconds from initial request)" % (counter))
 
             # update task status.
             _logsi.LogVerbose("%s - Transfer Playback complete for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))

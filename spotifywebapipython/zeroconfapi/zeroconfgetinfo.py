@@ -480,6 +480,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
         # don't compare the following:
         # self._Aliases:list[ZeroconfGetInfoAlias] = []
+        # self._InteractionIDs:list[str] = []
         # self._SupportedDrmMediaFormats:list[ZeroconfGetInfoDrmMediaFormat] = []
         
         # objects attributes are equal.

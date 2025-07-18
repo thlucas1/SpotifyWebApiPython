@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.224 ] - 2025/07/18
+
+  * Added support for `interactionIDs` argument in various Google Cast message payloads.
+  * Added support for `hashedUserName` argument in Google Cast `addUser` message payloads.
+
 ###### [ 1.0.223 ] - 2025/07/12
 
   * Added `SpotifyClient.IsSpotifyUri` method to determine if a value is a Spotify URI (true) or not (false).
