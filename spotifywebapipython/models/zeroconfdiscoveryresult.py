@@ -233,6 +233,18 @@ class ZeroconfDiscoveryResult:
 
 
     @property
+    def IsHostIpV6(self) -> bool:
+        """
+        Returns True if the `HostIpAddress` is a IPV6 formatted address;
+        otherwise, False.
+        """
+        ipaddr:str = self.HostIpAddress or ""
+        if (ipaddr.find(":")):
+            return True
+        return False
+
+
+    @property
     def Key(self) -> str:
         """ 
         Service key (e.g. "bose-st10-2._spotify-connect._tcp.local.").

@@ -553,21 +553,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     if (str(zoneInfo.uuid) == scDevice.DiscoveryResult.Key):
 
                         # yes - get host info to use for the device.
-                        groupHost = zoneInfo.host or scDevice.DiscoveryResult.HostIpAddress
-                        groupPort = zoneInfo.port or scDevice.DiscoveryResult.HostIpPort
-
-                        # did the host info change? 
-                        if (groupHost != scDevice.DiscoveryResult.HostIpAddress) or (groupPort != scDevice.DiscoveryResult.HostIpPort):
-
-                            # syncronize access via lock, as we are accessing the collection.
-                            with self._SpotifyConnectDevices_RLock:
-
-                                # update group host info from latest group coordinator status.
-                                _logsi.LogVerbose("%s - Chromecast group coordinator host info change detected: %s [%s] (OLD)" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), colorValue=SIColors.Coral)
-                                scDevice.DiscoveryResult.HostIpAddress = groupHost
-                                scDevice.DiscoveryResult.HostIpPort = groupPort
-                                _logsi.LogVerbose("%s - Chromecast group coordinator host info updated: %s [%s] (NEW)" % (self.name, scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), colorValue=SIColors.Coral)
-
+                        # we will use the device discovery result HostIpAddress instead of the zoneInfo.host
+                        # value here, as the zoneInfo MAY contain an IPV6 formatted address, which was causing 
+                        # issues if the device was originally activated using an IPV4 address!
+                        groupHost = scDevice.DiscoveryResult.HostIpAddress
+                        groupPort = scDevice.DiscoveryResult.HostIpPort
                         break
 
                 # connect to the device and build a Chromecast instance from group coordinator host info.
