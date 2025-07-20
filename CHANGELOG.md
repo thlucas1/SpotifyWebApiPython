@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.226 ] - 2025/07/19
+
+  * Updated Google Cast zeroconf message processing to ignore IP address changes for cast group notifications; we want the first device discovered in the group to be the coordinator by default.  
+
 ###### [ 1.0.225 ] - 2025/07/18
 
   * Updated `SpotifyConnectDirectoryTask.ActivateCastAppSpotify` method to use the discovery result ip address (instead of the host address from the multi-zone status result).  The multi-zone status results were returning IPV6 formatted addresses, which was causing issues if the device was originally activated using an IPV4 address!

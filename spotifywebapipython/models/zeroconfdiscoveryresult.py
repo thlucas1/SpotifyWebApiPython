@@ -233,6 +233,17 @@ class ZeroconfDiscoveryResult:
 
 
     @property
+    def IsChromeCastGroup(self) -> bool:
+        """ 
+        True if the device is a Google ChromeCast Group device; otherwise, False.
+
+        This is indicated by the ServerKey value starting with "Google-Cast-Group-".
+        """
+        serverKey:str = self._ServerKey or ""
+        return (serverKey.lower().startswith("google-cast-group-"))
+    
+
+    @property
     def IsHostIpV6(self) -> bool:
         """
         Returns True if the `HostIpAddress` is a IPV6 formatted address;

@@ -1770,23 +1770,21 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
                         _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
-                        # set zeroconf discovery result properties.
-                        scDevice.DiscoveryResult = zeroconfDiscoveryResult
-
                         # did the device name change?  if so, then update name and id properties,
                         # as well as the corresponding getInfo properties.
+                        deviceNameChanged:bool = False
                         if (scDevice.Name != zeroconfDiscoveryResult.DeviceName):
 
                             # if Spotify Cast App is active on the cast device then request that it stop
                             # as it will need to re-register the new device name and device id.
-                            castAppTask:SpotifyConnectZeroconfCastAppTask = self._CastAppTasks.get(scDevice.DiscoveryResult.Key, None)
+                            castAppTask:SpotifyConnectZeroconfCastAppTask = self._CastAppTasks.get(zeroconfDiscoveryResult.Key, None)
                             if (castAppTask is not None):
                                 if (castAppTask.is_alive()):
                                     _logsi.LogVerbose("%s - Stopping Spotify Cast App task (due to device rename)" % (self.name))
                                     castAppTask.IsStopRequested = True
                                     castAppTask.join()
                                     _logsi.LogVerbose("%s - Spotify Cast App task was stopped successfully (due to device rename)" % (self.name))
-                                self._CastAppTasks.pop(scDevice.DiscoveryResult.Key, None)
+                                self._CastAppTasks.pop(zeroconfDiscoveryResult.Key, None)
 
                             # update name and id properties, as well as the corresponding getInfo properties.
                             newDeviceName:str = zeroconfDiscoveryResult.DeviceName
@@ -1796,6 +1794,19 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.Id = newDeviceId
                             scDevice.DeviceInfo.DeviceId = newDeviceId
                             scDevice.DeviceInfo.RemoteName = newDeviceName
+                            deviceNameChanged = True
+
+                        # is this a Google Cast Group? 
+                        # if so, AND the device name did not change, then ignore the update since
+                        # we want the first device discovered in the group to be the coordinator by default.
+                        # this might change later, but we will detect that using calls to multizone status.
+                        if (zeroconfDiscoveryResult.IsChromeCastGroup) and (not deviceNameChanged):
+                            _logsi.LogObject(SILevel.Verbose, "SpotifyConnectDevice info: \"%s\" (ignored; Cast Group device update)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                            _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (NEW DiscoveryResult ignored) [%s]" % (scDevice.Title, zeroconfDiscoveryResult.HostIpTitle), zeroconfDiscoveryResult, excludeNonPublic=True)
+                            return
+
+                        # set zeroconf discovery result properties.
+                        scDevice.DiscoveryResult = zeroconfDiscoveryResult
 
                         # update existing Spotify Connect Device in devices collection.
                         self._SpotifyConnectDevices.Items[idx] = scDevice
