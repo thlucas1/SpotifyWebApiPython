@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.227 ] - 2025/07/22
+
+  * Updated Google Cast processing to transfer control to the deviceId that was activated.  The actual deviceId that was activated may be different than the requested deviceId. This can sometimes occur when activating a group, as getInfoResponse will return the deviceId of the group coordinator instead of the deviceId of the group itself.
+
 ###### [ 1.0.226 ] - 2025/07/19
 
   * Updated Google Cast zeroconf message processing to ignore IP address changes for cast group notifications; we want the first device discovered in the group to be the coordinator by default.  

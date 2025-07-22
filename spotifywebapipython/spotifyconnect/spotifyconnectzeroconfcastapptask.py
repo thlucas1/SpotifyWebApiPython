@@ -72,6 +72,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
         _logsi.LogVerbose("%s - Initializing storage" % (self.name))
 
         # initialize storage.
+        self._DeviceIdActivated:str = None
         self._CastDevice:Chromecast = castDevice
         self._GetInfoResponseReceivedCallback = getInfoResponseReceivedCallback
         self._IsStopRequested:bool = False
@@ -88,6 +89,18 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
         otherwise, None.
         """
         return self._CastDevice
+
+
+    @property
+    def DeviceIdActivated(self) -> str:
+        """ 
+        Returns the Chromecast device id that was activated.
+
+        The actual deviceId that was activated may be different than the requested deviceId.
+        This can sometimes occur when activating a group, as getInfoResponse will return the 
+        deviceId of the group coordinator instead of the deviceId of the group itself.  
+        """
+        return self._DeviceIdActivated
 
 
     @property
@@ -263,16 +276,18 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # call the callback to process the addUserResponse.
             self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
 
+            # store the activated deviceId.
+            self._DeviceIdActivated = self._SpotifyConnectZeroconfCastController.zeroconfGetInfo.DeviceId
+
             # trace.
-            _logsi.LogVerbose("%s - User is logged in to Spotify Cast App; waiting for transfer playback ..." % (self.name))
+            _logsi.LogVerbose("%s - User is logged in to Spotify Cast App; waiting for transfer playback to device \"%s\" ..." % (self.name, self._DeviceIdActivated))
 
             # was transfer playback selected?
             if (self.TransferPlayback == True):
 
                 # transfer playback to the Chromecast device.
                 _logsi.LogVerbose("%s - Transferring playback for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))
-                deviceId:str = self._SpotifyConnectZeroconfCastController.zeroconfGetInfo.DeviceId
-                self.SpotifyClientInstance.PlayerTransferPlayback(deviceId, play=True, refreshDeviceList=False)
+                self.SpotifyClientInstance.PlayerTransferPlayback(self._DeviceIdActivated, play=True, refreshDeviceList=False)
 
                 # the cast device will receive a Chromecast message of payload type `transferSuccess`
                 # on successful transfer of playback; this will set the `isPlaybackTransferred` flag to True.
@@ -292,7 +307,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                     self._PostLaunchErrorEvent(1002, "Playback transfer error - Timed out waiting for playback transfer to device.")
                     return
                 counter += WAIT_INTERVAL
-                _logsi.LogVerbose("Waiting for transferSuccess Chromecast Message payload (%f seconds from initial request)" % (counter))
+                _logsi.LogVerbose("Waiting for transferSuccess Chromecast Message (%f seconds from initial request)" % (counter))
 
             # update task status.
             _logsi.LogVerbose("%s - Transfer Playback complete for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId))

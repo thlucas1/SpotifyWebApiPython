@@ -406,7 +406,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         transferPlayback:bool=False,
         timeoutActivation:float=15.0,
         timeoutTransfer:float=10.0,
-        ) -> None:
+        ) -> str:
         """
         Activates the Spotify Cast Application on the specified Chromecast device.
 
@@ -438,6 +438,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 If `transferPlayback` argument is True, the amount of time to wait (in seconds)
                 for the transfer to complete; otherwise, argument is ignored.  
                 Default is 10 seconds.
+
+        Returns:
+            The deviceId that was activated.
         """
         apiMethodName:str = "ActivateCastAppSpotify"
         apiMethodParms:SIMethodParmListContext = None
@@ -671,6 +674,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                 # at this point we have received an `transferSuccess` from the Chromecast device, indicating 
                 # that transfer of playback was a success; it should now be playing a track!
+
+            # return the device id that was activated.
+            return castAppTask.DeviceIdActivated
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
         except Exception as ex:

@@ -10234,11 +10234,18 @@ class SpotifyClient:
 
                 # activate the spotify cast application on the device.
                 _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
-                self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
+                deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
 
-                # re-fetch device instance, as it has updated Zeroconf Response data.
+                # log a trace message if the activated deviceId did not match the expected deviceId.
+                # this can sometimes occur when activating a group, as it will return the deviceId
+                # of the group coordinator instead of the deviceId of the group!  
+                # in this case, we need to get the device information for the group that was actually activated.
+                if (scDevice.Id != deviceIdActivated):
+                    _logsi.LogVerbose("Activated deviceId was different than requested deviceId for device: %s; activated deviceId = \"%s\"" % (scDevice.Title, deviceIdActivated), colorValue=SIColors.Coral)
+
+                # re-fetch activated device instance, as it has updated Zeroconf Response data.
                 # do not need to refresh from Spotify Web API, as only zeroconf data was changed.
-                scDevice = self._SpotifyConnectDirectory.GetDevice(deviceValue, refreshDynamicDevices=False)
+                scDevice = self._SpotifyConnectDirectory.GetDevice(deviceIdActivated, refreshDynamicDevices=False)
 
                 # return device to caller.
                 return scDevice
