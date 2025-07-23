@@ -18,6 +18,7 @@ class SpotifyConnectDevice():
         """
         Initializes a new instance of the class.
         """
+        self._DeviceIdActivated:str = None
         self._DiscoveryResult:ZeroconfDiscoveryResult = None
         self._DeviceInfo:ZeroconfGetInfo = None
         self._Id:str = None
@@ -36,6 +37,29 @@ class SpotifyConnectDevice():
     def __str__(self) -> str:
         return self.ToString()
 
+
+    @property
+    def DeviceIdActivated(self) -> str:
+        """ 
+        Google Cast device id value (e.g. "30fbc80e35598f3c242f2120413c943dfd9715fe")
+        that was activated by the Spotify Cast App;   
+        Otherwise, None if the device has not been activated yet.
+        
+        This value can be different from the `Id` value for cast groups that send connect
+        commands to the group coordinator instead of the group itself.
+
+        It is only populated by Google Cast processing; Spotify Connect Zeroconf does not
+        populate this property.
+        """
+        return self._DeviceIdActivated
+    
+    @DeviceIdActivated.setter
+    def DeviceIdActivated(self, value:str):
+        """ 
+        Sets the DeviceIdActivated property value.
+        """
+        self._DeviceIdActivated = value
+    
 
     @property
     def DiscoveryResult(self) -> ZeroconfDiscoveryResult:
@@ -262,6 +286,7 @@ class SpotifyConnectDevice():
             'IsRestricted': self._IsRestricted,
             'IsSonos': self.IsSonos,
             'WasReConnected': self._WasReConnected,
+            'DeviceIdActivated': self._DeviceIdActivated,
             'DeviceInfo': self._DeviceInfo.ToDictionary(),
             'DiscoveryResult': self._DiscoveryResult.ToDictionary(),
             'ZeroconfResponseInfo': self._ZeroconfResponseInfo.ToDictionary(),
@@ -286,6 +311,7 @@ class SpotifyConnectDevice():
             msg = '%s\n IsRestricted="%s"' % (msg, str(self._IsRestricted))
             msg = '%s\n IsSonos="%s"' % (msg, str(self.IsSonos))
             msg = '%s\n WasReConnected="%s"' % (msg, str(self._WasReConnected))
+            msg = '%s\n DeviceIdActivated="%s"' % (msg, str(self._DeviceIdActivated))
             msg = '%s\n' % (msg)
            
         # build result.

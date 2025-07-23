@@ -1549,7 +1549,7 @@ class SpotifyClient:
                         'uri': arrUris[idx]
                     }
                     if (scDevice is not None):
-                        urlParms['device_id'] = scDevice.Id
+                        urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                     # execute spotify web api request.
                     msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/queue')
@@ -10154,7 +10154,7 @@ class SpotifyClient:
                             # build spotify web api request parameters.
                             reqData:dict = \
                             {
-                                'device_ids': [scDevice.Id],
+                                'device_ids': [(scDevice.DeviceIdActivated or scDevice.Id)],
                                 'play': False
                             }
 
@@ -10236,17 +10236,10 @@ class SpotifyClient:
                 _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
                 deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
 
-                # log a trace message if the activated deviceId did not match the expected deviceId.
-                # this can sometimes occur when activating a group, as it will return the deviceId
-                # of the group coordinator instead of the deviceId of the group!  
-                # in this case, we need to get the device information for the group that was actually activated.
-                if (scDevice.Id != deviceIdActivated):
-                    _logsi.LogVerbose("Activated deviceId was different than requested deviceId for device: %s; activated deviceId = \"%s\"" % (scDevice.Title, deviceIdActivated), colorValue=SIColors.Coral)
-
-                # re-fetch activated device instance, as it has updated Zeroconf Response data.
-                # do not need to refresh from Spotify Web API, as only zeroconf data was changed.
-                scDevice = self._SpotifyConnectDirectory.GetDevice(deviceIdActivated, refreshDynamicDevices=False)
-
+                # re-fetch device instance, as it has updated properties from the activation sequence.
+                # do not need to refresh from Spotify Web API, as only zeroconf response data was changed.
+                scDevice = self._SpotifyConnectDirectory.GetDevice(deviceValue, refreshDynamicDevices=False)
+                
                 # return device to caller.
                 return scDevice
 
@@ -12201,7 +12194,7 @@ class SpotifyClient:
                 # build spotify web api request parameters.
                 urlParms:dict = {}
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/pause')
@@ -12556,7 +12549,7 @@ class SpotifyClient:
                 # formulate url parms; will manually add them since we are adding json body as well.
                 urlParms:str = ''
                 if (scDevice is not None):
-                    urlParms = '?device_id=%s' % scDevice.Id
+                    urlParms = '?device_id=%s' % (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
@@ -12923,7 +12916,7 @@ class SpotifyClient:
                 # formulate url parms; will manually add them since we are adding json body as well.
                 urlParms:str = ''
                 if (scDevice is not None):
-                    urlParms = '?device_id=%s' % scDevice.Id
+                    urlParms = '?device_id=%s' % (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play{url_parms}'.format(url_parms=urlParms))
@@ -13036,7 +13029,7 @@ class SpotifyClient:
                 # build spotify web api request parameters.
                 urlParms:dict = {}
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/play')
@@ -13201,7 +13194,7 @@ class SpotifyClient:
                     'position_ms': positionMS
                 }
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/seek')
@@ -13313,7 +13306,7 @@ class SpotifyClient:
                 # build spotify web api request parameters.
                 urlParms:dict = {}
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/next')
@@ -13425,7 +13418,7 @@ class SpotifyClient:
                 # build spotify web api request parameters.
                 urlParms:dict = {}
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/previous')
@@ -13565,7 +13558,7 @@ class SpotifyClient:
                     'state': state
                 }
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/repeat')
@@ -13710,7 +13703,7 @@ class SpotifyClient:
                     'state': state
                 }
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/shuffle')
@@ -13831,7 +13824,7 @@ class SpotifyClient:
                     'volume_percent': volumePercent
                 }
                 if (scDevice is not None):
-                    urlParms['device_id'] = scDevice.Id
+                    urlParms['device_id'] = (scDevice.DeviceIdActivated or scDevice.Id)
 
                 # execute spotify web api request.
                 msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/player/volume')
@@ -14061,7 +14054,7 @@ class SpotifyClient:
                 # build spotify web api request parameters.
                 reqData:dict = \
                 {
-                    'device_ids': [scDevice.Id]
+                    'device_ids': [(scDevice.DeviceIdActivated or scDevice.Id)]
                 }
                 if (play is not None):
                     reqData['play'] = play

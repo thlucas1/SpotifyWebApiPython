@@ -78,6 +78,14 @@ class ZeroconfResponse:
         """
         return self._InteractionIDs
 
+    @InteractionIDs.setter
+    def InteractionIDs(self, value:list[str]):
+        """ 
+        Sets the InteractionIDs property value.
+        """
+        if (isinstance(value, list)):
+            self._InteractionIDs = value
+
 
     @property
     def ResponseSource(self) -> str:
@@ -162,7 +170,7 @@ class ZeroconfResponse:
             'Status': self._Status,
             'StatusString': self._StatusString,
             'ResponseSource': self._ResponseSource,
-            'InteractionIDs': [ item.ToDictionary() for item in self._InteractionIDs ],
+            'InteractionIDs': [ item for item in self._InteractionIDs ],
         }
         return result
         

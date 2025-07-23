@@ -99,6 +99,9 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
         The actual deviceId that was activated may be different than the requested deviceId.
         This can sometimes occur when activating a group, as getInfoResponse will return the 
         deviceId of the group coordinator instead of the deviceId of the group itself.  
+        This only seems to happen in non-Google manufactured devices that have not properly 
+        implemented the Cast protocol for grouped devices (e.g. KEF, etc); it never occurs when 
+        casting to groups of devices manufactured by Google!
         """
         return self._DeviceIdActivated
 
@@ -276,8 +279,8 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             # call the callback to process the addUserResponse.
             self._CallZeroconfResponseReceivedCallback(self._SpotifyConnectZeroconfCastController.zeroconfResponse)
 
-            # store the activated deviceId.
-            self._DeviceIdActivated = self._SpotifyConnectZeroconfCastController.zeroconfGetInfo.DeviceId
+            # store the activated deviceId, that was supplied to the authorization token in the addUser request.
+            self._DeviceIdActivated = self._SpotifyConnectZeroconfCastController.deviceId
 
             # trace.
             _logsi.LogVerbose("%s - User is logged in to Spotify Cast App; waiting for transfer playback to device \"%s\" ..." % (self.name, self._DeviceIdActivated))

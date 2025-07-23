@@ -474,6 +474,9 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 if (scDevice is None):
                     raise SpotifyApiError("Chromecast device \"%s\" could not be found in the SpotifyConnectDevices collection." % (deviceName), logsi=_logsi)
 
+                # match was found; reset device id activated before we activate a device.
+                scDevice.DeviceIdActivated = None
+
             # is this a chromecast device?
             if (not scDevice.IsChromeCast):
                 raise SpotifyApiError("Device %s is not a Chromecast device; use TransferPlayback instead." % (scDevice.Title), logsi=_logsi)
@@ -674,6 +677,15 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                 # at this point we have received an `transferSuccess` from the Chromecast device, indicating 
                 # that transfer of playback was a success; it should now be playing a track!
+
+            # syncronize access via lock, as we are accessing the collection.
+            with self._SpotifyConnectDevices_RLock:
+                scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(castDevice.uuid))
+                if (scDevice is not None):
+
+                    # store the deviceId that was activated, if it's different than the original deviceId.
+                    if (scDevice.Id != castAppTask.DeviceIdActivated):
+                        scDevice.DeviceIdActivated = castAppTask.DeviceIdActivated
 
             # return the device id that was activated.
             return castAppTask.DeviceIdActivated
@@ -1967,46 +1979,73 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             scDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(uuid))
             if (scDevice is not None):
 
-                # ZeroconfGetInfo class properties.
-                # we use underscore property reference for those that don't have a property setter method.
-                scDevice.DeviceInfo._AccountReq = info.AccountReq
-                scDevice.DeviceInfo.ActiveUser = info.ActiveUser
-                scDevice.DeviceInfo._Aliases = info.Aliases
-                scDevice.DeviceInfo._Availability = info.Availability
-                scDevice.DeviceInfo._ClientId = info.ClientId
-                scDevice.DeviceInfo.DeviceId = info.DeviceId            # same as zeroconf deviceId
-                scDevice.DeviceInfo._GroupStatus = info.GroupStatus
-                scDevice.DeviceInfo._LibraryVersion = info.LibraryVersion
-                scDevice.DeviceInfo.ProductId = info.ProductId
-                scDevice.DeviceInfo.PublicKey = info.PublicKey
-                scDevice.DeviceInfo.RemoteName = info.RemoteName        # same as zeroconf friendly_name
-                scDevice.DeviceInfo._ResolverVersion = info.ResolverVersion
-                scDevice.DeviceInfo._Scope = info.Scope
-                scDevice.DeviceInfo._SupportedCapabilities = info.SupportedCapabilities
-                scDevice.DeviceInfo._SupportedDrmMediaFormats = info.SupportedDrmMediaFormats
-                scDevice.DeviceInfo._TokenType = info.TokenType
-                scDevice.DeviceInfo._Version = info.Version
-                scDevice.DeviceInfo._VoiceSupport = info.VoiceSupport
+                # the actual deviceId that was retrieved may be different than the requested deviceId.
+                # this can sometimes occur when activating a group, as getInfoResponse will return the 
+                # deviceId of the group coordinator instead of the deviceId of the group itself.  
+                # this only seems to happen in non-Google manufactured devices that have not properly 
+                # implemented the Cast protocol for grouped devices (e.g. KEF, etc); it never occurs when 
+                # casting to groups of devices manufactured by Google!
 
-                # we will leave the following properties with their current values as
-                # set from the CastInfo instance, as they contain more consistent values
-                # that properly describe the device.
-                #scDevice.DeviceInfo.BrandDisplayName = info.BrandDisplayName
-                #scDevice.DeviceInfo.DeviceType = info.DeviceType
-                #scDevice.DeviceInfo.ModelDisplayName = info.ModelDisplayName
+                if (scDevice.Id != info.DeviceId):
 
-                # ZeroconfResponse base class properties.
-                scDevice.DeviceInfo._ResponseSource = info.ResponseSource
-                scDevice.DeviceInfo.SpotifyError = info.SpotifyError
-                scDevice.DeviceInfo.Status = info.Status
-                scDevice.DeviceInfo.StatusString = info.StatusString
+                    # trace.
+                    if (_logsi.IsOn(SILevel.Verbose)):
+                        _logsi.LogVerbose("Received getInfoResponse from group coordinator device \"%s\" (%s); expected group device \"%s\" (OnCastGetInfoResponseReceived)" % (info.RemoteName or str(info.Aliases), info.DeviceId, scDevice.Title), colorValue=SIColors.Red)
+                        _logsi.LogObject(SILevel.Verbose, "SpotifyConnectDevice info: \"%s\" (%s) (Group Coordinator DeviceInfo / getInfo, OnCastGetInfoResponseReceived)" % (info.RemoteName or str(info.Aliases), info.DeviceId), info, excludeNonPublic=True, colorValue=SIColors.Red)
+
+                    # if device id's don't match then we will NOT overlay the original group's ZeroconfGetInfo structure 
+                    # as we want to keep it intact, since the getInfoResponse is from the group coordinator.
+                    # overlaying it here would cause duplicate device ID's in the collection!
+                    # in this case, just populate the ZeroconfResponse base class properties and other basic properties.
+                    scDevice.DeviceInfo.ActiveUser = info.ActiveUser
+                    scDevice.DeviceInfo.InteractionIDs = info.InteractionIDs
+                    scDevice.DeviceInfo._GroupStatus = info.GroupStatus
+
+                    # ZeroconfResponse base class properties.
+                    scDevice.DeviceInfo._ResponseSource = info.ResponseSource
+                    scDevice.DeviceInfo.SpotifyError = info.SpotifyError
+                    scDevice.DeviceInfo.Status = info.Status
+                    scDevice.DeviceInfo.StatusString = info.StatusString
+
+                else:
+
+                    # ZeroconfGetInfo class properties.
+                    # we use underscore property reference for those that don't have a property setter method.
+                    scDevice.DeviceInfo._AccountReq = info.AccountReq
+                    scDevice.DeviceInfo.ActiveUser = info.ActiveUser
+                    scDevice.DeviceInfo._Aliases = info.Aliases
+                    scDevice.DeviceInfo._Availability = info.Availability
+                    scDevice.DeviceInfo._ClientId = info.ClientId
+                    scDevice.DeviceInfo.DeviceId = info.DeviceId            # same as zeroconf deviceId
+                    scDevice.DeviceInfo._GroupStatus = info.GroupStatus
+                    scDevice.DeviceInfo.InteractionIDs = info.InteractionIDs
+                    scDevice.DeviceInfo._LibraryVersion = info.LibraryVersion
+                    scDevice.DeviceInfo.ProductId = info.ProductId
+                    scDevice.DeviceInfo.PublicKey = info.PublicKey
+                    scDevice.DeviceInfo.RemoteName = info.RemoteName        # same as zeroconf friendly_name
+                    scDevice.DeviceInfo._ResolverVersion = info.ResolverVersion
+                    scDevice.DeviceInfo._Scope = info.Scope
+                    scDevice.DeviceInfo._SupportedCapabilities = info.SupportedCapabilities
+                    scDevice.DeviceInfo._SupportedDrmMediaFormats = info.SupportedDrmMediaFormats
+                    scDevice.DeviceInfo._TokenType = info.TokenType
+                    scDevice.DeviceInfo._Version = info.Version
+                    scDevice.DeviceInfo._VoiceSupport = info.VoiceSupport
+
+                    # we will leave the following properties with their current values as
+                    # set from the CastInfo instance, as they contain more consistent values
+                    # that properly describe the device.
+                    #scDevice.DeviceInfo.BrandDisplayName = info.BrandDisplayName
+                    #scDevice.DeviceInfo.DeviceType = info.DeviceType
+                    #scDevice.DeviceInfo.ModelDisplayName = info.ModelDisplayName
+
+                    # ZeroconfResponse base class properties.
+                    scDevice.DeviceInfo._ResponseSource = info.ResponseSource
+                    scDevice.DeviceInfo.SpotifyError = info.SpotifyError
+                    scDevice.DeviceInfo.Status = info.Status
+                    scDevice.DeviceInfo.StatusString = info.StatusString
 
                 # trace.
                 _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (DeviceInfo / getInfo, OnCastGetInfoResponseReceived)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
-
-                # log a warning if the received deviceId did not match the expected deviceId.
-                if (scDevice.Id != info.DeviceId):
-                    _logsi.LogVerbose("OnCastGetInfoResponseReceived deviceId mismatch for device: %s - expected \"%s\", but received \"%s\"" % (scDevice.Title, scDevice.Id, info.DeviceId), colorValue=SIColors.Red)
 
 
     def OnCastZeroconfResponseReceived(
