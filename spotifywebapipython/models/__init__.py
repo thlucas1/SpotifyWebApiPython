@@ -42,6 +42,7 @@ from .recommendationseed import RecommendationSeed
 from .restrictions import Restrictions
 from .resumepoint import ResumePoint
 from .searchresponse import SearchResponse
+from .searchresultbase import SearchResultBase
 from .show import Show, ShowSimplified
 from .showpagesaved import ShowPageSaved, ShowSaved
 from .showpagesimplified import ShowPageSimplified
@@ -100,6 +101,7 @@ __all__ = [
     'Restrictions',
     'ResumePoint',
     'SearchResponse',
+    'SearchResultBase',
     'Show','ShowSimplified',
     'ShowPageSaved','ShowSaved',
     'ShowPageSimplified',

@@ -15401,182 +15401,167 @@ class SpotifyClient:
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
-    # def Search(self, 
-    #            criteria:str,
-    #            criteriaType:str,
-    #            limit:int=20, 
-    #            offset:int=0,
-    #            market:str=None,
-    #            includeExternal:str=None,
-    #            ) -> SearchResponse:
-    #     """
-    #     Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes 
-    #     or audiobooks that match a keyword string. Audiobooks are only available within the US, UK, 
-    #     Canada, Ireland, New Zealand and Australia markets.
+    def Search(
+        self, 
+        criteria:str,
+        criteriaType:str=None,
+        market:str=None,
+        includeExternal:str=None,
+        limitTotal:int=None
+        ) -> SearchResponse:
+        """
+        Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes 
+        or audiobooks that match a keyword string. Audiobooks are only available within the US, UK, 
+        Canada, Ireland, New Zealand and Australia markets.
         
-    #     Args:
-    #         criteria (str):
-    #             Your search query.  
-    #             You can narrow down your search using field filters.  
-    #             The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
-    #             isrc, and genre. Each field filter only applies to certain result types.  
-    #             The artist and year filters can be used while searching albums, artists and tracks.
-    #             You can filter on a single year or a range (e.g. 1955-1960).  
-    #             The album filter can be used while searching albums and tracks.  
-    #             The genre filter can be used while searching artists and tracks.  
-    #             The isrc and track filters can be used while searching tracks.  
-    #             The upc, tag:new and tag:hipster filters can only be used while searching albums. 
-    #             The tag:new filter will return albums released in the past two weeks and tag:hipster 
-    #             can be used to return only albums with the lowest 10% popularity.
-    #         criteriaType (str):
-    #             A comma-separated list of item types to search across.  
-    #             Search results include hits from all the specified item types.  
-    #             For example: "album,track" returns both albums and tracks matching criteria argument.  
-    #             Allowed values: "album", "artist", "playlist", "track", "show", "episode", "audiobook".
-    #         limit (int):
-    #             The maximum number of items to return in a page of items.  
-    #             Default: 20, Range: 1 to 50.  
-    #             See the `limitTotal` argument for automatic paging option.  
-    #         offset (int):
-    #             The page index offset of the first item to return.  
-    #             Use with limit to get the next set of items.  
-    #             Default: 0 (the first item).  Range: 0 to 1000.  
-    #         market (str):
-    #             An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
-    #             is available in that market will be returned.  If a valid user access token is specified 
-    #             in the request header, the country associated with the user account will take priority over 
-    #             this parameter.  
-    #             Note: If neither market or user country are provided, the content is considered unavailable for the client.  
-    #             Users can view the country that is associated with their account in the account settings.  
-    #             Example: `ES`
-    #         includeExternal (str):
-    #             If "audio" is specified it signals that the client can play externally hosted audio content, and 
-    #             marks the content as playable in the response. By default externally hosted audio content is marked 
-    #             as unplayable in the response.  
-    #             Allowed values: "audio"
+        Args:
+            criteria (str):
+                Your search query.  
+                You can narrow down your search using field filters.  
+                The available filters are album, artist, track, year, upc, tag:hipster, tag:new, 
+                isrc, and genre. Each field filter only applies to certain result types.  
+                The artist and year filters can be used while searching albums, artists and tracks.
+                You can filter on a single year or a range (e.g. 1955-1960).  
+                The album filter can be used while searching albums and tracks.  
+                The genre filter can be used while searching artists and tracks.  
+                The isrc and track filters can be used while searching tracks.  
+                The upc, tag:new and tag:hipster filters can only be used while searching albums. 
+                The tag:new filter will return albums released in the past two weeks and tag:hipster 
+                can be used to return only albums with the lowest 10% popularity.
+            criteriaType (str):
+                A comma-separated list of item types to search across.  
+                Search results include hits from all the specified item types.  
+                For example: "album,track" returns both albums and tracks matching criteria argument.  
+                Allowed values: "album", "artist", "playlist", "track", "show", "episode", "audiobook".
+                Default: "track"
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
+            includeExternal (str):
+                If "audio" is specified it signals that the client can play externally hosted audio content, and 
+                marks the content as playable in the response. By default externally hosted audio content is marked 
+                as unplayable in the response.  
+                Allowed values: "audio"
+            limitTotal (int):
+                The maximum number of items to return for the request, per criteria type.
+                Paging is automatically used to retrieve all available items up to the
+                maximum number specified per type.
+                Default: 20
                 
-    #     Returns:
-    #         A `SearchResponse` object that contains the search results.
+        Returns:
+            A `SearchResponse` object that contains the search results.
                 
-    #     Raises:
-    #         SpotifyWebApiError: 
-    #             If the Spotify Web API request was for a non-authorization service 
-    #             and the response contains error information.
-    #         SpotifyApiError: 
-    #             If the method fails for any other reason.
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyApiError: 
+                If the method fails for any other reason.
 
-    #     Note the offset limitation of 1000 entries; this effectively limits you to 1,050 maximum
-    #     entries that you can return with a search.
+        Note that limit and offset arguments are not supplied to this method, as limitTotal is
+        used instead.  Use the individual search type methods if you want to employ pagination
+        techniques for searching.
+
+        </details>
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/Search_AutoPaging.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'Search'
+        apiMethodParms:SIMethodParmListContext = None
+        result:SearchResponse = None
         
-    #     <details>
-    #       <summary>Sample Code - Search Albums</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchAlbums.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Artists</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchArtists.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Audiobooks</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchAudiobooks.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Episodes</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchEpisodes.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Playlists</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchPlaylists.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Shows</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchShows.py
-    #     ```
-    #     </details>
-        
-    #     <details>
-    #       <summary>Sample Code - Search Tracks</summary>
-    #     ```python
-    #     .. include:: ../docs/include/samplecode/SpotifyClient/SearchTracks.py
-    #     ```
-    #     </details>
-    #     """
-    #     apiMethodName:str = 'Search'
-    #     apiMethodParms:SIMethodParmListContext = None
-    #     result:SearchResponse = None
-        
-    #     try:
+        try:
             
-    #         # trace.
-    #         apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-    #         apiMethodParms.AppendKeyValue("criteria", criteria)
-    #         apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
-    #         apiMethodParms.AppendKeyValue("limit", limit)
-    #         apiMethodParms.AppendKeyValue("offset", offset)
-    #         apiMethodParms.AppendKeyValue("market", market)
-    #         apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
-    #         _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for information.", apiMethodParms)
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("criteria", criteria)
+            apiMethodParms.AppendKeyValue("criteriaType", criteriaType)
+            apiMethodParms.AppendKeyValue("market", market)
+            apiMethodParms.AppendKeyValue("includeExternal", includeExternal)
+            apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Searching Spotify catalog for all information.", apiMethodParms)
                 
-    #         # validations.
-    #         if limit is None: 
-    #             limit = 20
-    #         if offset is None: 
-    #             offset = 0
-
-    #         # build spotify web api request parameters.
-    #         urlParms:dict = \
-    #         {
-    #             'q': criteria,
-    #             'type': criteriaType,
-    #             'limit': limit,
-    #             'offset': offset,
-    #         }
-    #         if market is not None:
-    #             urlParms['market'] = market
-    #         if includeExternal is not None:
-    #             urlParms['include_external'] = includeExternal
+            # validations.
+            if criteriaType is None: 
+                criteriaType = "track"
+            if limitTotal is None: 
+                limitTotal = 20
+            if not isinstance(limitTotal, int):
+                limitTotal = 20
                 
-    #         # execute spotify web api request.
-    #         msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/search')
-    #         msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-    #         msg.UrlParameters = urlParms
-    #         self.MakeRequest('GET', msg)
+            # are we auto-paging?  if so, then use max limit.
+            limit:int = 50
+            if limit > limitTotal:
+                limit = limitTotal
 
-    #         # process results.
-    #         result = SearchResponse(criteria, criteriaType, root=msg.ResponseData)
+            # ensure market was either supplied or implied; default if neither.
+            market = self._ValidateMarket(market)
 
-    #         # trace.
-    #         _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
-    #         return result
+            # initialize search response objects.
+            searchResponse:SearchResponse = None
+            searchResponseAll:SearchResponse = SearchResponse(criteria, criteriaType)
 
-    #     except SpotifyApiError: raise  # pass handled exceptions on thru
-    #     except SpotifyWebApiError: raise  # pass handled exceptions on thru
-    #     except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
-    #     except Exception as ex:
+            # rather than calling the Spotify Web API `/search` entry point with ALL criteria
+            # types, we will call the search subtypes individually so that we handle pagination
+            # more easily per type; combine the individual results as we go.
+
+            if (criteriaType.find("album") > -1):
+                searchResponse = self.SearchAlbums(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Albums = searchResponse.Albums
+
+            if (criteriaType.find("artist") > -1):
+                searchResponse = self.SearchArtists(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Artists = searchResponse.Artists
+
+            if (criteriaType.find("audiobook") > -1):
+                searchResponse = self.SearchAudiobooks(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Audiobooks = searchResponse.Audiobooks
+
+            if (criteriaType.find("episode") > -1):
+                searchResponse = self.SearchEpisodes(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Episodes = searchResponse.Episodes
+
+            if (criteriaType.find("playlist") > -1):
+                searchResponse = self.SearchPlaylists(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Playlists = searchResponse.Playlists
+
+            if (criteriaType.find("show") > -1):
+                searchResponse = self.SearchShows(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Shows = searchResponse.Shows
+
+            if (criteriaType.find("track") > -1):
+                searchResponse = self.SearchTracks(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
+                searchResponseAll.Tracks = searchResponse.Tracks
+
+            # do not sort, as spotify uses intelligent AI to return results in its order.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + criteriaType) % (apiMethodName, type(searchResponseAll).__name__), searchResponseAll, excludeNonPublic=True)
             
-    #         # format unhandled exception.
-    #         raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # return a search response object.
+            return searchResponseAll
 
-    #     finally:
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
         
-    #         # trace.
-    #         _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def SearchAlbums(

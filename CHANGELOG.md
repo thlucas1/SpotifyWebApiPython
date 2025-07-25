@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.229 ] - 2025/07/24
+
+  * Added `SpotifyClient.Search` method; Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes or audiobooks that match a keyword string.  This allows you to search ALL criteria types with one call, but only supports auto-pagination.  Use the individual search type methods if you want to employ pagination techniques for searching.
+
 ###### [ 1.0.228 ] - 2025/07/23
 
   * Updated Google Cast processing to transfer control to the deviceId that was activated, as well as send other player commands to the activated device.  The actual deviceId that was activated may be different than the requested deviceId. This can sometimes occur when activating a group, as getInfoResponse will return the deviceId of the group coordinator instead of the deviceId of the group itself.
