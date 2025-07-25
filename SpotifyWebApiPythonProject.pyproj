@@ -287,6 +287,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\spotifyconnect\spotifyconnectzeroconflistener.py" />
     <Compile Include="spotifywebapipython\spotifyconnect\__init__.py" />
     <Compile Include="spotifywebapipython\spotifydiscovery.py" />
+    <Compile Include="spotifywebapipython\spotifymediatypes.py" />
     <Compile Include="spotifywebapipython\spotifywebapiauthenticationerror.py" />
     <Compile Include="spotifywebapipython\spotifyapierror.py" />
     <Compile Include="spotifywebapipython\spotifywebapierror.py" />

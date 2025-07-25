@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from ..spotifymediatypes import SpotifyMediaTypes
 from .context import Context
 from .device import Device
 from .episode import Episode
@@ -75,9 +76,9 @@ class PlayerPlayState:
 
             item:dict = root.get('item',None)
             if item is not None:
-                if self._CurrentlyPlayingType == 'track':
+                if self._CurrentlyPlayingType == SpotifyMediaTypes.TRACK.value:
                     self._Item = Track(root=item)
-                elif self._CurrentlyPlayingType == 'episode':
+                elif self._CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value:
                     self._Item = Episode(root=item)
 
             # if root contains keys, then assume it is NOT empty.
@@ -362,10 +363,10 @@ class PlayerPlayState:
         result:str = ''
         if self._Item is not None:
             
-            if self._CurrentlyPlayingType == 'track':
+            if self._CurrentlyPlayingType == SpotifyMediaTypes.TRACK.value:
                 track:Track = self._Item
                 result = 'Track "%s" (%s)' % (track.Name, track.Id)
-            elif self._CurrentlyPlayingType == 'episode':
+            elif self._CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value:
                 episode:Episode = self._Item
                 result = 'Episode "%s" (%s)' % (episode.Name, episode.Id)
             elif self._CurrentlyPlayingType == 'ad':

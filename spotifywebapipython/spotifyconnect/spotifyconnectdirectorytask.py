@@ -36,6 +36,7 @@ from spotifywebapipython import SpotifyApiError
 from spotifywebapipython.models import Device, PlayerPlayState, SpotifyConnectDevices, SpotifyConnectDevice, ZeroconfDiscoveryResult
 from spotifywebapipython.saappmessages import SAAppMessages
 from spotifywebapipython.sautils import Event, validateDelay
+from spotifywebapipython.spotifymediatypes import SpotifyMediaTypes
 from spotifywebapipython.zeroconfapi import ZeroconfGetInfo, ZeroconfConnect, ZeroconfResponse
 
 # get smartinspect logger reference; create a new session for this module name.
@@ -1519,7 +1520,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
             # if playerState object not supplied, then go get it.
             if (playerState is None):
-                playerState:PlayerPlayState = self._SpotifyClientInstance.GetPlayerPlaybackState(additionalTypes='episode')
+                playerState:PlayerPlayState = self._SpotifyClientInstance.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
             # if valid object then process it.
             if (isinstance(playerState, PlayerPlayState)):

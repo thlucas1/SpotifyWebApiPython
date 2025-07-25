@@ -2,6 +2,7 @@
 
 # our package imports.
 from ..sautils import export
+from ..spotifymediatypes import SpotifyMediaTypes
 from .episode import Episode
 from .track import Track
 
@@ -38,9 +39,9 @@ class PlayerQueueInfo:
             if item is not None:
                 
                 self._CurrentlyPlayingType = item.get('type','unknown')
-                if self._CurrentlyPlayingType == 'track':
+                if self._CurrentlyPlayingType == SpotifyMediaTypes.TRACK.value:
                     self._CurrentlyPlaying = Track(root=item)
-                elif self._CurrentlyPlayingType == 'episode':
+                elif self._CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value:
                     self._CurrentlyPlaying = Episode(root=item)
 
             # for some reason, the Spotify Web API will return up to 10 duplicate items 
@@ -53,11 +54,11 @@ class PlayerQueueInfo:
                 for item in items:
                     
                     itemType = item.get('type','unknown')
-                    if itemType == 'track':
+                    if itemType == SpotifyMediaTypes.TRACK.value:
                         track:Track = Track(root=item)
                         if (track) and (not self.ContainsUri(track.Uri)):
                             self._Queue.append(track)
-                    elif itemType == 'episode':
+                    elif itemType == SpotifyMediaTypes.EPISODE.value:
                         episode:Episode = Episode(root=item)
                         if (episode) and (not self.ContainsUri(episode.Uri)):
                             self._Queue.append(episode)
@@ -141,10 +142,10 @@ class PlayerQueueInfo:
         result:str = ''
         if self._CurrentlyPlaying is not None:
             
-            if self._CurrentlyPlayingType == 'track':
+            if self._CurrentlyPlayingType == SpotifyMediaTypes.TRACK.value:
                 track:Track = self._CurrentlyPlaying
                 result = 'Track "%s" (%s)' % (track.Name, track.Id)
-            elif self._CurrentlyPlayingType == 'episode':
+            elif self._CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value:
                 episode:Episode = self._CurrentlyPlaying
                 result = 'Episode "%s" (%s)' % (episode.Name, episode.Id)
             elif self._CurrentlyPlayingType == 'ad':

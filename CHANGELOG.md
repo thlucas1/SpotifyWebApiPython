@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.231 ] - 2025/07/25
+
+  * Updated internal code to utilize Spotify media types enumeration (`SpotifyMediaTypes`).
+
+###### [ 1.0.230 ] - 2025/07/25
+
+  * Added `SpotifyMediaTypes` class; Spotify media types enumeration.
+
 ###### [ 1.0.229 ] - 2025/07/24
 
   * Added `SpotifyClient.Search` method; Get Spotify catalog information about albums, artists, playlists, tracks, shows, episodes or audiobooks that match a keyword string.  This allows you to search ALL criteria types with one call, but only supports auto-pagination.  Use the individual search type methods if you want to employ pagination techniques for searching.

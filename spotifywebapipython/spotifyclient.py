@@ -3,6 +3,8 @@ import base64
 from datetime import datetime
 import json
 from io import BytesIO
+from platform import architecture
+from ssl import ALERT_DESCRIPTION_ACCESS_DENIED
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 import random
 from soco import SoCo
@@ -30,6 +32,7 @@ from .saappmessages import SAAppMessages
 from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
 from .spotifyauthtoken import SpotifyAuthToken
+from .spotifymediatypes import SpotifyMediaTypes
 from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
 from .spotifywebplayertoken import SpotifyWebPlayerToken
@@ -2056,7 +2059,7 @@ class SpotifyClient:
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'type': 'artist',
+                'type': SpotifyMediaTypes.ARTIST.value,
                 'ids': ids
             }
 
@@ -2238,7 +2241,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -2526,7 +2529,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -4745,7 +4748,7 @@ class SpotifyClient:
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'type': 'artist',
+                'type': SpotifyMediaTypes.ARTIST.value,
                 'limit': limit,
             }
             if after is not None:
@@ -6154,7 +6157,7 @@ class SpotifyClient:
 
             # if ids not specified, then return currently playing id value.
             if (chapterId is None) or (len(chapterId.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
                 if uri is not None:
                     chapterId = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -6582,7 +6585,7 @@ class SpotifyClient:
 
             # if ids not specified, then return currently playing id value.
             if (episodeId is None) or (len(episodeId.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
                 if uri is not None:
                     episodeId = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -7295,9 +7298,9 @@ class SpotifyClient:
 
             # if image source not specified, then return currently playing track image url value.
             if (imageSource is None):
-                nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+                nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=SpotifyMediaTypes.EPISODE.value)
                 if nowPlaying is not None:
-                    if nowPlaying.CurrentlyPlayingType in ['track','episode']:
+                    if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.TRACK.value,SpotifyMediaTypes.EPISODE.value]:
                         trackItem:Track = nowPlaying.Item
                         if (trackItem is not None):
                             imageSource = trackItem.ImageUrl
@@ -7817,7 +7820,7 @@ class SpotifyClient:
             if (result is not None):
                 if (result.Item is not None):
                     result.ItemType = SpotifyClient.GetTypeFromUri(result.Item.Uri)
-                    if (result.CurrentlyPlayingType == 'episode'):
+                    if (result.CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value):
                         uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
                         if (self.IsChapterEpisode(uriId)):
                             result.ItemType = 'audiobook'
@@ -7855,11 +7858,11 @@ class SpotifyClient:
         result:str = None
 
         # get nowplaying status.
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='track')
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=SpotifyMediaTypes.TRACK.value)
         
         # is a track playing?  if so, return the album uri value.
         if nowPlaying is not None:
-            if nowPlaying.CurrentlyPlayingType in ['track']:
+            if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.TRACK.value]:
                 trackItem:Track = nowPlaying.Item
                 if (trackItem is not None) and (trackItem.Album is not None):
                     result = trackItem.Album.Uri
@@ -7886,7 +7889,7 @@ class SpotifyClient:
         
         # is a track playing?  if so, return the artist uri value.
         if nowPlaying is not None:
-            if nowPlaying.CurrentlyPlayingType in ['track']:
+            if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.TRACK.value]:
                 trackItem:Track = nowPlaying.Item
                 if (trackItem is not None) and (len(trackItem.Artists) > 0):
                     result = trackItem.Artists[0].Uri
@@ -7930,11 +7933,11 @@ class SpotifyClient:
             ignoreResponseErrors = False
                 
         # get nowplaying status.
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(market, additionalTypes='episode')
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(market, additionalTypes=SpotifyMediaTypes.EPISODE.value)
         
         # is an chapter playing?  if so, return the parent show uri value.
         if nowPlaying is not None:
-            if nowPlaying.CurrentlyPlayingType in ['episode']:
+            if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.EPISODE.value]:
                 playingItem:Chapter = nowPlaying.Item
                 if (playingItem is not None):
                     chapter:Chapter = self.GetChapter(playingItem.Id, market, ignoreResponseErrors)
@@ -7965,7 +7968,7 @@ class SpotifyClient:
         # is a playlist playing?  if so, return the uri value.
         if nowPlaying is not None:
             context:Context = nowPlaying.Context
-            if (context is not None) and (context.Type == 'playlist'):
+            if (context is not None) and (context.Type == SpotifyMediaTypes.PLAYLIST.value):
                 result = context.Uri
             else:
                 raise SpotifyApiError("Currently playing context is not a Playlist", logsi=_logsi)
@@ -7986,11 +7989,11 @@ class SpotifyClient:
         result:str = None
         
         # get nowplaying status.
-        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes='episode')
+        nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=SpotifyMediaTypes.EPISODE.value)
         
         # is an episode playing?  if so, return the parent show uri value.
         if nowPlaying is not None:
-            if nowPlaying.CurrentlyPlayingType in ['episode']:
+            if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.EPISODE.value]:
                 playingItem:Episode = nowPlaying.Item
                 if (playingItem is not None):
                     episode:Episode = self.GetEpisode(playingItem.Id)
@@ -8152,7 +8155,7 @@ class SpotifyClient:
             if (not result.IsEmpty):
                 if (result.Item is not None):
                     result.ItemType = SpotifyClient.GetTypeFromUri(result.Item.Uri)
-                    if (result.CurrentlyPlayingType == 'episode'):
+                    if (result.CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value):
                         uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
                         if (self.IsChapterEpisode(uriId)):
                             result.ItemType = 'audiobook'
@@ -8276,10 +8279,10 @@ class SpotifyClient:
             playerState._ProgressMS = mediaPositionHMS_toSeconds(sTimeValue) * 1000        # convert h:mm:ss to milliseconds
                 
             # set some item properties based on the playing type (episode or non-episode).
-            if (spotifyType == 'episode'):
+            if (spotifyType == SpotifyMediaTypes.EPISODE.value):
 
                 # get the episode data from spotify, as Sonos Soco data is incomplete.
-                playerState._CurrentlyPlayingType = 'episode'
+                playerState._CurrentlyPlayingType = SpotifyMediaTypes.EPISODE.value
                 episode:Episode = self.GetEpisode(spotifyId)
                 if (episode.Id is not None): 
                     playerState._Item = episode
@@ -8307,7 +8310,7 @@ class SpotifyClient:
                     playerState._Item._TrackNumber = sonosTrackInfo.get('playlist_position','')
                     playerState._Item._ReleaseDate = '0000'
                     playerState._Item._ReleaseDatePrecision = 'year'
-                    playerState._Item._Type = 'episode'
+                    playerState._Item._Type = SpotifyMediaTypes.EPISODE.value
                     playerState._Item._Show = Show()
                     playerState._Item._Show._Name = sonosTrackInfo.get('album','')  # TODO get this from metadata (<r:podcast>The Elfstones of Shannara</r:podcast>)
                     playerState._Item._Show.Images.append(ImageObject())
@@ -8333,7 +8336,7 @@ class SpotifyClient:
                 else:
                     playerState.ItemType = 'podcast'
                         
-            elif (spotifyType == 'track'):
+            elif (spotifyType == SpotifyMediaTypes.TRACK.value):
                     
                 # get the track data from spotify, as Sonos Soco data is incomplete.
                 track:Track = self.GetTrack(spotifyId)
@@ -8348,7 +8351,7 @@ class SpotifyClient:
                 else:
                     # if data could not be obtained from spotify, then use what's 
                     # available from Sonos Soco api metadata.
-                    playerState._CurrentlyPlayingType = 'track'
+                    playerState._CurrentlyPlayingType = SpotifyMediaTypes.TRACK.value
                     playerState.ItemType = playerState._CurrentlyPlayingType
                     playerState._Item = Track()
                     playerState._Item._Name = sonosTrackInfo.get('title','')
@@ -8363,7 +8366,7 @@ class SpotifyClient:
                     playerState._Item._TrackNumber = sonosTrackInfo.get('playlist_position','')
                     playerState._Item._ReleaseDate = '0000'
                     playerState._Item._ReleaseDatePrecision = 'year'
-                    playerState._Item._Type = 'track'
+                    playerState._Item._Type = SpotifyMediaTypes.TRACK.value
                     playerState._Item._Album = Album()
                     playerState._Item._Album._Name = sonosTrackInfo.get('album','')
                     playerState._Item._Album.Images.append(ImageObject())
@@ -8772,7 +8775,7 @@ class SpotifyClient:
                 result._Id = playlistId
                 result._Name = 'DJ'
                 result._Public = False
-                result._Type = 'playlist'
+                result._Type = SpotifyMediaTypes.PLAYLIST.value
                 result._Uri = 'spotify:playlist:%s' % playlistId
                                
                 # trace.
@@ -10515,7 +10518,7 @@ class SpotifyClient:
                 
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
                 if uri is not None:
                     trackId = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -10608,7 +10611,7 @@ class SpotifyClient:
 
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
                 if uri is not None:
                     trackId = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -12483,7 +12486,7 @@ class SpotifyClient:
                 _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
 
                 # get current player state.
-                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
+                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
                 # if shuffle was specified, then verify current player shuffle state.
                 # this will enable / disable the player shuffle state PRIOR to starting context play.
@@ -12513,9 +12516,9 @@ class SpotifyClient:
                         # note that playlist type is the only type we can limit the amount of data returned.
                         # note that offset cannot be specified for artist context type; a `400 - Bad Request
                         # Can't have offset for context type: ARTIST` error is returned if specified.
-                        if (uriType == "playlist"):
+                        if (uriType == SpotifyMediaTypes.PLAYLIST.value):
                             uriItems = self.GetPlaylistItems(uriId, limitTotal=50, fields="items(track(name))")
-                        elif (uriType == "album"):
+                        elif (uriType == SpotifyMediaTypes.ALBUM.value):
                             uriItems = self.GetAlbumTracks(uriId, limitTotal=50)
 
                     except Exception as ex:
@@ -12890,7 +12893,7 @@ class SpotifyClient:
                 _logsi.LogVerbose("Tracks will be played on the Spotify Connect device via Spotify Web API")
 
                 # get current player state.
-                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes='episode')
+                playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
                 # if shuffle was specified, then verify current player shuffle state.
                 # this will enable / disable the player shuffle state PRIOR to starting track play.
@@ -14331,7 +14334,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -14689,7 +14692,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -15181,7 +15184,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('episode')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -15359,7 +15362,7 @@ class SpotifyClient:
                 
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
-                uri = self.GetPlayerNowPlayingUri('track')
+                uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
                 if uri is not None:
                     ids = SpotifyClient.GetIdFromUri(uri)
                 else:
@@ -15492,7 +15495,11 @@ class SpotifyClient:
                 
             # validations.
             if criteriaType is None: 
-                criteriaType = "track"
+                criteriaType = SpotifyMediaTypes.TRACK.value
+            if isinstance(criteriaType, str):
+                criteriaType = criteriaType.lower()
+            if isinstance(criteriaType, SpotifyMediaTypes):
+                criteriaType = SpotifyMediaTypes.value
             if limitTotal is None: 
                 limitTotal = 20
             if not isinstance(limitTotal, int):
@@ -15514,31 +15521,31 @@ class SpotifyClient:
             # types, we will call the search subtypes individually so that we handle pagination
             # more easily per type; combine the individual results as we go.
 
-            if (criteriaType.find("album") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.ALBUM) > -1):
                 searchResponse = self.SearchAlbums(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Albums = searchResponse.Albums
 
-            if (criteriaType.find("artist") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.ARTIST) > -1):
                 searchResponse = self.SearchArtists(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Artists = searchResponse.Artists
 
-            if (criteriaType.find("audiobook") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.AUDIOBOOK) > -1):
                 searchResponse = self.SearchAudiobooks(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Audiobooks = searchResponse.Audiobooks
 
-            if (criteriaType.find("episode") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.EPISODE) > -1):
                 searchResponse = self.SearchEpisodes(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Episodes = searchResponse.Episodes
 
-            if (criteriaType.find("playlist") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.PLAYLIST) > -1):
                 searchResponse = self.SearchPlaylists(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Playlists = searchResponse.Playlists
 
-            if (criteriaType.find("show") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.SHOW) > -1):
                 searchResponse = self.SearchShows(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Shows = searchResponse.Shows
 
-            if (criteriaType.find("track") > -1):
+            if (criteriaType.find(SpotifyMediaTypes.TRACK) > -1):
                 searchResponse = self.SearchTracks(criteria, limit=limit, market=market, includeExternal=includeExternal, limitTotal=limitTotal)
                 searchResponseAll.Tracks = searchResponse.Tracks
 
@@ -15646,7 +15653,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchAlbums'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'album'
+        criteriaType:str = SpotifyMediaTypes.ALBUM.value
         result:AlbumPageSimplified = None
         
         try:
@@ -15840,7 +15847,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchArtists'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'artist'
+        criteriaType:str = SpotifyMediaTypes.ARTIST.value
         result:ArtistPage = None
         
         try:
@@ -16036,7 +16043,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchAudiobooks'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'audiobook'
+        criteriaType:str = SpotifyMediaTypes.AUDIOBOOK.value
         result:AudiobookPageSimplified = None
         
         try:
@@ -16230,7 +16237,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchEpisodes'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'episode'
+        criteriaType:str = SpotifyMediaTypes.EPISODE.value
         result:EpisodePageSimplified = None
         
         try:
@@ -16424,7 +16431,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchPlaylists'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'playlist'
+        criteriaType:str = SpotifyMediaTypes.PLAYLIST.value
         result:PlaylistPageSimplified = None
         
         try:
@@ -16618,7 +16625,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchShows'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'show'
+        criteriaType:str = SpotifyMediaTypes.SHOW.value
         result:ShowPageSimplified = None
         
         try:
@@ -16812,7 +16819,7 @@ class SpotifyClient:
         """
         apiMethodName:str = 'SearchTracks'
         apiMethodParms:SIMethodParmListContext = None
-        criteriaType:str = 'track'
+        criteriaType:str = SpotifyMediaTypes.TRACK.value
         result:TrackPage = None
         
         try:

@@ -155,7 +155,7 @@ class SearchResultBase:
     @property
     def Type(self) -> str:
         """ 
-        The object type (e.g. playlist, track, show, audiobook, album, artist, etc).
+        The object type (e.g. album, artist, audiobook, episode, playlist, show, track, etc).
         """
         return self._Type
 
