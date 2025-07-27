@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.233 ] - 2025/07/27
+
+  * Updated package requirement from `smartinspectpython>=3.0.37` to `smartinspectpython>=3.0.38`.
+  * Rebuilt package due to PDoc build error.
+
+###### [ 1.0.232 ] - 2025/07/27
+
+  * Updated package requirement from `smartinspectpython>=3.0.37` to `smartinspectpython>=3.0.38`.
+
 ###### [ 1.0.231 ] - 2025/07/25
 
   * Updated internal code to utilize Spotify media types enumeration (`SpotifyMediaTypes`).

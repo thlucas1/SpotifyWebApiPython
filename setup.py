@@ -32,6 +32,7 @@ def getDirFilesList(pathName:str) -> list[str]:
 
 # package setup.
 setup(
+
     # basic package information.
     name=NAME,
     version=VERSION,
@@ -65,7 +66,7 @@ setup(
         'pyotp>=2.9.0',
         'requests>=2.31.0',
         'requests_oauthlib>=1.3.1',
-        'smartinspectpython>=3.0.37',
+        'smartinspectpython>=3.0.38',
         'soco>=0.30.6',
         'urllib3>=2.0',
         'zeroconf>=0.132.2'
