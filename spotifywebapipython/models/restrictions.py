@@ -20,6 +20,7 @@ class Restrictions:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
+        self._Market:str = None
         self._Reason:str = None
         
         if (root is None):
@@ -28,6 +29,7 @@ class Restrictions:
         
         else:
 
+            self._Market = root.get('market', None)
             self._Reason = root.get('reason', None)
 
 
@@ -38,6 +40,14 @@ class Restrictions:
     def __str__(self) -> str:
         return self.ToString()
 
+
+    @property
+    def Market(self) -> str:
+        """ 
+        The market for the restriction.
+        """
+        return self._Market
+    
 
     @property
     def Reason(self) -> str:
@@ -60,7 +70,8 @@ class Restrictions:
         """
         result:dict = \
         {
-            'reason': self._Reason
+            'reason': self._Reason,
+            'market': self._Market,
         }
         return result
         
@@ -71,4 +82,5 @@ class Restrictions:
         """
         msg:str = 'Restrictions:'
         if self._Reason is not None: msg = '%s\n Reason="%s"' % (msg, str(self._Reason))
+        if self._Market is not None: msg = '%s\n Market="%s"' % (msg, str(self._Market))
         return msg 

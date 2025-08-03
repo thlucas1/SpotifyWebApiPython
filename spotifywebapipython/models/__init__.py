@@ -25,6 +25,7 @@ from .externalurls import ExternalUrls
 from .followers import Followers
 from .imageobject import ImageObject
 from .imagevibrantcolors import ImageVibrantColors
+from .linkedfrom import LinkedFrom
 from .narrator import Narrator
 from .owner import Owner
 from .pageobject import PageObject
@@ -84,6 +85,7 @@ __all__ = [
     'Followers',
     'ImageObject',
     'ImageVibrantColors',
+    'LinkedFrom',
     'Narrator',
     'Owner',
     'PageObject',

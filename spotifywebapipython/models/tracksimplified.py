@@ -4,6 +4,7 @@
 from ..sautils import export
 from .artistsimplified import ArtistSimplified
 from .externalurls import ExternalUrls
+from .linkedfrom import LinkedFrom
 from .restrictions import Restrictions
 
 @export
@@ -31,7 +32,7 @@ class TrackSimplified:
         self._Id:int = None
         self._IsLocal:bool = None
         self._IsPlayable:bool = None
-        #self._LinkedFrom:object = None
+        self._LinkedFrom:LinkedFrom = None
         self._Name:str = None
         self._PreviewUrl:str = None
         self._Restrictions:Restrictions = None
@@ -69,9 +70,9 @@ class TrackSimplified:
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
 
-            # item:dict = root.get('linked_from',None)
-            # if item is not None:
-            #     self._LinkedFrom = LinkedFrom(root=item)
+            item:dict = root.get('linked_from',None)
+            if item is not None:
+                self._LinkedFrom = LinkedFrom(root=item)
 
             item:dict = root.get('restrictions',None)
             if item is not None:
@@ -169,6 +170,20 @@ class TrackSimplified:
 
 
     @property
+    def IdOrigin(self) -> str:
+        """ 
+        The origin Spotify ID for the track.
+        The `LinkedFrom.Id` value is returned if present; 
+        otherwise, the `Id` value is returned.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self.IsLinkedFrom):
+            return self._LinkedFrom.Id
+        return self._Id
+
+
+    @property
     def ImageUrl(self) -> str:
         """
         Always returns null, as tracks currently do not support images.
@@ -178,6 +193,21 @@ class TrackSimplified:
         return None
             
         
+    @property
+    def IsLinkedFrom(self) -> bool:
+        """ 
+        Whether or not the track is linked from another track.
+
+        If True, the `LinkedFrom` property contains track origin data;
+        If False, the `LinkedFrom` property is null.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self._LinkedFrom is not None) and (self._LinkedFrom.Id is not None):
+            return True
+        return False
+
+
     @property
     def IsLocal(self) -> bool:
         """ 
@@ -196,21 +226,21 @@ class TrackSimplified:
 
 
     @property
+    def LinkedFrom(self) -> LinkedFrom:
+        """ 
+        Part of the response when Track Relinking is applied, and the requested track has been replaced 
+        with a different track.  The track in the LinkedFrom object contains information about the originally 
+        requested track.
+        """
+        return self._LinkedFrom
+
+
+    @property
     def Name(self) -> str:
         """ 
         The name of the track.
         """
         return self._Name
-
-
-    # @property
-    # def LinkedFrom(self) -> object:
-    #     """ 
-    #     Part of the response when Track Relinking is applied, and the requested track has been replaced 
-    #     with different track.  The track in the LinkedFrom object contains information about the originally 
-    #     requested track.
-    #     """
-    #     return self._LinkedFrom
 
 
     @property
@@ -273,6 +303,20 @@ class TrackSimplified:
         return self._Uri
 
 
+    @property
+    def UriOrigin(self) -> str:
+        """ 
+        The origin Spotify URI for the track.
+        The `LinkedFrom.Uri` value is returned if present; 
+        otherwise, the `Uri` value is returned.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self.IsLinkedFrom):
+            return self._LinkedFrom.Uri
+        return self._Uri
+
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
@@ -285,6 +329,10 @@ class TrackSimplified:
         if self._Restrictions is not None:
             restrictions = self._Restrictions.ToDictionary()
 
+        linked_from:dict = {}
+        if self._LinkedFrom is not None:
+            linked_from = self._LinkedFrom.ToDictionary()
+
         result:dict = \
         {
             'artists': [ item.ToDictionary() for item in self._Artists ],
@@ -295,15 +343,18 @@ class TrackSimplified:
             'external_urls': externalUrls,
             'href': self._Href,
             'id': self._Id,
+            'is_linked_from': self.IsLinkedFrom,
             'is_local': self._IsLocal,
             'is_playable': self._IsPlayable,
-            #self._LinkedFrom:object = None
             'name': self._Name,
             'preview_url': self._PreviewUrl,
             'restrictions': restrictions,
             'track_number': self._TrackNumber,
             'type': self._Type,
             'uri': self._Uri,           
+            'linked_from': linked_from,
+            'id_origin': self.IdOrigin,
+            'uri_origin': self.UriOrigin,
         }
         return result
         
@@ -331,14 +382,17 @@ class TrackSimplified:
         if self._DiscNumber is not None: msg = '%s\n DiscNumber="%s"' % (msg, str(self._DiscNumber))
         if self._DurationMS is not None: msg = '%s\n DurationMS="%s"' % (msg, str(self._DurationMS))
         if self._Explicit is not None: msg = '%s\n Explicit="%s"' % (msg, str(self._Explicit))
-        #if self._ExternalUrls is not None: msg = '%s\n %s' % (msg, str(self._ExternalUrls))
         if self._Href is not None: msg = '%s\n Href="%s"' % (msg, str(self._Href))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
+        if self.IdOrigin is not None: msg = '%s\n IdOrigin="%s"' % (msg, str(self.IdOrigin))
         if self._IsLocal is not None: msg = '%s\n IsLocal="%s"' % (msg, str(self._IsLocal))
         if self._IsPlayable is not None: msg = '%s\n IsPlayable="%s"' % (msg, str(self._IsPlayable))
-        #if self._LinkedFrom is not None: msg = '%s\n LinkedFrom="%s"' % (msg, str(self._LinkedFrom))
         if self._PreviewUrl is not None: msg = '%s\n PreviewUrl="%s"' % (msg, str(self._PreviewUrl))
-        #if self._Restrictions is not None: msg = '%s\n %s' % (msg, str(self._Restrictions))
         if self._TrackNumber is not None: msg = '%s\n TrackNumber="%s"' % (msg, str(self._TrackNumber))
         if self._Type is not None: msg = '%s\n Type="%s"' % (msg, str(self._Type))
+        if self._Uri is not None: msg = '%s\n Uri="%s"' % (msg, str(self._Uri))
+        if self.UriOrigin is not None: msg = '%s\n UriOrigin="%s"' % (msg, str(self.UriOrigin))
+        if self._LinkedFrom is not None: msg = '%s\n LinkedFrom: %s' % (msg, self._LinkedFrom.ToString(False))
+        #if self._Restrictions is not None: msg = '%s\n %s' % (msg, str(self._Restrictions))
+        #if self._ExternalUrls is not None: msg = '%s\n %s' % (msg, str(self._ExternalUrls))
         return msg 

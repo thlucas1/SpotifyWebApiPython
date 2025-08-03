@@ -1123,11 +1123,28 @@ class SpotifyClient:
     def _ValidateMarket(
         self, 
         market:str,
+        forceReturnValue:bool=False,
         ) -> str:
         """
         Validates that a market (aka country code) value has either been supplied, or exists
         in the UserProfile.Country value and returns a value of 'US' if not supplied; otherwise,
         the market aregument value is returned.
+
+        Args:
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+            forceReturnValue (bool):
+                Forces a value to be returned, even if one was not supplied in the `market` argument.
+                If True, the user profile country value will be returned if `market` argument is None;
+                otherwise, the specified market value is returned if it's not Empty String / not None;
+                otherwise, a default value of "US" will be returned.
+
+        Some Spotify Web API calls require a `market` value to be specified on the call.
+        For example, the GetTrack call will not return `linked_from` attributes if the
+        `market` value is not specified on the web request querystring!
         
         If a market argument was not specified and the user profile does not have a country code
         set, then it causes the Spotify Web API search to return odd results.  For example, the
@@ -1135,16 +1152,23 @@ class SpotifyClient:
         like there are more results.  It's almost like it found the results, but it won't return
         the actual items due to market / country restrictions or something.
         """
-        # if user profile contains a country value then spotify web api will use it if no
-        # market argument was supplied.
-        if (self.UserProfile.Country is not None):
-            return market
-               
+        # if we are forcing a return value and a null or empty string was supplied, then
+        # return the user profile country value if one was set.
+        if forceReturnValue:
+            if (market is None) or (len(market.strip()) == 0):
+                if (self.UserProfile.Country is not None):
+                    return self.UserProfile.Country
+
         # if a non-null and non-empty string was supplied then assume it's a valid market.
         # we will let the Spotify Web API tell us if it's not a valid code.
         if (market is not None and len(market.strip()) > 0):
             return market
-        
+
+        # if user profile country value was set then just return the market value as-is, since
+        # the user profile country code will override it anyway.
+        if (self.UserProfile.Country is not None):
+            return market
+
         # otherwise, defult the value.
         _logsi.LogVerbose("A market value was not supplied for the request, and the user profile did not contain a country code value (e.g. public access token is in effect).  Defaulting value to '%s'." % SPOTIFY_DEFAULT_MARKET)
         return SPOTIFY_DEFAULT_MARKET
@@ -3218,8 +3242,8 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single album", apiMethodParms)
                 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # if albumId not specified, then return currently playing album id value.
             if (albumId is None) or (len(albumId.strip()) == 0):
@@ -3653,8 +3677,8 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple albums", apiMethodParms)
                 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -3788,8 +3812,8 @@ class SpotifyClient:
                     limit = limitTotal
                 result = TrackPageSimplified()
 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # if albumId not specified, then return currently playing album id value.
             if (albumId is None) or (len(albumId.strip()) == 0):
@@ -9039,8 +9063,8 @@ class SpotifyClient:
                     limit = limitTotal
                 result = PlaylistPage()
 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # if playlistId not specified, then return currently playing playlist id value.
             if (playlistId is None) or (len(playlistId.strip()) == 0):
@@ -10473,6 +10497,7 @@ class SpotifyClient:
     def GetTrack(
         self, 
         trackId:str=None, 
+        market:str=None,
         ) -> Track:
         """
         Get Spotify catalog information for a single track identified by its unique Spotify ID.
@@ -10483,6 +10508,14 @@ class SpotifyClient:
                 Example: `1kWUud3vY5ij5r62zxpTRy`
                 If null, the currently playing track uri id value is used; a Spotify Free or Premium account 
                 is required to correctly read the currently playing context.
+            market (str):
+                An ISO 3166-1 alpha-2 country code. If a country code is specified, only content that 
+                is available in that market will be returned.  If a valid user access token is specified 
+                in the request header, the country associated with the user account will take priority over 
+                this parameter.  
+                Note: If neither market or user country are provided, the content is considered unavailable for the client.  
+                Users can view the country that is associated with their account in the account settings.  
+                Example: `ES`
                 
         Returns:
             A `Track` object that contains the track details.
@@ -10514,7 +10547,16 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("trackId", trackId)
+            apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for a single track", apiMethodParms)
+
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
+
+            # build spotify web api request parameters.
+            urlParms:dict = { }
+            if market is not None:
+                urlParms['market'] = market
                 
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
@@ -10527,6 +10569,7 @@ class SpotifyClient:
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks/{id}'.format(id=trackId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
 
             # process results.
@@ -10739,8 +10782,8 @@ class SpotifyClient:
                     limit = limitTotal
                 result = TrackPageSaved()
 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # build spotify web api request parameters.
             urlParms:dict = \
@@ -10869,8 +10912,8 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple tracks", apiMethodParms)
                 
-            # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # build spotify web api request parameters.
             urlParms:dict = \

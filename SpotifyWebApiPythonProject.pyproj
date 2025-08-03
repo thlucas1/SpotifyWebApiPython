@@ -213,6 +213,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\models\playerqueueinfo.py" />
     <Compile Include="spotifywebapipython\models\playhistory.py" />
     <Compile Include="spotifywebapipython\models\playhistorypage.py" />
+    <Compile Include="spotifywebapipython\models\linkedfrom.py" />
     <Compile Include="spotifywebapipython\models\searchresultbase.py" />
     <Compile Include="spotifywebapipython\models\recommendationseed.py" />
     <Compile Include="spotifywebapipython\models\narrator.py" />

@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.234 ] - 2025/08/02
+
+  * Updated the following `SpotifyClient` methods to support [Spotify Track Re-Linking](https://developer.spotify.com/documentation/web-api/concepts/track-relinking) functionality:  `GetAlbum`, `GetAlbums`, `GetAlbumTracks`, `GetPlaylistItems`, `GetTrack`, `GetTracks`, `GetTrackFavorites`.
+  * Added model `LinkedFrom`.  Part of the response when Track Relinking is applied, and the requested track has been replaced with different track. The track in the `linked_from` object contains information about the originally requested track.
+  * Added `TrackSimplified.IdOrigin` property that contains the origin Spotify ID for the track.  The `LinkedFrom.Id` value is returned if present; otherwise, the `Id` value is returned.  This is a helper property, and is not part of the Spotify Web API specification.
+  * Added `TrackSimplified.UriOrigin` property that contains the origin Spotify URI for the track.  The `LinkedFrom.Uri` value is returned if present; otherwise, the `Uri` value is returned.  This is a helper property, and is not part of the Spotify Web API specification.
+  * Added `TrackSimplified.IsLinkedFrom` property that determines whether or not the track is linked from another track (True) or not (False).  This is a helper property, and is not part of the Spotify Web API specification.
+  * Added `TrackSimplified.LinkedFrom` property that is part of the response when Track Relinking is applied, and the requested track has been replaced with a different track.  The track in the LinkedFrom object contains information about the originally requested track.
+
 ###### [ 1.0.233 ] - 2025/07/27
 
   * Updated package requirement from `smartinspectpython>=3.0.37` to `smartinspectpython>=3.0.38`.
