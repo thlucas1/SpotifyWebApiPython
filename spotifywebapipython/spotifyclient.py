@@ -7818,7 +7818,7 @@ class SpotifyClient:
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the object currently being played on the user's Spotify account", apiMethodParms)
                 
             # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # a spotify free or premium level membership is required to get the nowplaying info.
             if (not self.UserProfile.IsProductPremium) and (not self.UserProfile.IsProductFree):
@@ -8154,7 +8154,7 @@ class SpotifyClient:
                 return result
 
             # ensure market was either supplied or implied; default if neither.
-            market = self._ValidateMarket(market)
+            market = self._ValidateMarket(market, forceReturnValue=True)
 
             # build spotify web api request parameters.
             urlParms:dict = {}

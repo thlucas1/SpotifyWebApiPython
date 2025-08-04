@@ -199,7 +199,7 @@ class TrackSimplified:
         Whether or not the track is linked from another track.
 
         If True, the `LinkedFrom` property contains track origin data;
-        If False, the `LinkedFrom` property is null.
+        If False, the `LinkedFrom` property is an empty dictionary.
 
         This is a helper property, and is not part of the Spotify Web API specification.
         """

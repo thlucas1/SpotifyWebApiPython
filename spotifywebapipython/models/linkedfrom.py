@@ -75,7 +75,7 @@ class LinkedFrom:
         """ 
         The Spotify ID for the object.
         
-        Example: `5v5ETK9WFXAnGQ3MRubKuE`
+        Example: `6kLCHFM39wkFjOuyPGLGeQ`
         """
         return self._Id
 
@@ -109,7 +109,7 @@ class LinkedFrom:
         """ 
         The Spotify URI for the object.
         
-        Example: `spotify:playlist:5v5ETK9WFXAnGQ3MRubKuE`
+        Example: `spotify:track:6kLCHFM39wkFjOuyPGLGeQ`
         """
         return self._Uri
     
