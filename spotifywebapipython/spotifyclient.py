@@ -12629,7 +12629,7 @@ class SpotifyClient:
     def PlayerMediaPlayTrackFavorites(
         self, 
         deviceId:str=None,
-        shuffle:bool=True,
+        shuffle:bool=None,
         delay:float=0.50,
         resolveDeviceId:bool=True,
         limitTotal:int=200,
@@ -12648,7 +12648,9 @@ class SpotifyClient:
                 not be resolved or activated.
                 Examples are `0d1841b0976bae2a3a310dd74c0f3df354899bc8`, `Office`, `*`, None.  
             shuffle (bool):
-                True to set player shuffle mode to on; otherwise, False for no shuffle.
+                True to set player shuffle mode to on; False to set player shuffle mode to off;
+                null to leave the shuffle mode as-is.  
+                Default is null.
             delay (float):
                 Time delay (in seconds) to wait AFTER issuing the command to the player.  
                 This delay will give the spotify web api time to process the change before 
@@ -12701,8 +12703,6 @@ class SpotifyClient:
                 
             # validations.
             delay = validateDelay(delay, 0.50, 10)
-            if (shuffle is None):
-                shuffle = True
             if (limitTotal is None):
                 limitTotal = 200
             if (isinstance(limitTotal,int)) and (limitTotal > 750):

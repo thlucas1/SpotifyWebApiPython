@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.236 ] - 2025/08/10
+
+  * Changed the `SpotifyClient.PlayerMediaPlayTrackFavorites` method to default the shuffle argument to `null`.  Specify the following for the `shuffle` argument: True to set player shuffle mode to on; False to set player shuffle mode to off; null to leave the shuffle mode as-is. Default is null.
+  * Added Google Cast `MultiZoneListener` support to better determine cast group leadership status.
+
 ###### [ 1.0.235 ] - 2025/08/04
 
   * Updated the following `SpotifyClient` methods to support [Spotify Track Re-Linking](https://developer.spotify.com/documentation/web-api/concepts/track-relinking) functionality:  `GetPlayerPlaybackState`, `GetPlayerNowPlaying`.  Prior to this fix, the calls were not returning `linked_from` results.

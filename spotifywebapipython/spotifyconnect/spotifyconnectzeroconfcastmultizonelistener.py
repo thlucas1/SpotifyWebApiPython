@@ -85,23 +85,23 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
                 # trace.
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
                 apiMethodParms.AppendKeyValue("argsGroupUuid", group_uuid)
-                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms, colorValue=SIColors.Lavender)
 
                 # get device instance.
                 scDevice:SpotifyConnectDevice = self._ParentDirectory._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(argsGroupUuid))
                 if (scDevice is None):
 
                     # trace.
-                    _logsi.LogVerbose("Could not find SpotifyConnectDevices instance for Cast Group discovery key: \"%s\"" % (str(argsGroupUuid)), colorValue=SIColors.Coral)
+                    _logsi.LogVerbose("Could not find SpotifyConnectDevices instance for Cast Group discovery key: \"%s\"" % (str(argsGroupUuid)), colorValue=SIColors.Lavender)
 
                 else:
 
                     # trace.
-                    _logsi.LogVerbose("Chromecast member device %s was added to multizone group \"%s\"" % (scDevice.Title, self._CastDevice.cast_info.friendly_name))
+                    _logsi.LogVerbose("Chromecast member device %s was added to multizone group \"%s\"" % (scDevice.Title, self._CastDevice.cast_info.friendly_name), colorValue=SIColors.Lavender)
 
                     # dump the multizone status for the newly added member.
                     castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, self._CastDevice.cast_info.services, self._ZeroconfInstance, 5)
-                    _logsi.LogObject(SILevel.Verbose, "Chromecast member device multizone status: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Red)
+                    _logsi.LogObject(SILevel.Verbose, "Chromecast member device multizone status: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Lavender)
 
             except Exception as ex:
             
@@ -137,19 +137,19 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
                 # trace.
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
                 apiMethodParms.AppendKeyValue("group_uuid", group_uuid)
-                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms, colorValue=SIColors.Lavender)
 
                 # get device instance.
                 scDevice:SpotifyConnectDevice = self._ParentDirectory._SpotifyConnectDevices.GetDeviceByDiscoveryKey(str(argsGroupUuid))
                 if (scDevice is None):
 
                     # trace.
-                    _logsi.LogVerbose("Could not find SpotifyConnectDevices instance for Cast Group discovery key: \"%s\"" % (str(argsGroupUuid)), colorValue=SIColors.Coral)
+                    _logsi.LogVerbose("Could not find SpotifyConnectDevices instance for Cast Group discovery key: \"%s\"" % (str(argsGroupUuid)), colorValue=SIColors.Lavender)
 
                 else:
 
                     # trace.
-                    _logsi.LogVerbose("Chromecast member device %s was removed from multizone group \"%s\"" % (scDevice.Title, self._CastDevice.cast_info.friendly_name))
+                    _logsi.LogVerbose("Chromecast member device %s was removed from multizone group \"%s\"" % (scDevice.Title, self._CastDevice.cast_info.friendly_name), colorValue=SIColors.Lavender)
 
             except Exception as ex:
             
@@ -183,7 +183,7 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
 
                 # trace.
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group status has been updated", apiMethodParms)
+                _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group status has been updated", apiMethodParms, colorValue=SIColors.Lavender)
 
                 # trace.
                 if (_logsi.IsOn(SILevel.Verbose)):
@@ -197,7 +197,7 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
                             result.append(member)
                         else:
                             result.append(scDevice.Title)
-                    _logsi.LogArray(SILevel.Verbose, "Chromecast multizone group \"%s\" members (count=%d)" % (self._CastDevice.cast_info.friendly_name, len(result)), result)
+                    _logsi.LogArray(SILevel.Verbose, "Chromecast multizone group \"%s\" members (count=%d)" % (self._CastDevice.cast_info.friendly_name, len(result)), result, colorValue=SIColors.Lavender)
 
             except Exception as ex:
             
