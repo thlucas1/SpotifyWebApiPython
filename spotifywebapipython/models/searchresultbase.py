@@ -4,6 +4,7 @@
 from ..sautils import export
 from .externalurls import ExternalUrls
 from .imageobject import ImageObject
+from .linkedfrom import LinkedFrom
 
 @export
 class SearchResultBase:
@@ -26,6 +27,7 @@ class SearchResultBase:
         self._Href:str = None
         self._Id:str = None
         self._Images:list[ImageObject] = []
+        self._LinkedFrom:LinkedFrom = None
         self._Name:str = None
         self._Type:str = None
         self._Uri:str = None
@@ -48,6 +50,10 @@ class SearchResultBase:
             item:dict = root.get('external_urls',None)
             if item is not None:
                 self._ExternalUrls = ExternalUrls(root=item)
+
+            item:dict = root.get('linked_from',None)
+            if item is not None:
+                self._LinkedFrom = LinkedFrom(root=item)
 
             items:list = root.get('images',None)
             if items is not None:
@@ -116,6 +122,20 @@ class SearchResultBase:
     
 
     @property
+    def IdOrigin(self) -> str:
+        """ 
+        The origin Spotify ID for the track.
+        The `LinkedFrom.Id` value is returned if present; 
+        otherwise, the `Id` value is returned.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self.IsLinkedFrom):
+            return self._LinkedFrom.Id
+        return self._Id
+
+
+    @property
     def Images(self) -> list[ImageObject]:
         """ 
         Images for the object.  
@@ -136,6 +156,31 @@ class SearchResultBase:
         return ImageObject.GetImageHighestResolution(self._Images)
             
         
+    @property
+    def IsLinkedFrom(self) -> bool:
+        """ 
+        Whether or not the track is linked from another track.
+
+        If True, the `LinkedFrom` property contains track origin data;
+        If False, the `LinkedFrom` property is an empty dictionary.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self._LinkedFrom is not None) and (self._LinkedFrom.Id is not None):
+            return True
+        return False
+
+
+    @property
+    def LinkedFrom(self) -> LinkedFrom:
+        """ 
+        Part of the response when Track Relinking is applied, and the requested track has been replaced 
+        with a different track.  The track in the LinkedFrom object contains information about the originally 
+        requested track.
+        """
+        return self._LinkedFrom
+
+
     @property
     def Name(self) -> str:
         """ 
@@ -186,6 +231,20 @@ class SearchResultBase:
             self._Uri = value
     
 
+    @property
+    def UriOrigin(self) -> str:
+        """ 
+        The origin Spotify URI for the track.
+        The `LinkedFrom.Uri` value is returned if present; 
+        otherwise, the `Uri` value is returned.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        if (self.IsLinkedFrom):
+            return self._LinkedFrom.Uri
+        return self._Uri
+
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
@@ -194,6 +253,10 @@ class SearchResultBase:
         if self._ExternalUrls is not None:
             externalUrls = self._ExternalUrls.ToDictionary()
 
+        linked_from:dict = {}
+        if self._LinkedFrom is not None:
+            linked_from = self._LinkedFrom.ToDictionary()
+
         result:dict = \
         {
             'external_urls': externalUrls,
@@ -201,9 +264,13 @@ class SearchResultBase:
             'id': self._Id,
             'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
+            'is_linked_from': self.IsLinkedFrom,
             'name': self._Name,
             'type': self._Type,
             'uri': self._Uri,
+            'linked_from': linked_from,
+            'id_origin': self.IdOrigin,
+            'uri_origin': self.UriOrigin,
         }
         return result
         
@@ -221,9 +288,12 @@ class SearchResultBase:
             msg = 'SearchResultBase:'
         
         if self._Name is not None: msg = '%s\n Name="%s"' % (msg, str(self._Name))
-        if self._Uri is not None: msg = '%s\n Uri="%s"' % (msg, str(self._Uri))
         if self._Href is not None: msg = '%s\n Href="%s"' % (msg, str(self._Href))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
+        if self.IdOrigin is not None: msg = '%s\n IdOrigin="%s"' % (msg, str(self.IdOrigin))
         if self._Images is not None: msg = '%s\n Images Count=%s' % (msg, str(len(self._Images)))
         if self._Type is not None: msg = '%s\n Type="%s"' % (msg, str(self._Type))
+        if self._Uri is not None: msg = '%s\n Uri="%s"' % (msg, str(self._Uri))
+        if self.UriOrigin is not None: msg = '%s\n UriOrigin="%s"' % (msg, str(self.UriOrigin))
+        if self._LinkedFrom is not None: msg = '%s\n LinkedFrom: %s' % (msg, self._LinkedFrom.ToString(False))
         return msg 

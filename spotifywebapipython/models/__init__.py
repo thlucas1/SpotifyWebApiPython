@@ -30,6 +30,7 @@ from .narrator import Narrator
 from .owner import Owner
 from .pageobject import PageObject
 from .playeractions import PlayerActions
+from .playerlastplayedinfo import PlayerLastPlayedInfo
 from .playerplaystate import PlayerPlayState
 from .playerqueueinfo import PlayerQueueInfo
 from .playhistory import PlayHistory
@@ -90,6 +91,7 @@ __all__ = [
     'Owner',
     'PageObject',
     'PlayerActions',
+    'PlayerLastPlayedInfo',
     'PlayerPlayState',
     'PlayerQueueInfo',
     'PlayHistory',

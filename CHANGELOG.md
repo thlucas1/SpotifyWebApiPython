@@ -6,6 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.237 ] - 2025/08/18
+
+  * Added model `PlayerLastPlayedInfo`.  Contains information about the content that was last playing on the Spotify Player, including context, item (track / episode), progress, and active device.  This is a helper object, and is not part of the Spotify Web API specification.
+  * Added property `SpotifyClient.PlayerLastPlayedInfo`; Contains information about the content that was last playing on the Spotify Player.  This property is updated when calls are made to the `GetDevicePlaybackState` and `GetPlayerPlaybackState` methods.
+  * Updated method `SpotifyClient.PlayerMediaPlayContext` to fix `Malformed JSON` errors that would occur if the `positionMS` argument was used.
+  * Updated method `SpotifyClient.PlayerTransferPlayback` to utilize the new `PlayerLastPlayedInfo` class to resume play when there is no active device.  The track favorites will be used if there is no last played information set.
+
 ###### [ 1.0.236 ] - 2025/08/10
 
   * Changed the `SpotifyClient.PlayerMediaPlayTrackFavorites` method to default the shuffle argument to `null`.  Specify the following for the `shuffle` argument: True to set player shuffle mode to on; False to set player shuffle mode to off; null to leave the shuffle mode as-is. Default is null.

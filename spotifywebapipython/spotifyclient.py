@@ -218,6 +218,7 @@ class SpotifyClient:
         self._HasSpotifyWebPlayerCredentials:bool = False
         self._IsDisposed:bool = False
         self._Manager:PoolManager = manager
+        self._PlayerLastPlayedInfo:PlayerLastPlayedInfo = PlayerLastPlayedInfo()
         self._SpotifyConnectUsername:str = spotifyConnectUsername
         self._SpotifyConnectPassword:str = spotifyConnectPassword
         self._SpotifyConnectLoginId:str = spotifyConnectLoginId
@@ -411,6 +412,20 @@ class SpotifyClient:
         """
         return self._Manager
     
+
+    @property
+    def PlayerLastPlayedInfo(self) -> PlayerLastPlayedInfo:
+        """
+        Contains information about the content that was last playing on the Spotify Player,
+        including context, item (track / episode), progress, and active device.
+        
+        Returns:
+            A PlayerLastPlayedInfo object.
+        """
+        if (self._PlayerLastPlayedInfo is not None):
+            return self._PlayerLastPlayedInfo
+        return PlayerLastPlayedInfo()
+
 
     @property
     def SpotifyConnectDirectory(self) -> SpotifyConnectDirectoryTask:
@@ -6527,6 +6542,13 @@ class SpotifyClient:
                     _logsi.LogVerbose("Sonos device %s playstate will be returned" % (scDevice.Title))
                     result = playerStateSonos
 
+                    # did Sonos Controller instance return a playstate?
+                    # if so, then update the player last played info if something is playing.
+                    if (not result.IsEmpty):
+                        if (result._IsPlaying) and (result._Item is not None):
+                            self._PlayerLastPlayedInfo = PlayerLastPlayedInfo(result)
+                            _logsi.LogObject(SILevel.Verbose, "Updated internal PlayerLastPlayedInfo (for Sonos): %s" % self._PlayerLastPlayedInfo.Summary, self._PlayerLastPlayedInfo, excludeNonPublic=True)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -8198,6 +8220,13 @@ class SpotifyClient:
                         if scDevice is not None:
                             device.Id = scDevice.DeviceInfo.DeviceId
         
+            # did Spotify return a playstate?
+            # if so, then update the player last played info if something is playing.
+            if (not result.IsEmpty):
+                if (result._IsPlaying) and (result._Item is not None):
+                    self._PlayerLastPlayedInfo = PlayerLastPlayedInfo(result)
+                    _logsi.LogObject(SILevel.Verbose, "Updated internal PlayerLastPlayedInfo: %s" % self._PlayerLastPlayedInfo.Summary, self._PlayerLastPlayedInfo, excludeNonPublic=True)
+
             # update Spotify Connect Directory with active device details.
             # IMPORTANT - make sure result contains an object, otherwise it's an endless loop!
             if (result is not None):
@@ -12355,6 +12384,8 @@ class SpotifyClient:
         A `Can't have offset for context type: ARTIST` error will occur if the `offsetPosition` or `offsetUri`
         argument is specified for an artist context.
 
+        You can also use the `spotify:user:YOUR_LOGIN_ID:collection` syntax to play track favorites; just replace 
+        the `YOUR_LOGIN_ID` with your Spotify login id value (e.g. `smedjan`, `3758dfdsfjk435hjk6k79lm0n3c4`, etc).
         
         <details>
           <summary>Sample Code - Play Album</summary>
@@ -12583,7 +12614,7 @@ class SpotifyClient:
                 }
 
                 if (positionMS is not None) and (positionMS > 0):
-                    reqData['position_ms'] = { 'position_ms': positionMS }
+                    reqData['position_ms'] = positionMS
 
                 # offset should only be applied if it's not zero / a uri is specified; otherwise,
                 # it will not shuffle correctly if shuffle is enabled.
@@ -14075,14 +14106,33 @@ class SpotifyClient:
             # elevated access token, then we have to start something; otherwise the transfer playback 
             # will result in a `Restriction Violated` error!  
 
-            # get currently active player.
+            # do we have a currently active player?
             scActiveDevice:SpotifyConnectDevice = self._SpotifyConnectDirectory.GetActiveDevice(refresh=False)
             if (scActiveDevice is None) and (accessTokenHeaderValue is None):
 
-                # if nothing is playing, then start playing track favorites instead of transferring playback.
-                _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device %s; playing track favorites on selected device instead of transferring playback" % (scDevice.Title))
-                self.PlayerMediaPlayTrackFavorites(scDevice, False, limitTotal=20)
-                return scDevice
+                # no - at this point nothing is playing, so we will try to start playing something
+                # to avoid the `Restriction Violated` error.  this will automatically transfer
+                # playback to the default device.
+                _logsi.LogVerbose("Nothing is currently playing on Spotify Connect device %s" % (scDevice.Title))
+
+                # any previously played content?
+                if (self.PlayerLastPlayedInfo.IsEmpty):
+
+                    # no - start playing track favorites instead of transferring playback.
+                    _logsi.LogVerbose("Playing track favorites instead of transferring playback")
+                    self.PlayerMediaPlayTrackFavorites(scDevice, False, limitTotal=20)
+                    return scDevice
+
+                else:
+
+                    # yes - play previously played content.
+                    if (self.PlayerLastPlayedInfo.Context is not None):
+                        _logsi.LogVerbose("Resuming last played context and track instead of transferring playback")
+                        self.PlayerMediaPlayContext(self.PlayerLastPlayedInfo.Context.Uri, self.PlayerLastPlayedInfo.Item.Uri, None, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+                    else:
+                        _logsi.LogVerbose("Resuming last played track instead of transferring playback")
+                        self.PlayerMediaPlayTracks(self.PlayerLastPlayedInfo.Item.Uri, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+                    return scDevice
 
             # is the resolved device already active?
             if (scActiveDevice is not None) and (scActiveDevice.Id == scDevice.Id):

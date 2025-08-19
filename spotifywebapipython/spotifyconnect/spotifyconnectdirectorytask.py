@@ -1896,16 +1896,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         if (castMultizoneController is not None):
 
                             # trace.
-                            _logsi.LogVerbose("Chromecast Multizone Controller Listener will be removed: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key), colorValue=SIColors.Lavender)
+                            _logsi.LogVerbose("Chromecast Multizone Controller Listener is being removed: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key), colorValue=SIColors.Lavender)
 
                             # tear down the listener.
                             castMultizoneController.tear_down()
 
                             # remove cast multizone controller from active multizone controllers collection.
                             self._CastMultiZoneControllers.pop(zeroconfDiscoveryResult.Key, None)
-
-                            # trace.
-                            _logsi.LogVerbose("Chromecast Multizone Controller Listener was removed: \"%s\" (%s) [%s]" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name, zeroconfDiscoveryResult.Key), colorValue=SIColors.Lavender)
 
                     except Exception as ex:
 

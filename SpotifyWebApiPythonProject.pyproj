@@ -210,6 +210,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="spotifywebapipython\models\audiobookpagesimplified.py" />
     <Compile Include="spotifywebapipython\models\chaptersimplified.py" />
     <Compile Include="spotifywebapipython\models\chapter.py" />
+    <Compile Include="spotifywebapipython\models\playerlastplayedinfo.py" />
     <Compile Include="spotifywebapipython\models\playerqueueinfo.py" />
     <Compile Include="spotifywebapipython\models\playhistory.py" />
     <Compile Include="spotifywebapipython\models\playhistorypage.py" />

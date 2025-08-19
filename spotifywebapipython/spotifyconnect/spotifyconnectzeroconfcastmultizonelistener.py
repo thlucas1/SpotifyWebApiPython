@@ -84,7 +84,7 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
 
                 # trace.
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-                apiMethodParms.AppendKeyValue("argsGroupUuid", group_uuid)
+                apiMethodParms.AppendKeyValue("group_uuid", argsGroupUuid)
                 _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms, colorValue=SIColors.Lavender)
 
                 # get device instance.
@@ -136,7 +136,7 @@ class SpotifyConnectZeroconfCastMultiZoneListener(MultiZoneControllerListener):
 
                 # trace.
                 apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-                apiMethodParms.AppendKeyValue("group_uuid", group_uuid)
+                apiMethodParms.AppendKeyValue("group_uuid", argsGroupUuid)
                 _logsi.LogMethodParmList(SILevel.Debug, "Chromecast multizone group notification was received for group \"%s\"" % (argsGroupUuid), apiMethodParms, colorValue=SIColors.Lavender)
 
                 # get device instance.

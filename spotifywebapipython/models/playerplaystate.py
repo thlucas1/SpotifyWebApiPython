@@ -169,37 +169,6 @@ class PlayerPlayState:
 
 
     @property
-    def Item(self) -> object:
-        """ 
-        The currently playing track or episode; can be null.  
-        
-        Will be of type `Track`, `Episode`, or null.
-        """
-        return self._Item
-
-
-    @property
-    def ItemType(self) -> str:
-        """ 
-        The type of the currently playing episode; can be null.  
-        This value will be null if the `Item` property value is null.
-        
-        If not null, it can be one of `audiobook` or `podcast`.
-        
-        Note that this is not a Spotify Web API property; it is loaded from our API so
-        that the type of episode can be determined programatically (e.g. audiobook or podcast).
-        """
-        return self._ItemType
-
-    @ItemType.setter
-    def ItemType(self, value:str):
-        """ 
-        Sets the ItemType property value.
-        """
-        self._ItemType = value
-
-
-    @property
     def IsAdvertisement(self) -> bool:
         """ 
         True if the currently playing media is an advertisement; otherwise, false.
@@ -316,6 +285,37 @@ class PlayerPlayState:
 
 
     @property
+    def Item(self) -> object:
+        """ 
+        The currently playing track or episode; can be null.  
+        
+        Will be of type `Track`, `Episode`, or null.
+        """
+        return self._Item
+
+
+    @property
+    def ItemType(self) -> str:
+        """ 
+        The type of the currently playing episode; can be null.  
+        This value will be null if the `Item` property value is null.
+        
+        If not null, it can be one of `audiobook` or `podcast`.
+        
+        Note that this is not a Spotify Web API property; it is loaded from our API so
+        that the type of episode can be determined programatically (e.g. audiobook or podcast).
+        """
+        return self._ItemType
+
+    @ItemType.setter
+    def ItemType(self, value:str):
+        """ 
+        Sets the ItemType property value.
+        """
+        self._ItemType = value
+
+
+    @property
     def ProgressMS(self) -> int:
         """ 
         Progress into the currently playing track or episode; can be null.
@@ -423,8 +423,12 @@ class PlayerPlayState:
             'currently_playing_type': self._CurrentlyPlayingType,
             'device': device,
             'device_music_source': self._DeviceMusicSource,
-            'is_device_state': self._IsDeviceState,
+            'is_advertisement': self.IsAdvertisement,
+            'is_device_state': self.IsDeviceState,
+            'is_muted': self.IsMuted,
             'is_playing': self._IsPlaying,
+            'is_repeat_enabled': self.IsRepeatEnabled,
+            'is_shuffle_enabled': self.IsShuffleEnabled,
             'progress_ms': self._ProgressMS,
             'repeat_state': self._RepeatState,
             'shuffle_state': self._ShuffleState,
@@ -448,13 +452,16 @@ class PlayerPlayState:
         if self._DeviceMusicSource is not None: msg = '%s\n DeviceMusicSource="%s"' % (msg, str(self._DeviceMusicSource))
         #if self._Context is not None: msg = '%s\n %s' % (msg, str(self._Context))
         #if self._Item is not None: msg = '%s\n %s' % (msg, str(self._Item))
-        if self.IsMuted is not None: msg = '%s\n IsMuted="%s"' % (msg, str(self.IsMuted))
-        if self._IsDeviceState is not None: msg = '%s\n IsDeviceState="%s"' % (msg, str(self._IsDeviceState))
-        if self._IsPlaying is not None: msg = '%s\n IsPlaying="%s"' % (msg, str(self._IsPlaying))
+        msg = '%s\n IsEmpty="%s"' % (msg, str(self.IsEmpty))
+        msg = '%s\n IsAdvertisement="%s"' % (msg, str(self.IsAdvertisement))
+        msg = '%s\n IsDeviceState="%s"' % (msg, str(self.IsDeviceState))
+        msg = '%s\n IsMuted="%s"' % (msg, str(self.IsMuted))
+        msg = '%s\n IsPlaying="%s"' % (msg, str(self.IsPlaying))
+        msg = '%s\n IsRepeatEnabled="%s"' % (msg, str(self.IsRepeatEnabled))
+        msg = '%s\n IsShuffleEnabled="%s"' % (msg, str(self.IsShuffleEnabled))
         if self._ProgressMS is not None: msg = '%s\n ProgressMS="%s"' % (msg, str(self._ProgressMS))
         if self._RepeatState is not None: msg = '%s\n RepeatState="%s"' % (msg, str(self._RepeatState))
         if self._ShuffleState is not None: msg = '%s\n ShuffleState="%s"' % (msg, str(self._ShuffleState))
         if self._SmartShuffle is not None: msg = '%s\n SmartShuffle="%s"' % (msg, str(self._SmartShuffle))
         if self._Timestamp is not None: msg = '%s\n Timestamp="%s"' % (msg, str(self._Timestamp))
-        msg = '%s\n IsEmpty="%s"' % (msg, str(self.IsEmpty))
         return msg 
