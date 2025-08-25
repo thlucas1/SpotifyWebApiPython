@@ -562,8 +562,8 @@ class ZeroconfConnect:
             if (info.PublicKey == "SU5WQUxJRA==") and (info.Availability == "NOT-LOADED"):
                 includeOriginDeviceInfo = True
 
-            # special processing for librespot, spotifyd.
-            if info.ModelDisplayName == "librespot":
+            # special processing for remotes that utilize librespot (raspotify, spotifyd, go-librespot, etc)
+            if (infoModelDisplayName in ["librespot","go-librespot"]):
 
                 # trace.
                 _logsi.LogVerbose("Spotify Connect token type is '%s' - using librespot authorization credentials to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))

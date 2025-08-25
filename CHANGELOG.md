@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.238 ] - 2025/08/24
+
+  * Added support for [`go-librespot`](https://github.com/devgianlu/go-librespot) clients.
+
 ###### [ 1.0.237 ] - 2025/08/18
 
   * Added model `PlayerLastPlayedInfo`.  Contains information about the content that was last playing on the Spotify Player, including context, item (track / episode), progress, and active device.  This is a helper object, and is not part of the Spotify Web API specification.
