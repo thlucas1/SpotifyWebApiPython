@@ -574,8 +574,16 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     retry_wait=0.5,
                     timeout=5)
 
-                # wait for the device to become ready (15 seconds max).
-                castDevice.wait(15)
+                # calculate wait timeout for devices to become active, based on number of devices in group.
+                groupWaitTimeoutSecs:float = 15.0
+                if (castMultiZoneStatus.groups is not None):
+                    groupCount:int = len(castMultiZoneStatus.groups)
+                    if (groupCount > 1):
+                        groupWaitTimeoutSecs = (groupCount * 7.5)
+
+                # wait for the group device to become ready.
+                _logsi.LogVerbose("%s - Waiting %d seconds max for Chromecast group multizone device to activate: %s [ip=%s:%s]" % (self.name, groupWaitTimeoutSecs, scDevice.Title, castInfo.host, castInfo.port), colorValue=SIColors.Coral)
+                castDevice.wait(groupWaitTimeoutSecs)
 
             else:
 

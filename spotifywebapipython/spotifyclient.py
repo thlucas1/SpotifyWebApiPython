@@ -12752,7 +12752,7 @@ class SpotifyClient:
                 arrUris.append(trackSaved.Track.Uri)
 
             # resolve the device object from the device id.
-            scDevice = self._ResolveDeviceObject(deviceId, False)
+            scDevice = self._ResolveDeviceObject(deviceId, True)
 
             # play the tracks.
             # indicate device id has already been resolved.

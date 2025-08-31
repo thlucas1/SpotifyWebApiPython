@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.239 ] - 2025/08/30
+
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to activate the specified (or default) device if it not currently active.  This will correct the `404 - Device not found` error if the device is not currently active.
+
 ###### [ 1.0.238 ] - 2025/08/24
 
   * Added support for [`go-librespot`](https://github.com/devgianlu/go-librespot) clients.
