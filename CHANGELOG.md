@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.240 ] - 2025/09/13
+
+  * Updated `SpotifyClient` `PlayerMediaPlayTracks` and `PlayerMediaPlayContext` methods to check if player is active and not restricted prior to setting shuffle mode.  This should correct the `Restriction violated` errors when calling these methods.
+
 ###### [ 1.0.239 ] - 2025/08/30
 
   * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to activate the specified (or default) device if it not currently active.  This will correct the `404 - Device not found` error if the device is not currently active.

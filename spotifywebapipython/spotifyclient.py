@@ -12562,13 +12562,17 @@ class SpotifyClient:
                 # get current player state.
                 playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
-                # if shuffle was specified, then verify current player shuffle state.
-                # this will enable / disable the player shuffle state PRIOR to starting context play.
+                # if shuffle was specified, then we will enable / disable player shuffle state PRIOR to starting play.
                 # if shuffle is None, then the current shuffle mode is not changed.
+                # we only want to set shuffle state if the specified device is in the device list and not restricted, as
+                # trying to set shuffle state for restricted devices fail with `Restriction violated` error.
+                shuffleSetPriorToPlay:bool = False
                 if (shuffle is not None):
-                    if (shuffle != playerState.IsShuffleEnabled):
-                        self.PlayerSetShuffleMode(shuffle, scDevice, delay)
-                        playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+                    if (scDevice.IsInDeviceList) and (not scDevice.IsRestricted) and (playerState.Context):
+                        if (shuffle != playerState.IsShuffleEnabled):
+                            self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                            playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+                            shuffleSetPriorToPlay = True
 
                 # is shuffle enabled? and is this a Spotify URI value (e.g. `spotify:type:id`)?
                 if (shuffle or playerState.IsShuffleEnabled) and (self.IsSpotifyUri(contextUri)):
@@ -12638,6 +12642,12 @@ class SpotifyClient:
                 if delay > 0:
                     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                     time.sleep(delay)
+
+                # set desired shuffle mode (if specified, and not set prior to play).
+                # this is necessary for some players, as starting play sometimes resets shuffle mode
+                # and it needs to be restored after play starts (e.g. SpotifyConnect AddOn).
+                if (shuffle is not None) and (not shuffleSetPriorToPlay):
+                    self.PlayerSetShuffleMode(shuffle, scDevice, delay)
 
             # process results.
             # no results to process - this is pass or fail.
@@ -12969,13 +12979,17 @@ class SpotifyClient:
                 # get current player state.
                 playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
-                # if shuffle was specified, then verify current player shuffle state.
-                # this will enable / disable the player shuffle state PRIOR to starting track play.
+                # if shuffle was specified, then we will enable / disable player shuffle state PRIOR to starting play.
                 # if shuffle is None, then the current shuffle mode is not changed.
+                # we only want to set shuffle state if the specified device is in the device list and not restricted, as
+                # trying to set shuffle state for restricted devices fail with `Restriction violated` error.
+                shuffleSetPriorToPlay:bool = False
                 if (shuffle is not None):
-                    if (shuffle != playerState.IsShuffleEnabled):
-                        self.PlayerSetShuffleMode(shuffle, scDevice, delay)
-                        playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+                    if (scDevice.IsInDeviceList) and (not scDevice.IsRestricted) and (playerState.Context):
+                        if (shuffle != playerState.IsShuffleEnabled):
+                            self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                            playerState.IsShuffleEnabled = shuffle    # force shuffles to match
+                            shuffleSetPriorToPlay = True
 
                 # if shuffle enabled, then randomize the track uri's.
                 if (shuffle or playerState.IsShuffleEnabled):
@@ -13006,6 +13020,14 @@ class SpotifyClient:
                     _logsi.LogVerbose(TRACE_MSG_DELAY_DEVICE % delay)
                     time.sleep(delay)
                 
+                # set desired shuffle mode (if specified, and not set prior to play).
+                # this is necessary for some players, as starting play sometimes resets shuffle mode
+                # and it needs to be restored after play starts (e.g. SpotifyConnect AddOn).
+                if (shuffle is not None) and (not shuffleSetPriorToPlay):
+                    # NOTE - track play does not support shuffle mode set; left the following commented for possible future use.
+                    #self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                    pass
+
             # process results.
             # no results to process - this is pass or fail.
             return

@@ -167,6 +167,7 @@ class AuthClient:
             hasScopeChanged:bool = self.HasScopeChanged(token, scope)
             if hasScopeChanged == True:
                 # if scope change detected, then destroy the token as we need to force an auth refresh.
+                _logsi.LogVerbose('OAuth2 authorization access scope has changed; token will be destroyed', colorValue=SIColors.Gold)
                 self._SaveToken(None)
             else:
                 # set session token reference to the loaded token.
@@ -268,6 +269,7 @@ class AuthClient:
         Warning: a request with the current session can refresh and save
         the token, making this call ineffective.
         """
+        _logsi.LogVerbose('OAuth2 logout called; token will be destroyed', colorValue=SIColors.Gold)
         self._SaveToken(None)
 
 
@@ -1147,6 +1149,7 @@ class AuthClient:
 
             # if internal storage provider, then remove the token from the storage file.
             if self._TokenUpdater is None:
+                _logsi.LogVerbose('Refresh token error detected for internal storage provider; token will be destroyed', colorValue=SIColors.Gold)
                 self._SaveToken(None)
                 
             # pass exception on thru.
