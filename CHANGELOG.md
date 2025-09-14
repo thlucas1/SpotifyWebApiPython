@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.242 ] - 2025/09/13
+
+  * Updated `SpotifyClient.PlayerMediaPlayContext` method (correctly this time!) to restore shuffle mode after play is started.  Some players (e.g. HA SpotifyConnect AddOn, librespot, etc) reset the shuffle setting when starting context play.
+
 ###### [ 1.0.241 ] - 2025/09/13
 
   * Updated `SpotifyClient.PlayerMediaPlayContext` method to restore shuffle mode after play is started.  Some players (e.g. HA SpotifyConnect AddOn, librespot, etc) reset the shuffle setting when starting context play.
