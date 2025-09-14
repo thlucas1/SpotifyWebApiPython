@@ -12646,8 +12646,11 @@ class SpotifyClient:
                 # set desired shuffle mode (if specified, and not set prior to play).
                 # this is necessary for some players, as starting play sometimes resets shuffle mode
                 # and it needs to be restored after play starts (e.g. SpotifyConnect AddOn).
+                # if shuffle argument not specified, then use initial playstate shuffle value (if one exists).
                 if (shuffle is not None) and (not shuffleSetPriorToPlay):
                     self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                elif (shuffle is None) and (not playerState.IsEmpty):
+                    self.PlayerSetShuffleMode(playerState.IsShuffleEnabled, scDevice, delay)
 
             # process results.
             # no results to process - this is pass or fail.
@@ -13023,9 +13026,13 @@ class SpotifyClient:
                 # set desired shuffle mode (if specified, and not set prior to play).
                 # this is necessary for some players, as starting play sometimes resets shuffle mode
                 # and it needs to be restored after play starts (e.g. SpotifyConnect AddOn).
+                # if shuffle argument not specified, then use initial playstate shuffle value (if one exists).
+                # NOTE - track play does not support shuffle mode set; left the following commented for possible future use.
                 if (shuffle is not None) and (not shuffleSetPriorToPlay):
-                    # NOTE - track play does not support shuffle mode set; left the following commented for possible future use.
                     #self.PlayerSetShuffleMode(shuffle, scDevice, delay)
+                    pass
+                elif (shuffle is None) and (not playerState.IsEmpty):
+                    #self.PlayerSetShuffleMode(playerState.IsShuffleEnabled, scDevice, delay)
                     pass
 
             # process results.
