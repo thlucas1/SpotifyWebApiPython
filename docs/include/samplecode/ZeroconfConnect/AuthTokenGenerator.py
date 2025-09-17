@@ -12,14 +12,18 @@ try:
     # -> pip install spotifywebapipython
     
     # set the following user-specific input parameters prior to running this script.
+    # this is optional; default settings are recommended.
     
-    # Parameter: "tokenProfileId"
+    # Parameter: "tokenProfileId" (optional)
     # This variable contains your Spotify login id, in canonical format.
+    # Leave it set to "None" to use the Spotify UserProfile ID that is created
+    # when you authenticate to Spotify via this script.
+    # if you wish to override the "None" value ...
     # This value can be found by logging into the Spotify Developer web-site, and using 
     # the [Get Current Users Profile](https://developer.spotify.com/documentation/web-api/reference/get-current-users-profile) 
     # page to retrieve the `id` value via the "Try It" functionality.  This value is 
     # also the ending portion of your Spotify User URI (e.g. `spotify:user:xxx`).
-    tokenProfileId:str = "YourSpotifyLoginId"
+    tokenProfileId:str = None
 
     # Parameter: "tokenStorageFile"
     # This variable contains the name of the Token Cache File.
@@ -102,7 +106,12 @@ try:
         exit(4)
     
     # create new spotify client instance.
-    spotify:SpotifyClient = SpotifyClient(tokenStorageDir="./", tokenStorageFile=tokenStorageFile)
+    spotify:SpotifyClient = SpotifyClient(
+        tokenStorageDir="./", 
+        tokenStorageFile=tokenStorageFile,
+        spotifyConnectLoginId=tokenProfileId,
+        spotifyConnectDirectoryEnabled=False, # disable directory task features
+        spotifyConnectDiscoveryTimeout=0)     # disable spotify connect device discovery
 
     # generate a spotify authorization code with PKCE access token.
     spotify.SetAuthTokenAuthorizationCodePKCE(
@@ -117,6 +126,16 @@ try:
     # if auth request failed then raise an exception.
     if not spotify._AuthClient.IsAuthorized:
         raise Exception('Spotify Desktop Application access token could not be authorized!')
+
+    # if token profile id was not set, then we will update the token with the 
+    # Spotify Login ID value from the returned Spotify user profile that was built
+    # based on the authentication credentials supplied.
+    if (tokenProfileId is None):
+        spotify.AuthClient.Logout()                                 # remove temporary "Shared" token
+        spotify.AuthClient.TokenProfileId = spotify.UserProfile.Id  # update token profile id to Spotify login id
+        token = spotify.AuthToken.ToDictionary()                    # get the token dictionary
+        token["display_name"] = spotify.UserProfile.DisplayName     # add display name for easy identification
+        spotify.AuthClient.SaveToken(token)                         # save token to disk
 
     print('-------------------------------------------------------------------------------\n')
     print('** Spotify Desktop Application access token is authorized!')

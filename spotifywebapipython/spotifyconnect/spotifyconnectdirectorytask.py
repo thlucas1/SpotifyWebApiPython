@@ -1803,14 +1803,17 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.DeviceInfo.RemoteName = newDeviceName
                             deviceNameChanged = True
 
-                        # is this a Google Cast Group? 
+                        # is this a Google Cast Group "update_cast" event? 
                         # if so, AND the device name did not change, then ignore the update since
                         # we want the first device discovered in the group to be the coordinator by default.
-                        # this might change later, but we will detect that using calls to multizone status.
-                        if (zeroconfDiscoveryResult.IsChromeCastGroup) and (not deviceNameChanged):
+                        if (zeroconfDiscoveryResult.IsChromeCastGroup) and (not deviceNameChanged) and (serviceType == "update_cast"):
                             _logsi.LogObject(SILevel.Verbose, "SpotifyConnectDevice info: \"%s\" (ignored; Cast Group device update)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
                             _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (NEW DiscoveryResult ignored) [%s]" % (scDevice.Title, zeroconfDiscoveryResult.HostIpTitle), zeroconfDiscoveryResult, excludeNonPublic=True)
                             return
+
+                        # always process changes for Google Cast Group "add_cast" event.
+                        # if the group coordinator changes, then an "add_cast" event will occur with the 
+                        # new group coordinator device (I think!).
 
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult

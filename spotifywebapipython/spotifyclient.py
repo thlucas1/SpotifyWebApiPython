@@ -337,6 +337,14 @@ class SpotifyClient:
     
 
     @property
+    def AuthClient(self) -> AuthClient:
+        """ 
+        Authorization client used to access the Spotify Web API.  
+        """
+        return self._AuthClient
+    
+
+    @property
     def AuthToken(self) -> SpotifyAuthToken:
         """ 
         Authorization token used to access the Spotify Web API.  

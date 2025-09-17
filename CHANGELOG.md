@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.243 ] - 2025/09/16
+
+  * Updated `SpotifyConnectDirectoryTask` to properly process Google Cast Group updates from "add_cast" events.  These events seem to occur whenever the Cast Group leader changes.
+
 ###### [ 1.0.242 ] - 2025/09/13
 
   * Updated `SpotifyClient.PlayerMediaPlayContext` method (correctly this time!) to restore shuffle mode after play is started.  Some players (e.g. HA SpotifyConnect AddOn, librespot, etc) reset the shuffle setting when starting context play.

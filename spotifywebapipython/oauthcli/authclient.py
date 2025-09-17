@@ -253,6 +253,19 @@ class AuthClient:
         """
         return self._TokenProfileId
 
+    @TokenProfileId.setter
+    def TokenProfileId(self, value:str):
+        """ 
+        Sets the TokenProfileId property value.
+        """
+        if (value is None):
+            self._TokenProfileId = value
+        elif (isinstance(value,str)):
+            if value.strip() == '':
+                self._TokenProfileId = None
+            else:
+                self._TokenProfileId = value
+
 
     @property
     def TokenUrl(self) -> str:
@@ -543,6 +556,23 @@ class AuthClient:
         
             # trace.
             _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SaveToken(self, token:dict=None) -> None:
+        """
+        Saves a token to the token storage file (e.g. disk) for the ProviderId / ClientId key.
+        
+        Args:
+            token (dict):
+                The token dictionary object to save.  
+                Specify null to remove the token for the specified ProviderId / ClientId.
+                
+        Raises:
+            IOError:
+                If an error occurs saving the tokens file.
+        """
+        # invoke internal method for backward compatibility.
+        self._SaveToken(token)
 
 
     def _SaveToken(self, token:dict=None) -> None:
