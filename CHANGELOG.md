@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.244 ] - 2025/09/19
+
+  * Updated `SpotifyConnectDirectoryTask` to properly register multizone controllers for group events.
+  * Added `MultizoneManager` and `MultiZoneManagerListener` classes to listen for multizone events.
+
 ###### [ 1.0.243 ] - 2025/09/16
 
   * Updated `SpotifyConnectDirectoryTask` to properly process Google Cast Group updates from "add_cast" events.  These events seem to occur whenever the Cast Group leader changes.

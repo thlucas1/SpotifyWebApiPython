@@ -151,11 +151,11 @@ class SpotifyConnectZeroconfCastController(BaseController):
             """
             Callback function
             """
-            # for cast groups, we will wait a couple of seconds for any cast messages to be
+            # for cast groups, we will wait a few seconds for any cast messages to be
             # processed, before we query the device for Spotify Connect getInfo.
             if (self.castDevice.cast_type == CAST_TYPE_GROUP):
                 delay:float = 3.0
-                _logsi.LogVerbose("Cast controller is for a Cast Group request; delaying processing for %s seconds to allow cast zeroconf responses to be processed" % (str(delay)), colorValue=SIColors.Red)
+                _logsi.LogVerbose("Cast controller is for a Cast Group request; delaying processing for %s seconds to allow cast zeroconf responses to be processed" % (str(delay)), colorValue=SIColors.Coral)
                 time.sleep(delay)
 
             # send the initial getInfo request after launching the app.
