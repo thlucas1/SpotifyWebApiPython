@@ -24,6 +24,7 @@ from .externalids import ExternalIds
 from .externalurls import ExternalUrls
 from .followers import Followers
 from .imageobject import ImageObject
+from .imagepalettecolors import ImagePaletteColors
 from .imagevibrantcolors import ImageVibrantColors
 from .linkedfrom import LinkedFrom
 from .narrator import Narrator
@@ -85,6 +86,7 @@ __all__ = [
     'ExternalUrls',
     'Followers',
     'ImageObject',
+    'ImagePaletteColors',
     'ImageVibrantColors',
     'LinkedFrom',
     'Narrator',

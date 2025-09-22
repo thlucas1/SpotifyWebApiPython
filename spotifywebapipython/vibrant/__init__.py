@@ -7,6 +7,7 @@ from .image import VibrantImage
 from .main import Vibrant
 from .models import Palette, Props, Swatch
 from .utils import hsl_to_rgb, rgb_to_hsl
+from .colorthieffast import ColorThiefFast
 
 # all classes to import when "import *" is specified.
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     'Vibrant',
     'Palette',
     'Swatch',
+    'ColorThiefFast',
 ]

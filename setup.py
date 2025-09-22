@@ -59,6 +59,7 @@ setup(
     # set minimum dependencies requirements.
     install_requires=[
         'lxml>=5.2.0',
+        'numpy>=2.3.2',
         'oauthlib>=3.2.2',
         'pillow>=10.3.0',
         'platformdirs>=4.1.0',

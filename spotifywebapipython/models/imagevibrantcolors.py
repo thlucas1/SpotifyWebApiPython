@@ -8,6 +8,8 @@ from ..sautils import export
 class ImageVibrantColors:
     """
     Image Vibrant Colors object.
+
+    This is a helper class, and is not part of the Spotify Web API specification.
     """
 
     def __init__(self, root:Palette=None) -> None:

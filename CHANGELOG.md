@@ -6,6 +6,15 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.245 ] - 2025/09/22
+
+  * Updated `SpotifyConnectDirectoryTask` to increase the `pychromecast.get_chromecast_from_host` timeout value from 5 seconds to 10 seconds for cast group requests.
+  * Updated `SpotifyConnectDirectoryTask` to increase the `pychromecast.get_chromecast_from_cast_info` timeout value from 3 seconds to 5 seconds for cast group requests.
+  * Added `ColorThiefFast` classes to support new image processing method.
+  * Added `ImagePaletteColors` model that contains palette colors extracted from a processed image.
+  * Added `SpotifyClient.GetImagePaletteColors` method that extracts color palette RGB values from the specified image url.
+  * Added `numpy>=2.3.2` package requirement to `setup.py`.
+
 ###### [ 1.0.244 ] - 2025/09/19
 
   * Updated `SpotifyConnectDirectoryTask` to properly register multizone controllers for group events.

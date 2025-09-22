@@ -3,8 +3,6 @@ import base64
 from datetime import datetime
 import json
 from io import BytesIO
-from platform import architecture
-from ssl import ALERT_DESCRIPTION_ACCESS_DENIED
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
 import random
 from soco import SoCo
@@ -24,7 +22,7 @@ from zeroconf import Zeroconf
 
 # our package imports.
 from .oauthcli import AuthClient
-from .vibrant import Vibrant, Palette
+from .vibrant import Vibrant, Palette, ColorThiefFast
 from .models import *
 from .models import UserProfile as UserProfileCurrentUser
 from .spotifyconnect import SpotifyConnectDirectoryTask, SpotifyConnectDeviceNotFound
@@ -7286,6 +7284,148 @@ class SpotifyClient:
         except Exception:
             
             return None
+
+
+    def GetImagePaletteColors(
+        self, 
+        imageSource:str=None, 
+        colorCount:int=10, 
+        colorQuality:int=3, 
+        brightnessFilterLow:int=None, 
+        brightnessFilterHigh:int=None, 
+        hueDistanceFilter:int=None, 
+        ) -> ImagePaletteColors:
+        """
+        Extracts color palette RGB values from the specified image source.  
+        
+        Args:
+            imageSource (str):  
+                The image source to extract color palette information from.  If the prefix of the 
+                value is `http:` or `https:`, then the image is downloaded from the url.  
+                This can also point to a filename on the local file system.  
+                If null, the currently playing Spotify track image url is used; if no track
+                is playing, then an exception is raised.
+                Example: `http://mydomain/image1.jpg`  
+                Example: `c:/image1.jpg`  
+                Default is None.  
+            colorCount (int):  
+                The size of the palette (max number of colors).  
+                Default is 10.  
+            colorQuality (int):  
+                Controls the processing time and quality of the palette generation.  
+                A lower value (e.g. 1) results in higher quality but takes more processing time, 
+                while a higher value (e.g. 5) is faster but may result in a lower-quality palette.   
+                Default is 3.  
+            brightnessFilterLow (int):  
+                Removes colors that are too dark based on their brightness value.  
+                Default is None.  
+            brightnessFilterHigh (int):  
+                Remove colors that are too light based on their brightness value.  
+                Default is None.  
+            hueDistanceFilter (int):  
+                Remove colors that are too close to each other for the specified hue.  
+                This keeps the colors looking fairly distinct.  
+                Default is None.  
+                
+        Returns:
+            A `ImagePaletteColors` object that contains extracted color information.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyApiError: 
+                If the method fails for any other reason.
+
+        The median cut algorithm is used to cluster similar colors.
+
+        The returned list of palette entries will always have a length value that
+        matches the `colorCount` argument.  If colors are filtered, then the
+        list is padded with black (e.g. 0,0,0) entries.  This ensures that
+        the list length always matches the requested color count.
+
+        If the `brightnessFilterX` values are specified, each color in the
+        returned array is converted to a brightness value (R+G+B=brightness, 0-765)
+        and will be filtered out based on the high / low filter arguments.
+
+        If the `hueDistanceFilter` is specified, each color in the returned array
+        is converted to a hue value and will be filtered out based on the distance
+        between it and the next color.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/GetImagePaletteColors.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'GetImagePaletteColors'
+        apiMethodParms:SIMethodParmListContext = None
+        result:ImagePaletteColors = {}
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("imageSource", imageSource)
+            apiMethodParms.AppendKeyValue("colorCount", colorCount)
+            apiMethodParms.AppendKeyValue("colorQuality", colorQuality)
+            apiMethodParms.AppendKeyValue("brightnessFilterLow", brightnessFilterLow)
+            apiMethodParms.AppendKeyValue("brightnessFilterHigh", brightnessFilterHigh)
+            apiMethodParms.AppendKeyValue("hueDistanceFilter", hueDistanceFilter)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Get color palette from an image url", apiMethodParms)
+                
+            # validations.
+            if (not isinstance(colorCount,int)):
+                colorCount = 10
+            if (not isinstance(colorQuality,int)):
+                colorQuality = 5
+
+            # if image source not specified, then return currently playing track image url value.
+            if (imageSource is None):
+                nowPlaying:PlayerPlayState = self.GetPlayerNowPlaying(additionalTypes=SpotifyMediaTypes.EPISODE.value)
+                if nowPlaying is not None:
+                    if nowPlaying.CurrentlyPlayingType in [SpotifyMediaTypes.TRACK.value,SpotifyMediaTypes.EPISODE.value]:
+                        trackItem:Track = nowPlaying.Item
+                        if (trackItem is not None):
+                            imageSource = trackItem.ImageUrl
+                if (imageSource is None):
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'imageSource'), logsi=_logsi)
+
+            # prepare to extract color palette from the image source.
+            colorThiefFast = ColorThiefFast(imageSource)
+
+            # extract the color palette, based on filter criteria specified.
+            palette = colorThiefFast.get_palette(
+                color_count=colorCount, 
+                quality=colorQuality, 
+                brightness_filter_low=brightnessFilterLow, 
+                brightness_filter_high=brightnessFilterHigh,
+                hue_distance_filter=hueDistanceFilter,
+            )
+
+            _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(palette).__name__), palette)
+        
+            # process results.
+            result = ImagePaletteColors(root=palette)
+            result.ImageSource = imageSource
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+            return result
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
 
 
     def GetImageVibrantColors(

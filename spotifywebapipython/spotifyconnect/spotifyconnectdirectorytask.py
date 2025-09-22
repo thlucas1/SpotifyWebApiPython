@@ -637,7 +637,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 scDevice.ZeroconfResponseInfo = ZeroconfResponse()
 
             castDevice:Chromecast = None
-            deviceWaitTimeoutSecs:float = 10.0
+            deviceWaitTimeoutSecs:float = 20.0
 
             # is this a cast group?
             if (castInfo.cast_type == CAST_TYPE_GROUP):
@@ -702,7 +702,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         host=(groupHost, groupPort, castInfo.uuid, castInfo.model_name, castInfo.friendly_name),
                         tries=2,
                         retry_wait=0.5,
-                        timeout=5)
+                        timeout=10)
 
                     # calculate wait timeout for devices to become active, based on number of devices in group.
                     if (castMultiZoneStatus.groups is not None):
@@ -723,7 +723,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     zconf=self._ZeroconfInstance,
                     tries=2,
                     retry_wait=0.5,
-                    timeout=3)
+                    timeout=5)
 
                 # trace.
                 _logsi.LogVerbose("%s - Waiting %d seconds max for Chromecast device to activate: %s [ip=%s:%s]" % (self.name, deviceWaitTimeoutSecs, scDevice.Title, castInfo.host, castInfo.port))
