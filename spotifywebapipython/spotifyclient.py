@@ -7290,7 +7290,7 @@ class SpotifyClient:
         self, 
         imageSource:str=None, 
         colorCount:int=10, 
-        colorQuality:int=3, 
+        colorQuality:int=1, 
         brightnessFilterLow:int=None, 
         brightnessFilterHigh:int=None, 
         hueDistanceFilter:int=None, 
@@ -7310,21 +7310,25 @@ class SpotifyClient:
                 Default is None.  
             colorCount (int):  
                 The size of the palette (max number of colors).  
+                Range is 1 to 256.  
                 Default is 10.  
             colorQuality (int):  
                 Controls the processing time and quality of the palette generation.  
                 A lower value (e.g. 1) results in higher quality but takes more processing time, 
                 while a higher value (e.g. 5) is faster but may result in a lower-quality palette.   
-                Default is 3.  
+                Default is 1.  
             brightnessFilterLow (int):  
                 Removes colors that are too dark based on their brightness value.  
+                Range is 0 to 765.  
                 Default is None.  
             brightnessFilterHigh (int):  
                 Remove colors that are too light based on their brightness value.  
+                Range is 0 to 765.  
                 Default is None.  
             hueDistanceFilter (int):  
                 Remove colors that are too close to each other for the specified hue.  
                 This keeps the colors looking fairly distinct.  
+                Range is 0 to 360.  
                 Default is None.  
                 
         Returns:
@@ -7379,7 +7383,7 @@ class SpotifyClient:
             if (not isinstance(colorCount,int)):
                 colorCount = 10
             if (not isinstance(colorQuality,int)):
-                colorQuality = 5
+                colorQuality = 1
 
             # if image source not specified, then return currently playing track image url value.
             if (imageSource is None):
@@ -10870,6 +10874,8 @@ class SpotifyClient:
         market:str=None,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterArtist:str=None,
+        filterAlbum:str=None,
         ) -> TrackPageSaved:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'.
@@ -10903,6 +10909,12 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterArtist (str):
+                Filter returned entries by an artist name.  
+                Value can be the full name of the artist (e.g. "Jeremy Camp"), or a partial name (e.g. "Camp").
+            filterAlbum (str):
+                Filter returned entries by an album name.
+                Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
                 
         Returns:
             An `TrackPageSaved` object that contains saved track information.
@@ -10940,6 +10952,8 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterArtist", filterArtist)
+            apiMethodParms.AppendKeyValue("filterAlbum", filterAlbum)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users track favorites", apiMethodParms)
                 
             # validations.
@@ -11013,12 +11027,45 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Track.Name or "").lower(), reverse=False)
                 else:
                     result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
+
+                # apply artist filter criteria.
+                if (filterArtist is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("artist", filterArtist))
+                    filterArtistCompare:str = (filterArtist or "").lower()
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        trackSaved:TrackSaved = result.Items[idx]
+                        artistFound:bool = False
+                        artist:ArtistSimplified = None
+                        for artist in trackSaved.Track.Artists:
+                            if ((artist.Name or "").lower().find(filterArtistCompare) > -1):
+                                artistFound = True
+                                break
+                        if (not artistFound):
+                            result.Items.pop(idx)
+
+                # apply album filter criteria.
+                if (filterAlbum is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("album", filterAlbum))
+                    filterAlbumCompare:str = (filterAlbum or "").lower()
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        trackSaved:TrackSaved = result.Items[idx]
+                        albumFound:bool = False
+                        album:Album = trackSaved.Track.Album
+                        if (album is not None):
+                            if ((album.Name or "").lower().find(filterAlbumCompare) > -1):
+                                albumFound = True
+                        if (not albumFound):
+                            result.Items.pop(idx)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -12823,6 +12870,8 @@ class SpotifyClient:
         delay:float=0.50,
         resolveDeviceId:bool=True,
         limitTotal:int=200,
+        filterArtist:str=None,
+        filterAlbum:str=None,
         ) -> None:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'
@@ -12851,6 +12900,12 @@ class SpotifyClient:
             limitTotal (int):
                 The maximum number of items to retrieve from favorites.  
                 Default is 200; value range is 1 - 750.  
+            filterArtist (str):
+                Filter returned entries by an artist name.  
+                Value can be the full name of the artist (e.g. "Jeremy Camp"), or a partial name (e.g. "Camp").
+            filterAlbum (str):
+                Filter returned entries by an album name.
+                Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
                 
         Raises:
             SpotifyWebApiError: 
@@ -12889,6 +12944,8 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("filterArtist", filterArtist)
+            apiMethodParms.AppendKeyValue("filterAlbum", filterAlbum)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play track favorites", apiMethodParms)
                 
             # validations.
@@ -12899,7 +12956,7 @@ class SpotifyClient:
                 limitTotal = 750
 
             # get current users favorite tracks.
-            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal, sortResult=False)
+            tracks:TrackPageSaved = self.GetTrackFavorites(limitTotal=limitTotal, sortResult=False, filterArtist=filterArtist, filterAlbum=filterAlbum)
             if (tracks.ItemsCount == 0):
                 _logsi.LogVerbose("Current user has no favorite tracks; nothing to do")
                 return

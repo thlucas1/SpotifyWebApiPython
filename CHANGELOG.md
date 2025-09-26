@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.246 ] - 2025/09/26
+
+  * Updated `SpotifyClient.GetTrackFavorites` and `PlayerMediaPlayTrackFavorites` methods to include the `filterArtist` and `filterAlbum` arguments.  This allows you to return favorite tracks by artist name, album name, or both.
+
 ###### [ 1.0.245 ] - 2025/09/22
 
   * Updated `SpotifyConnectDirectoryTask` to increase the `pychromecast.get_chromecast_from_host` timeout value from 5 seconds to 10 seconds for cast group requests.
