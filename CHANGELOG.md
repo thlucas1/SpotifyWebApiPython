@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.247 ] - 2025/09/26
+
+  * Updated `SpotifyClient.GetTrackFavorites` method to allow the `filterArtist` and `filterAlbum` arguments to accept a Spotify URI value (e.g. "spotify:album:xxxxxx").  This allows you to return favorite tracks by an exact artist name, exact album name, or both.
+
 ###### [ 1.0.246 ] - 2025/09/26
 
   * Updated `SpotifyClient.GetTrackFavorites` and `PlayerMediaPlayTrackFavorites` methods to include the `filterArtist` and `filterAlbum` arguments.  This allows you to return favorite tracks by artist name, album name, or both.

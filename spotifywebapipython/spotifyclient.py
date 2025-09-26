@@ -10910,10 +10910,10 @@ class SpotifyClient:
                 were returned in by the Spotify Web API.  
                 Default: True
             filterArtist (str):
-                Filter returned entries by an artist name.  
+                Filter returned entries by an artist name or uri value.  
                 Value can be the full name of the artist (e.g. "Jeremy Camp"), or a partial name (e.g. "Camp").
             filterAlbum (str):
-                Filter returned entries by an album name.
+                Filter returned entries by an album name or uri value.
                 Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
                 
         Returns:
@@ -11040,13 +11040,18 @@ class SpotifyClient:
                 if (filterArtist is not None):
                     _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("artist", filterArtist))
                     filterArtistCompare:str = (filterArtist or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterArtistCompare)
                     # process list in reverse order since we are removing items.
                     for idx in reversed(range(len(result.Items))):
                         trackSaved:TrackSaved = result.Items[idx]
                         artistFound:bool = False
                         artist:ArtistSimplified = None
                         for artist in trackSaved.Track.Artists:
-                            if ((artist.Name or "").lower().find(filterArtistCompare) > -1):
+                            if (isFilterUri):
+                                if ((artist.Uri or "").lower() == filterArtistCompare):
+                                    artistFound = True
+                                    break
+                            elif ((artist.Name or "").lower().find(filterArtistCompare) > -1):
                                 artistFound = True
                                 break
                         if (not artistFound):
@@ -11056,13 +11061,17 @@ class SpotifyClient:
                 if (filterAlbum is not None):
                     _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("album", filterAlbum))
                     filterAlbumCompare:str = (filterAlbum or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterAlbumCompare)
                     # process list in reverse order since we are removing items.
                     for idx in reversed(range(len(result.Items))):
                         trackSaved:TrackSaved = result.Items[idx]
                         albumFound:bool = False
                         album:Album = trackSaved.Track.Album
                         if (album is not None):
-                            if ((album.Name or "").lower().find(filterAlbumCompare) > -1):
+                            if (isFilterUri):
+                                if ((album.Uri or "").lower() == filterAlbumCompare):
+                                    albumFound = True
+                            elif ((album.Name or "").lower().find(filterAlbumCompare) > -1):
                                 albumFound = True
                         if (not albumFound):
                             result.Items.pop(idx)
@@ -12901,10 +12910,10 @@ class SpotifyClient:
                 The maximum number of items to retrieve from favorites.  
                 Default is 200; value range is 1 - 750.  
             filterArtist (str):
-                Filter returned entries by an artist name.  
+                Filter returned entries by an artist name or uri value.  
                 Value can be the full name of the artist (e.g. "Jeremy Camp"), or a partial name (e.g. "Camp").
             filterAlbum (str):
-                Filter returned entries by an album name.
+                Filter returned entries by an album name or uri value.
                 Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
                 
         Raises:

@@ -304,6 +304,7 @@ class PageObject:
             'offset': self._Offset,
             'previous': self._Previous,
             'total': self._Total,
+            'items_count': self.ItemsCount,
             'items': [ item.ToDictionary() for item in self._Items ],
         }
 
