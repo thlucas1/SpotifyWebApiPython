@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.248 ] - 2025/09/27
+
+  * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to use the origin uri value for tracks that contain `linked_from` details.
+
 ###### [ 1.0.247 ] - 2025/09/26
 
   * Updated `SpotifyClient.GetTrackFavorites` method to allow the `filterArtist` and `filterAlbum` arguments to accept a Spotify URI value (e.g. "spotify:album:xxxxxx").  This allows you to return favorite tracks by an exact artist name, exact album name, or both.

@@ -12939,6 +12939,13 @@ class SpotifyClient:
         .. include:: ../docs/include/samplecode/SpotifyClient/PlayerMediaPlayTrackFavorites.py
         ```
         </details>
+        
+        <details>
+          <summary>Sample Code - Filter by Artist</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/PlayerMediaPlayTrackFavorites_FilterArtist.py
+        ```
+        </details>
         """
         apiMethodName:str = 'PlayerMediaPlayTrackFavorites'
         apiMethodParms:SIMethodParmListContext = None
@@ -12974,7 +12981,7 @@ class SpotifyClient:
             arrUris:list[str] = []
             trackSaved:TrackSaved
             for trackSaved in tracks.Items:
-                arrUris.append(trackSaved.Track.Uri)
+                arrUris.append(trackSaved.Track.UriOrigin)
 
             # resolve the device object from the device id.
             scDevice = self._ResolveDeviceObject(deviceId, True)

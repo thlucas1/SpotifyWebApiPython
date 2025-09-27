@@ -29,6 +29,32 @@ try:
     for trackSaved in pageObj.Items:
         print('- "{name}" ({uri})'.format(name=trackSaved.Track.Name, uri=trackSaved.Track.Uri))
 
+    # get a list of the tracks saved in the current Spotify user's 'Your Library' for specified artist.
+    print('\nGetting users saved tracks for artist ...\n')
+    pageObj:TrackPageSaved = spotify.GetTrackFavorites(limitTotal=1000, filterArtist="spotify:artist:5wpEBloInversG3zp3CVAk")  # Jeremy Camp
+
+    # display paging details.
+    print(str(pageObj))
+    print('\nTracks in this page of results (%d items):' % pageObj.ItemsCount)
+
+    # display track details.
+    trackSaved:TrackSaved
+    for trackSaved in pageObj.Items:
+        print('- "{name}" ({uri})'.format(name=trackSaved.Track.Name, uri=trackSaved.Track.Uri))
+
+    # get a list of the tracks saved in the current Spotify user's 'Your Library' for specified artist.
+    print('\nGetting users saved tracks for artist ...\n')
+    pageObj:TrackPageSaved = spotify.GetTrackFavorites(limitTotal=1000, filterArtist="Jeremy Camp")
+
+    # display paging details.
+    print(str(pageObj))
+    print('\nTracks in this page of results (%d items):' % pageObj.ItemsCount)
+
+    # display track details.
+    trackSaved:TrackSaved
+    for trackSaved in pageObj.Items:
+        print('- "{name}" ({uri})'.format(name=trackSaved.Track.Name, uri=trackSaved.Track.Uri))
+
 except Exception as ex:
 
     print("** Exception: %s" % str(ex))

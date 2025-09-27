@@ -72,6 +72,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Playlist.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Album.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayContext_Artist.py" />
+    <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayTrackFavorites_FilterArtist.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayTrackFavorites.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\PlayerMediaPlayTracks.py" />
     <Compile Include="docs\include\samplecode\SpotifyClient\GetPlayerRecentTracks_Past01Hours.py" />
