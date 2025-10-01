@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.249 ] - 2025/09/30
+
+  * Updated `EpisodeSimplified` model to include origin fields to match the `TrackSimplified` model. Note that track relinking info is not present for episodes, but it's easier to have the same fields when process item information in playerstate calls (could be either track or episode).
+
 ###### [ 1.0.248 ] - 2025/09/27
 
   * Updated `SpotifyClient.PlayerMediaPlayTrackFavorites` method to use the origin uri value for tracks that contain `linked_from` details.

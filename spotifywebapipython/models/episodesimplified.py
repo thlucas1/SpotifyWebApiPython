@@ -187,6 +187,18 @@ class EpisodeSimplified:
 
 
     @property
+    def IdOrigin(self) -> str:
+        """ 
+        The origin Spotify ID for the episode.
+
+        The `Id` value is always returned, as linkfrom details do not exist for episodes.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        return self._Id
+
+
+    @property
     def Images(self) -> list[ImageObject]:
         """ 
         The cover art for the episode in various sizes, widest first.
@@ -209,6 +221,18 @@ class EpisodeSimplified:
         True if the episode is hosted outside of Spotify's CDN.
         """
         return self._IsExternallyHosted
+
+
+    @property
+    def IsLinkedFrom(self) -> bool:
+        """ 
+        Whether or not the episode is linked from another episode.
+
+        False is always returned, as linkfrom details do not exist for episodes.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        return False
 
 
     @property
@@ -294,6 +318,18 @@ class EpisodeSimplified:
         return self._Uri
 
 
+    @property
+    def UriOrigin(self) -> str:
+        """ 
+        The origin Spotify URI for the episode.
+
+        The `Uri` value is always returned, as linkfrom details do not exist for episodes.
+
+        This is a helper property, and is not part of the Spotify Web API specification.
+        """
+        return self._Uri
+
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
@@ -332,6 +368,9 @@ class EpisodeSimplified:
             'resume_point': resumePoint,
             'type': self._Type,
             'uri': self._Uri,           
+            'is_linked_from': self.IsLinkedFrom,
+            'id_origin': self.IdOrigin,
+            'uri_origin': self.UriOrigin,
         }
         return result
         
@@ -367,4 +406,6 @@ class EpisodeSimplified:
         if self._Restrictions is not None: msg = '%s\n %s' % (msg, str(self._Restrictions))
         if self._ResumePoint is not None: msg = '%s\n %s' % (msg, str(self._ResumePoint))
         if self._Type is not None: msg = '%s\n Type="%s"' % (msg, str(self._Type))
+        if self.IdOrigin is not None: msg = '%s\n IdOrigin="%s"' % (msg, str(self.IdOrigin))
+        if self.UriOrigin is not None: msg = '%s\n UriOrigin="%s"' % (msg, str(self.UriOrigin))
         return msg
