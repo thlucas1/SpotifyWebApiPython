@@ -4,8 +4,7 @@ import copy
 from datetime import datetime
 import hashlib
 from pychromecast import CastBrowser, CastInfo, Chromecast, get_chromecast_from_cast_info, get_chromecast_from_host
-import pychromecast
-from pychromecast.dial import MultizoneInfo, MultizoneStatus, get_multizone_status, get_device_info
+from pychromecast.dial import MultizoneInfo, MultizoneStatus, get_multizone_status
 from pychromecast.controllers.multizone import MultiZoneManagerListener, MultizoneController, MultizoneManager
 from pychromecast.const import CAST_TYPE_GROUP
 import socket

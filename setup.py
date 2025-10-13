@@ -45,7 +45,8 @@ setup(
     long_description=readme('README.md'),
     
     # find and include all packages in the project (anything with an '__init__.py' file).
-    packages=find_packages(),
+    # exclude test folder.
+    packages=find_packages(exclude=["test", "test.*"]),
     
     # place documentation folder named "docs" in the package folder.
     data_files=[
@@ -61,7 +62,7 @@ setup(
         'lxml>=5.2.0',
         'numpy>=2.3.2',
         'oauthlib>=3.2.2',
-        'pillow>=10.3.0',
+        'pillow>=11.3.0',
         'platformdirs>=4.1.0',
         'PyChromecast>=14.0.7',
         'pyotp>=2.9.0',

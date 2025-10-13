@@ -6,6 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.251 ] - 2025/10/12
+
+  * Updated build process to exclude test library from wheel file.
+
+###### [ 1.0.250 ] - 2025/10/12
+
+  * Updated setup package requirement: `pillow>=11.3.0`.
+
 ###### [ 1.0.249 ] - 2025/09/30
 
   * Updated `EpisodeSimplified` model to include origin fields to match the `TrackSimplified` model. Note that track relinking info is not present for episodes, but it's easier to have the same fields when process item information in playerstate calls (could be either track or episode).
