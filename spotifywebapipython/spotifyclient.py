@@ -4247,7 +4247,7 @@ class SpotifyClient:
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(artist).__name__), artist, excludeNonPublic=True)
         
             # create base result.
-            result = ArtistInfo(artist.Id, artist.Name, artist.Type, artist.Uri, artist.ImageUrl)
+            result = ArtistInfo(artist.Id, artist.Name, artist.Type, artist.Uri, artist.ImageUrl, artist.ExternalUrls)
             
             # does artist have a bio information url?  if not then we are done.
             if (artist.Href is None) or (len(artist.Href.strip()) == 0):
@@ -8021,9 +8021,9 @@ class SpotifyClient:
                     if (result.CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value):
                         uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
                         if (self.IsChapterEpisode(uriId)):
-                            result.ItemType = 'audiobook'
+                            result.ItemType = SpotifyMediaTypes.AUDIOBOOK.value
                         else:
-                            result.ItemType = 'podcast'
+                            result.ItemType = SpotifyMediaTypes.PODCAST.value
         
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -8356,9 +8356,9 @@ class SpotifyClient:
                     if (result.CurrentlyPlayingType == SpotifyMediaTypes.EPISODE.value):
                         uriId:str = SpotifyClient.GetIdFromUri(result.Item.Uri)
                         if (self.IsChapterEpisode(uriId)):
-                            result.ItemType = 'audiobook'
+                            result.ItemType = SpotifyMediaTypes.AUDIOBOOK.value
                         else:
-                            result.ItemType = 'podcast'
+                            result.ItemType = SpotifyMediaTypes.PODCAST.value
         
             # check for a restricted device; if found, then grab the device id from the 
             # cached list of spotify connect devices (if present).
@@ -8537,9 +8537,9 @@ class SpotifyClient:
                                     
                 # if episode is playing then resolve the underlying type (audiobook / podcast show).
                 if (self.IsChapterEpisode(spotifyId)):
-                    playerState.ItemType = 'audiobook'
+                    playerState.ItemType = SpotifyMediaTypes.AUDIOBOOK.value
                 else:
-                    playerState.ItemType = 'podcast'
+                    playerState.ItemType = SpotifyMediaTypes.PODCAST.value
                         
             elif (spotifyType == SpotifyMediaTypes.TRACK.value):
                     

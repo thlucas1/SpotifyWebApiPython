@@ -3,6 +3,7 @@
 # our package imports.
 from ..sautils import export
 from .artistinfotourevent import ArtistInfoTourEvent
+from .externalurls import ExternalUrls
 
 @export
 class ArtistInfo:
@@ -10,7 +11,15 @@ class ArtistInfo:
     Artist Information About object.
     """
 
-    def __init__(self, id:str, name:str, typeValue:str, uri:str, imageUrlDefault:str) -> None:
+    def __init__(
+        self, 
+        id:str, 
+        name:str, 
+        typeValue:str, 
+        uri:str, 
+        imageUrlDefault:str, 
+        externalUrls:ExternalUrls=None
+        ) -> None:
         """
         Initializes a new instance of the class.
         
@@ -24,7 +33,9 @@ class ArtistInfo:
             uri (str):
                 The Spotify URI for the artist.
             imageUrlDefault (str):
-                Image url of the artist, if defined
+                Image url of the artist, if defined.
+            externalUrls (ExternalUrls):
+                Known external URLs for this artist.
         """
         self._AboutUrlFacebook:str = None
         self._AboutUrlInstagram:str = None
@@ -32,6 +43,7 @@ class ArtistInfo:
         self._AboutUrlWikipedia:str = None
         self._Bio:str = None
         self._BioHtml:str = None
+        self._ExternalUrls:ExternalUrls = externalUrls
         self._Id:int = id
         self._ImageUrl:str = None
         self._ImageUrlDefault:str = imageUrlDefault
@@ -147,6 +159,14 @@ class ArtistInfo:
 
 
     @property
+    def ExternalUrls(self) -> list:
+        """ 
+        Known external URLs for this artist.
+        """
+        return self._ExternalUrls
+    
+
+    @property
     def Id(self) -> str:
         """ 
         The Spotify ID for the artist.
@@ -233,6 +253,10 @@ class ArtistInfo:
         """
         Returns a dictionary representation of the class.
         """
+        externalUrls:dict = {}
+        if self._ExternalUrls is not None:
+            externalUrls = self._ExternalUrls.ToDictionary()
+
         result:dict = \
         {
             'about_url_facebook': self._AboutUrlFacebook,
@@ -241,6 +265,7 @@ class ArtistInfo:
             'about_url_wikipedia': self._AboutUrlWikipedia,
             'bio': self._Bio,
             'bio_html': self._BioHtml,
+            'external_urls': externalUrls,
             'id': self._Id,
             'image_url': self._ImageUrl,
             'image_url_default': self._ImageUrlDefault,
@@ -273,6 +298,7 @@ class ArtistInfo:
         if self._AboutUrlWikipedia is not None: msg = '%s\n AboutUrlWikipedia="%s"' % (msg, str(self._AboutUrlWikipedia))
         if self._Bio is not None: msg = '%s\n Bio="%s"' % (msg, str(self._Bio))
         if self._BioHtml is not None: msg = '%s\n BioHtml="%s"' % (msg, str(self._BioHtml))
+        if self._ExternalUrls is not None: msg = '%s\n %s' % (msg, str(self._ExternalUrls))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
         if self._ImageUrl is not None: msg = '%s\n ImageUrl="%s"' % (msg, str(self._ImageUrl))
         if self._ImageUrlDefault is not None: msg = '%s\n ImageUrlDefault="%s"' % (msg, str(self._ImageUrlDefault))

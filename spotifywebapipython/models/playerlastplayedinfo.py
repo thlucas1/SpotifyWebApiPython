@@ -255,10 +255,10 @@ class PlayerLastPlayedInfo:
             elif self._Item.Type == SpotifyMediaTypes.EPISODE.value:
                 episode:Episode = self._Item
                 result = 'Episode "%s" (%s)' % (episode.Name, episode.Id)
-            elif self._Item.Type == 'audiobook':
+            elif self._Item.Type == SpotifyMediaTypes.AUDIOBOOK.value:
                 episode:Episode = self._Item
                 result = 'Chapter "%s" (%s)' % (episode.Name, episode.Id)
-            elif self._Item.Type == 'podcast':
+            elif self._Item.Type == SpotifyMediaTypes.PODCAST.value:
                 episode:Episode = self._Item
                 result = 'Podcast "%s" (%s)' % (episode.Name, episode.Id)
                            

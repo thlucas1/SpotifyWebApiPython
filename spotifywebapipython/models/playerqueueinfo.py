@@ -53,7 +53,7 @@ class PlayerQueueInfo:
             if items is not None:
                 for item in items:
                     
-                    itemType = item.get('type','unknown')
+                    itemType = item.get('type',SpotifyMediaTypes.UNKNOWN.value)
                     if itemType == SpotifyMediaTypes.TRACK.value:
                         track:Track = Track(root=item)
                         if (track) and (not self.ContainsUri(track.Uri)):

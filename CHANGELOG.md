@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.252 ] - 2025/10/15
+
+  * Updated `SpotifyMediaTypes` to add `PODCAST` and `UNKNOWN` values.  Also changed various code that referenced the constant values.
+  * Updated model `ArtistInfo` to add `ExternalURLs` property.
+
 ###### [ 1.0.251 ] - 2025/10/12
 
   * Updated build process to exclude test library from wheel file.

@@ -4,7 +4,7 @@
 # constants are placed in this file if they are used across multiple files.
 # the only exception to this is for the VERSION constant, which is placed here for convenience.
 
-VERSION:str = "1.0.251"
+VERSION:str = "1.0.252"
 """ 
 Current version of the Spotify Client Python3 Library. 
 """

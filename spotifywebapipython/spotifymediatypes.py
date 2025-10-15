@@ -18,6 +18,9 @@ class SpotifyMediaTypes(StrEnum):
     AUDIOBOOK = "audiobook"
     """
     Audiobook media type.
+
+    This value is not part of the Spotify Web API specification.
+    It is loaded from our API so that the type of item can be determined programatically.
     """
 
     EPISODE = "episode"
@@ -30,6 +33,14 @@ class SpotifyMediaTypes(StrEnum):
     Playlist media type.
     """
 
+    PODCAST = "podcast"
+    """
+    Podcast episode type.
+
+    This value is not part of the Spotify Web API specification.
+    It is loaded from our API so that the type of item can be determined programatically.
+    """
+
     SHOW = "show"
     """
     Show media type.
@@ -38,6 +49,14 @@ class SpotifyMediaTypes(StrEnum):
     TRACK = "track"
     """
     Track media type.
+    """
+
+    UNKNOWN = "unknown"
+    """
+    Unknown media type.
+
+    This value is not part of the Spotify Web API specification.
+    It is loaded from our API so that the type of item can be determined programatically.
     """
 
 
