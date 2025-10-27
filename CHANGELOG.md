@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.253 ] - 2025/10/27
+
+  * Updated `setup.py` minimum python version requirement from `python_requires='>3.11.0'` to `python_requires='>=3.11.0'` so that the library can be used with Python 3.11.0.
+
 ###### [ 1.0.252 ] - 2025/10/15
 
   * Updated `SpotifyMediaTypes` to add `PODCAST` and `UNKNOWN` values.  Also changed various code that referenced the constant values.

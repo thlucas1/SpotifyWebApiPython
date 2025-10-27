@@ -55,7 +55,7 @@ setup(
     ],
     
     # set minimum python version requirement.
-    python_requires='>3.11.0',
+    python_requires='>=3.11.0',
     
     # set minimum dependencies requirements.
     install_requires=[
