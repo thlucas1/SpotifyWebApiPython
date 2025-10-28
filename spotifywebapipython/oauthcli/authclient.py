@@ -11,7 +11,7 @@ import socket
 import threading
 import webbrowser
 
-from oauthlib.oauth2 import InvalidGrantError, Client, WebApplicationClient, TokenExpiredError, AccessDeniedError
+from oauthlib.oauth2 import InvalidClientError, InvalidGrantError, Client, WebApplicationClient, TokenExpiredError, AccessDeniedError
 from requests_oauthlib import OAuth2Session
 from typing import Optional, Union, Callable, Iterable
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server as WSGIMakeServer
@@ -167,7 +167,7 @@ class AuthClient:
             hasScopeChanged:bool = self.HasScopeChanged(token, scope)
             if hasScopeChanged == True:
                 # if scope change detected, then destroy the token as we need to force an auth refresh.
-                _logsi.LogVerbose('OAuth2 authorization access scope has changed; token will be destroyed', colorValue=SIColors.Gold)
+                _logsi.LogWarning('OAuth2 authorization access scope has changed; token will be destroyed', colorValue=SIColors.Gold)
                 self._SaveToken(None)
             else:
                 # set session token reference to the loaded token.
@@ -801,7 +801,7 @@ class AuthClient:
         # does the token scope match the requested session scope?
         if strScopeToken != strScopeSession:
             
-            _logsi.LogVerbose('Token scope change detected, forcing authorization access; Token scope="%s", Session scope="%s"' % (strScopeToken, strScopeSession))
+            _logsi.LogWarning('Token scope change detected, forcing authorization access; Token scope="%s", Session scope="%s"' % (strScopeToken, strScopeSession))
             return True
         
         # indicate scope has not changed.
@@ -1155,6 +1155,10 @@ class AuthClient:
                 
                 # refresh the authorization token, using it's refresh token value.
                 token = self._Session.refresh_token(self._TokenUrl, refreshToken, **kwargs)
+
+                # if nothing returned then it's an error.
+                if token is None:
+                    raise TokenExpiredError('OAuth Session refresh_token method returned a null token.')
             
                 # store the refresh token to the token storage file.
                 self._SaveToken(token)
@@ -1165,23 +1169,39 @@ class AuthClient:
             # return the refreshed authorization token to the caller.
             return token
         
-        except Exception as ex:
-            
+        except (InvalidGrantError, InvalidClientError) as ex:
+
             # trace.
-            #_logsi.LogException('OAuth2 token refresh error: %s' % str(ex), ex)
-            
-            # if refresh token was revoked, then remove the token from the token storage file
-            # so that it will force an authorization refresh next time around.
-            if isinstance(ex, InvalidGrantError):
-                if ex.description == 'Refresh token revoked':
-                    if self.AuthorizationType in ['OAuth2Token']:
-                        _logsi.LogWarning('Refresh token was revoked for authorization type "%s".  Ensure that you are saving the refreshed token in the host provider session to avoid this problem; see the "tokenUpdater" argument for more details' % self.AuthorizationType)
+            _logsi.LogException('OAuth2 token refresh error (InvalidGrantError, InvalidClientError): %s' % str(ex), ex, logToSystemLogger=False)
+
+            # if InvalidGrantError / InvalidClientError, then it denotes that it's NOT a temporary 
+            # condition and that we need to completely remove the token from the token storage file 
+            # since it's no longer valid.  this will force an authorization refresh next time around.
+            if ex.description == 'Refresh token revoked':
+                if self.AuthorizationType in ['OAuth2Token']:
+                    _logsi.LogWarning('Refresh token was revoked for authorization type "%s".  Ensure that you are saving the refreshed token in the host provider session to avoid this problem; see the "tokenUpdater" argument for more details' % self.AuthorizationType)
 
             # if internal storage provider, then remove the token from the storage file.
             if self._TokenUpdater is None:
-                _logsi.LogVerbose('Refresh token error detected for internal storage provider; token will be destroyed', colorValue=SIColors.Gold)
+                _logsi.LogWarning('Refresh token error detected for internal storage provider; token will be destroyed.  Exception message: %s' % str(ex), colorValue=SIColors.Gold)
                 self._SaveToken(None)
                 
+            # pass exception on thru.
+            raise
+
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException('OAuth2 token refresh error: %s' % str(ex), ex, logToSystemLogger=False)
+            _logsi.LogWarning('An error occured while trying to refresh an "%s" authentication token; this might be a temporary condition, so the token will not be destroyed.  Exception was: %s' % (self.AuthorizationType, str(ex)))
+
+            # if this is NOT an InvalidGrantError / InvalidClientError, then it denotes that it's 
+            # PROBABLY a temporary condition (e.g. Spotify auth server unavailable, network issue, etc).
+            # in this case, we will NOT remove the token from the token cache file as we want it to
+            # try again on the next access.  
+            # we will still pass the exception on thru though, as the token could not be refreshed and
+            # the operation would fail anyway.
+
             # pass exception on thru.
             raise
 

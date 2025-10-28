@@ -94,5 +94,6 @@ artifacts/
 /test/test_*.py
 /test/testVS_*.py
 /Git*.cmd
+/VSDebugCleanup.cmd
 # include PDOC documentation
 !docspdoc/build/

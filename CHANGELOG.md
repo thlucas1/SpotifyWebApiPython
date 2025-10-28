@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.254 ] - 2025/10/28
+
+  * Added system log warning messages when removing a token cache file key.
+
 ###### [ 1.0.253 ] - 2025/10/27
 
   * Updated `setup.py` minimum python version requirement from `python_requires='>3.11.0'` to `python_requires='>=3.11.0'` so that the library can be used with Python 3.11.0.
