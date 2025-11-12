@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.255 ] - 2025/11/11
+
+  * Updated `SpotifyClient.PlayerMediaPlayContext` method to add the `playShowLatestEpisode` argument: True to play the most current episode of a podcast show, starting at the beginning; otherwise, False to resume playing of the podcast episode that was previously played.  Default is False.  This argument is only considered for `show` contexts.
+
 ###### [ 1.0.254 ] - 2025/10/28
 
   * Added system log warning messages when removing a token cache file key.

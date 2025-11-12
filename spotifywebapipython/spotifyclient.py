@@ -12514,6 +12514,7 @@ class SpotifyClient:
         delay:float=0.50,
         resolveDeviceId:bool=True,
         shuffle:bool=None,
+        playShowLatestEpisode:bool=None,
         ) -> None:
         """
         Start playing one or more tracks of the specified context on a Spotify Connect device.
@@ -12565,6 +12566,11 @@ class SpotifyClient:
                 True to enable player shuffle mode; False to disable player shuffle mode; 
                 None to use current player shuffle mode.  
                 Default is None.  
+            playShowLatestEpisode (bool):
+                True to play the most current episode of a podcast show, starting at the beginning; 
+                otherwise, False to resume playing of the podcast episode that was previously played.  
+                Default is False.  
+                This argument is only considered for `show` contexts.
                 
         Raises:
             SpotifyWebApiError: 
@@ -12628,6 +12634,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("delay", delay)
             apiMethodParms.AppendKeyValue("resolveDeviceId (DEPRECATED)", resolveDeviceId)
             apiMethodParms.AppendKeyValue("shuffle", shuffle)
+            apiMethodParms.AppendKeyValue("playShowLatestEpisode", playShowLatestEpisode)
             _logsi.LogMethodParmList(SILevel.Verbose, "Spotify Connect device play context", apiMethodParms)
                 
             # validations.
@@ -12636,6 +12643,8 @@ class SpotifyClient:
                 positionMS = 0
             if (offsetPosition is None) or (offsetPosition < 0):
                 offsetPosition = 0
+            if (playShowLatestEpisode is None):
+                playShowLatestEpisode = False
 
             # if shuffle specified, then we will reset the offset argument values
             # since we are playing things in random order anyway.
@@ -12650,6 +12659,41 @@ class SpotifyClient:
             # are spotify web player credentials configured? if so, then we will use them to create
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue(scDevice)
+
+            # did caller request to play the most current podcast show episode?
+            if (playShowLatestEpisode == True):
+
+                if (self.GetTypeFromUri(contextUri) == SpotifyMediaTypes.SHOW.value):
+
+                    try:
+
+                        # trace.
+                        _logsi.LogVerbose("playShowLatestEpisode=True was specified; retrieving latest show episode")
+
+                        # get episodes for the specified show.
+                        # at this point, it could be either an audiobook or podcast (both are shows).
+                        showId = self.GetIdFromUri(contextUri)
+                        showEpisodes:PageObject = self.GetShowEpisodes(showId, limitTotal=2)
+                        if (showEpisodes.ItemsCount > 0):
+
+                            # get the most current show episode details.
+                            episodeUri = showEpisodes.Items[0].Uri
+                            episodeId = showEpisodes.Items[0].Id
+
+                            # is this an audiobook episode? or a podcast episode?
+                            # if podcast episode, then play it.
+                            if (not self.IsChapterEpisode(episodeId)):
+                                self.PlayerMediaPlayTracks(episodeUri, deviceId=scDevice, delay=delay, shuffle=None)
+                                return
+
+                            # if audiobook episode, then just play the context which will automatically
+                            # pickup where it left off the last time.
+
+                    except Exception as ex:
+
+                        # trace.
+                        _logsi.LogVerbose("playShowLatestEpisode=True was specified; could not determine if show was an audiobook or podcast")
+                        # ignore exceptions, and just play the context.
             
             # is this an active Sonos device?
             # Sonos device can still be active, even if there is no active device in Spotify playstate.
