@@ -7252,12 +7252,13 @@ class SpotifyClient:
         uri:str, 
         ) -> str:
         """
-        Get the id portion from a Spotify uri value.
+        Get the id portion from a Spotify uri (or url) value.
         
         Args:
             uri (str):  
-                The Spotify URI value.
-                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`
+                The Spotify URI (or url) value.  
+                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`  
+                Example: `https://open.spotify.com/track/5v5ETK9WFXAnGQ3MRubKuE`  
                 
         Returns:
             A string containing the id value.
@@ -7272,12 +7273,18 @@ class SpotifyClient:
             if uri is None or len(uri.strip()) == 0:
                 return result
 
-            # get Id from uri value.
+            # is this a uri value (e.g. "spotify:track:5v5ETK9WFXAnGQ3MRubKuE")?
             colonCnt:int = uri.count(':')
             if colonCnt == 2:
                 idx:int = uri.rfind(':')
                 if idx > -1:
                     result = uri[idx+1:]
+
+            # is this a url value (e.g. "https://open.spotify.com/track/5v5ETK9WFXAnGQ3MRubKuE")?
+            elif (uri.startswith("http")):
+                idx = uri.rfind("/")
+                if (idx > 0):
+                    result = uri[idx + 1:len(uri)]
 
             return result
 
@@ -11698,12 +11705,13 @@ class SpotifyClient:
         uri:str, 
         ) -> str:
         """
-        Get the type portion from a Spotify uri value.
+        Get the type portion from a Spotify uri (or url) value.
         
         Args:
             uri (str):  
-                The Spotify URI value.
-                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`
+                The Spotify URI (or URL) value.  
+                Example: `spotify:track:5v5ETK9WFXAnGQ3MRubKuE`  
+                Example: `https://open.spotify.com/track/5v5ETK9WFXAnGQ3MRubKuE`  
                 
         Returns:
             A string containing the type value (e.g. `track`).
@@ -11718,7 +11726,7 @@ class SpotifyClient:
             if uri is None or len(uri.strip()) == 0:
                 return result
 
-            # get type from uri value.
+            # is this a uri value (e.g. "spotify:track:5v5ETK9WFXAnGQ3MRubKuE")?
             colonCnt:int = uri.count(':')
             if colonCnt == 2:
                 idxStart:int = uri.find(':')
@@ -11728,6 +11736,14 @@ class SpotifyClient:
                     idxEnd:int = uri.find(':', idxStart + 1)
                     if idxEnd > -1:
                         result = uri[idxStart+1:idxEnd]
+
+            # is this a url value (e.g. "https://open.spotify.com/track/5v5ETK9WFXAnGQ3MRubKuE")?
+            elif (uri.startswith("http")):
+                idxR = uri.rfind("/")
+                if (idxR > 0):
+                    idxL = uri.rfind("/", 0, idxR - 1)
+                    if (idxR > -1):
+                        result = uri[idxL + 1:idxR]
 
             return result
 
@@ -12807,6 +12823,10 @@ class SpotifyClient:
                 # trace.
                 _logsi.LogVerbose("Context will be played on the Spotify Connect device via Spotify Web API")
 
+                # get uri parts.
+                uriType:str = self.GetTypeFromUri(contextUri)
+                uriId:str = self.GetIdFromUri(contextUri)
+
                 # get current player state.
                 playerState:PlayerPlayState = self.GetPlayerPlaybackState(additionalTypes=SpotifyMediaTypes.EPISODE.value)
 
@@ -12823,9 +12843,6 @@ class SpotifyClient:
                 # is shuffle enabled? and is this a Spotify URI value (e.g. `spotify:type:id`)?
                 if (shuffle or playerState.IsShuffleEnabled) and (self.IsSpotifyUri(contextUri)):
 
-                    # get uri parts.
-                    uriType:str = self.GetTypeFromUri(contextUri)
-                    uriId:str = self.GetIdFromUri(contextUri)
                     uriItems:PageObject = None
 
                     # wrap this in a try, as errors will be returned if context contains
@@ -12837,9 +12854,7 @@ class SpotifyClient:
 
                         # get number of items in the context, up to 50 max.
                         # we limit it to 50 to keep it fast, as some context lists are quite large!
-                        # note that playlist type is the only type we can limit the amount of data returned.
-                        # note that offset cannot be specified for artist context type; a `400 - Bad Request
-                        # Can't have offset for context type: ARTIST` error is returned if specified.
+                        # note that playlist type is the only type we can limit the fields to be returned.
                         if (uriType == SpotifyMediaTypes.PLAYLIST.value):
                             uriItems = self.GetPlaylistItems(uriId, limitTotal=50, fields="items(track(name))")
                         elif (uriType == SpotifyMediaTypes.ALBUM.value):
@@ -12856,6 +12871,14 @@ class SpotifyClient:
                     if (uriItems is not None) and (uriItems.ItemsCount > 0):
                         offsetPosition = random.randint(0, uriItems.ItemsCount - 1)
                         _logsi.LogVerbose("Shuffle is enabled; setting random offsetPosition to %s" % str(offsetPosition))
+
+                # offset cannot be specified for artist context type, otherwise the following error
+                # is returneed: `400 - Bad Request can't have offset for context type: ARTIST`.
+                if (uriType == SpotifyMediaTypes.ARTIST.value):
+                    if (offsetUri is not None) or (offsetPosition > 0):
+                        _logsi.LogVerbose("Context uri type is artist; ignoring offsetPosition and offsetUri values")
+                        offsetPosition = 0
+                        offsetUri = None
 
                 # build spotify web api request parameters.
                 reqData:dict = \
