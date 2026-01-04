@@ -447,7 +447,8 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                 # for the spotify desktop application client id, we will add some arguments
                 # to the token to denote what user it's for.  These arguments were initially added
                 # by the AuthTokenGenerator.py script, but were dropped when the token was refreshed.
-                oauth2token["title"] =  SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME % self._SpotifyClientInstance.UserProfile.Id
+                title:str = "%s [%s]" % (self._SpotifyClientInstance.UserProfile.DisplayName, self._SpotifyClientInstance.UserProfile.Product)
+                oauth2token["title"] =  SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME % title
                 oauth2token["username"] = self._SpotifyClientInstance.UserProfile.Id
                 authClient.SaveToken(oauth2token)
             
