@@ -46,6 +46,7 @@ from .sautils import (
 from .const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME,
     SPOTIFY_DESKTOP_APP_CLIENT_ID,
     SPOTIFY_DEFAULT_MARKET,
     SPOTIFY_WEBAPI_URL_BASE,
@@ -17693,13 +17694,37 @@ class SpotifyClient:
                 
                 _logsi.LogVerbose('OAuth2 authorization token has not expired')
 
-            # retrieve spotify user basic details.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            self.MakeRequest('GET', msg)
+            # trace.
+            _logsi.LogVerbose('Retrieving Spotify user basic details for UserProfile object')
 
-            # process results.
-            self._UserProfile = UserProfile(root=msg.ResponseData)
+            # if this is the spotify desktop application client id, then we don't want to 
+            # try and use it with the Spotify Web API as it's only good for activating
+            # Google Chromecast devices.  
+            # As of 2025/12/15, a "429 - API rate limit exceeded" error will be returned if we
+            # try to get user profile via the Spotify Web API with the desktop client id auth token!
+            if clientId.lower() == SPOTIFY_DESKTOP_APP_CLIENT_ID:
+
+                # get Spotify ID from auth token "username" key; or use method argument
+                # value if the "username" value is not present in the auth token.
+                profileId:str = oauth2token.get("username", None) or tokenProfileId
+
+                # create basic UserProfile from auth token details.
+                userProfile:UserProfile = UserProfile()
+                userProfile.Id = profileId
+                userProfile.DisplayName = SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME % profileId
+                userProfile.Product = "premium"
+                userProfile.Type = "user"
+                self._UserProfile = userProfile
+
+            else:
+
+                # retrieve spotify user basic details.
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me')
+                msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+                self.MakeRequest('GET', msg)
+
+                # process results.
+                self._UserProfile = UserProfile(root=msg.ResponseData)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_MSG_USERPROFILE % (self._UserProfile.DisplayName, self._UserProfile.EMail), self._UserProfile, excludeNonPublic=True)

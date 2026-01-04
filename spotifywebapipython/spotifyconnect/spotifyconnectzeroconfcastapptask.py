@@ -11,6 +11,7 @@ from spotifywebapipython.oauthcli.authclient import AuthClient
 from spotifywebapipython.const import (
     SPOTIFY_API_AUTHORIZE_URL,
     SPOTIFY_API_TOKEN_URL,
+    SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME,
     SPOTIFY_DESKTOP_APP_CLIENT_ID,
     TRACE_METHOD_RESULT,
 )
@@ -442,6 +443,13 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                 oauth2token:dict = authClient.RefreshToken()
                 authToken = SpotifyAuthToken(authClient.AuthorizationType, authClient.TokenProfileId, root=oauth2token)
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, authToken, excludeNonPublic=True)
+
+                # for the spotify desktop application client id, we will add some arguments
+                # to the token to denote what user it's for.  These arguments were initially added
+                # by the AuthTokenGenerator.py script, but were dropped when the token was refreshed.
+                oauth2token["title"] =  SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME % self._SpotifyClientInstance.UserProfile.Id
+                oauth2token["username"] = self._SpotifyClientInstance.UserProfile.Id
+                authClient.SaveToken(oauth2token)
             
             else:
                 

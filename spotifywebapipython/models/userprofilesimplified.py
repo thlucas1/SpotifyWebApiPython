@@ -86,6 +86,14 @@ class UserProfileSimplified:
         """
         return self._DisplayName
 
+    @DisplayName.setter
+    def DisplayName(self, value:str):
+        """ 
+        Sets the DisplayName property value.
+        """
+        if isinstance(value, str):
+            self._DisplayName = value
+
 
     @property
     def ExternalUrls(self) -> ExternalUrls:
@@ -110,6 +118,14 @@ class UserProfileSimplified:
         """
         return self._Href
 
+    @Href.setter
+    def Href(self, value:str):
+        """ 
+        Sets the Href property value.
+        """
+        if isinstance(value, str):
+            self._Href = value
+
 
     @property
     def Id(self) -> str:
@@ -119,6 +135,14 @@ class UserProfileSimplified:
         Example: `2up3OPMp9Tb4dAKM2erWXQ`
         """
         return self._Id
+
+    @Id.setter
+    def Id(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        if isinstance(value, str):
+            self._Id = value
 
 
     @property
@@ -144,6 +168,14 @@ class UserProfileSimplified:
         The object type: `user`.
         """
         return self._Type
+
+    @Type.setter
+    def Type(self, value:str):
+        """ 
+        Sets the Type property value.
+        """
+        if isinstance(value, str):
+            self._Type = value
 
 
     @property

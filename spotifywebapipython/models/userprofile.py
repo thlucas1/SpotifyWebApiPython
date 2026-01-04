@@ -82,6 +82,14 @@ class UserProfile(UserProfileSimplified):
         """
         return self._Country
 
+    @Country.setter
+    def Country(self, value:str):
+        """ 
+        Sets the Country property value.
+        """
+        if isinstance(value, str):
+            self._Country = value
+
 
     @property
     def EMail(self) -> str:
@@ -96,6 +104,14 @@ class UserProfile(UserProfileSimplified):
         Example: `johnsmith@example.com`
         """
         return self._EMail
+
+    @EMail.setter
+    def EMail(self, value:str):
+        """ 
+        Sets the EMail property value.
+        """
+        if isinstance(value, str):
+            self._EMail = value
 
 
     @property
@@ -144,6 +160,14 @@ class UserProfile(UserProfileSimplified):
         the `user-read-private` scope; otherwise, it is set to `unknown`.
         """
         return self._Product
+
+    @Product.setter
+    def Product(self, value:str):
+        """ 
+        Sets the Product property value.
+        """
+        if isinstance(value, str):
+            self._Product = value
 
 
     def ToDictionary(self) -> dict:

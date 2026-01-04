@@ -1,6 +1,6 @@
 from spotifywebapipython import *
 from spotifywebapipython.zeroconfapi import *
-from spotifywebapipython.const import SPOTIFY_DESKTOP_APP_CLIENT_ID
+from spotifywebapipython.const import SPOTIFY_DESKTOP_APP_CLIENT_ID, SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME
 
 try:
 
@@ -48,7 +48,7 @@ try:
     forceAuthorize:bool = False
 
     print('-------------------------------------------------------------------------------')
-    print('SpotifyPlus OAuth2 Authorization Token Updater for Spotify - v1.0')
+    print('SpotifyPlus OAuth2 Authorization Token Updater for Spotify - v1.2')
     print('-------------------------------------------------------------------------------')
     print('')
     print('This process will update the OAuth2 authorization token cache file that is used')
@@ -134,14 +134,15 @@ try:
         spotify.AuthClient.Logout()                                 # remove temporary "Shared" token
         spotify.AuthClient.TokenProfileId = spotify.UserProfile.Id  # update token profile id to Spotify login id
         token = spotify.AuthToken.ToDictionary()                    # get the token dictionary
-        token["display_name"] = spotify.UserProfile.DisplayName     # add display name for easy identification
+        token["title"] = SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME % spotify.UserProfile.Id
+        token["username"] = spotify.UserProfile.Id                  # add id for easy identification
         spotify.AuthClient.SaveToken(token)                         # save token to disk
 
     print('-------------------------------------------------------------------------------\n')
     print('** Spotify Desktop Application access token is authorized!')
     print('')
     print('Token was stored in the following Token Cache File:')
-    print('-> %s%s' % (spotify.TokenStorageDir, spotify.TokenStorageFile))
+    print('-> %s/%s' % (spotify.TokenStorageDir, spotify.TokenStorageFile))
     print('')
     print('If a browser window did appear, and you successfully entered your credentials')
     print('and authorized the requested access, then the access token was refreshed and')

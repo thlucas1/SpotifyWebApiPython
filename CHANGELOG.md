@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.257 ] - 2026/01/04
+
+  * Updated `AuthTokenGenerator.py` sample code to account for changes to the Spotify Web API when using the Spotify Desktop Application client id.  As of around 2025/12/14, one can no longer retrieve user profile information when using the Spotify Desktop Application client id; trying to do so will result in a "429 - api rate limit exceeded" error message.
+
 ###### [ 1.0.256 ] - 2025/11/14
 
   * Updated `SpotifyClient.PlayerMediaPlayContext` method to check for artist context, and disable offset values if specified.  This will prevent the Spotify Web APi from returning a `400 - Bad Request can't have offset for context type: ARTIST` error.
