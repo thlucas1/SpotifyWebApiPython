@@ -59,10 +59,10 @@ class BlobBuilder:
 
         # formulate origin device information.
         self._OriginDeviceName:str = originDeviceName
-        self._OriginDeviceId:str = hashlib.sha1(bytes(self._OriginDeviceName, 'ascii')).digest().hex()
+        self._OriginDeviceId:str = hashlib.sha1(bytes(self._OriginDeviceName, 'utf-8')).digest().hex()
 
         self.credentials:Credentials = credentials
-        self.device_id:bytes = bytes(device_id, 'ascii')
+        self.device_id:bytes = bytes(device_id, 'utf-8')
         self.dh_keys = CryptoDiffieHellman()
         self._blob:bytes = b''
         self._decrypted_blob:bytes = b''
@@ -255,7 +255,7 @@ class BlobBuilder:
         
             # convert encrypted bytes to a base64-encoded string.
             b64result_bytes:bytes = b64encode(self._EncryptedBlobSigned)
-            self._EncryptedBlobSignedBase64String:str = b64result_bytes.decode('ascii')
+            self._EncryptedBlobSignedBase64String:str = b64result_bytes.decode('utf-8')
             _logsi.LogText(SILevel.Verbose, "Encrypted Blob (signed with checksum, base64-encoded string)", self._EncryptedBlobSignedBase64String)
 
         finally:

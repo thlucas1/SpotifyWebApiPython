@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.259 ] - 2026/01/07
+
+  * Change encoding of Spotify Connect credentials to use UTF-8 encoding instead of ASCII encoding.  This was causing issues with authentication credetials that contain non-ascii characters.
+
 ###### [ 1.0.258 ] - 2026/01/04
 
   * Updated title string in the Spotify Desktop Application client id authorization token value to include the user display name and product id when the token is refreshed..

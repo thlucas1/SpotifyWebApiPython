@@ -26,12 +26,18 @@ class Credentials:
         # validations.
         if (authenticationType is None) or (not isinstance(authenticationType, AuthenticationTypes)):
             authenticationType = AuthenticationTypes.USER_PASS
+
+        if (username is None):
+            username = ""
+        if (password is None):
+            password = ""
         
         # initialize storage.
-        self.username: bytes = bytes(username, 'ascii')
+        self.username: bytes = username.encode('utf-8')
+
         if (isinstance(password, bytes)):
             self.password: bytes = password
         else:
-            self.password: bytes = bytes(password, 'ascii')
+            self.password: bytes = password.encode('utf-8')
         self.auth_type: AuthenticationTypes = authenticationType
         

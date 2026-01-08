@@ -33,7 +33,7 @@ def int_to_b64str(value: int) -> str:
     """
     Converts a big integer to a base64-encoded string value.
     """
-    return b64encode(int_to_bytes(value)).decode('ascii')
+    return b64encode(int_to_bytes(value)).decode('utf-8')
 
 
 def b64_to_int(value: str):

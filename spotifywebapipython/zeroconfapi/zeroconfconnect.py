@@ -670,7 +670,7 @@ class ZeroconfConnect:
                 "tokenType": tokenType,
                 "clientKey": clientKey,
                 "loginId": loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
-                "userName": credentials.username.decode("ascii"),           # canonical user name (e.g. "31l77fd87g8h9j00k89f07jf87ge")
+                "userName": credentials.username.decode('utf-8'),           # canonical user name (e.g. "31l77fd87g8h9j00k89f07jf87ge")
                 "blob": blob,
             }
                 
