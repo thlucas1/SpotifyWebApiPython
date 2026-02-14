@@ -32,9 +32,14 @@ if (_logsi == None):
     _logsi = SIAuto.Si.AddSession(__name__, True)
 _logsi.SystemLogger = logging.getLogger(__name__)
 
+# constants - cast app identifiers.
+APP_GOOGLE_INTERNAL_RECEIVER = "705D30C6"   # Google Internal Receiver
+APP_SPOTIFY_CONNECT = "531A4F84"            # Spotify Connect
+APP_SPOTIFY = "CC32E753"                    # Spotify (legacy / classic cast)
+APP_SPOTIFY_NAMESPACE = "urn:x-cast:com.spotify.chromecast.secure.v1"
+APP_SPOTIFY_LAUNCH_TIMEOUT = 20.0           # Amount of time to wait for Spotify App launch.
+
 # constants.
-APP_SPOTIFY = "CC32E753"
-APP_NAMESPACE = "urn:x-cast:com.spotify.chromecast.secure.v1"
 TYPE_GET_INFO = "getInfo"
 TYPE_GET_INFO_ERROR = "getInfoError"
 TYPE_GET_INFO_RESPONSE = "getInfoResponse"
@@ -78,7 +83,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
         """
 
         # invoke base class method.
-        super().__init__(APP_NAMESPACE, APP_SPOTIFY)
+        super().__init__(APP_SPOTIFY_NAMESPACE, APP_SPOTIFY)
 
         # initialize storage.
         self.accessToken:str = accessToken
@@ -88,6 +93,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
         self.deviceId:str = None
         self.isAddUserError:bool = False
         self.isGetInfoError:bool = False
+        self.isLaunchError:bool = False
         self.isLaunched:bool = False
         self.isPlaybackTransferError:bool = False
         self.isMessageException:bool = False
@@ -141,6 +147,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
         self.isLaunched = False
         self.isAddUserError = False
         self.isGetInfoError = False
+        self.isLaunchError = False
         self.isPlaybackTransferError = False
         self.isMessageException = False
         self.waitAddUser.clear()
@@ -186,6 +193,8 @@ class SpotifyConnectZeroconfCastController(BaseController):
             raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "AddUser request failed", "launch_app", self.zeroconfResponse.StatusString)
         if (self.isGetInfoError):
             raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "GetInformation request failed", "launch_app", self.zeroconfResponse.StatusString)
+        if (self.isLaunchError):
+            raise SpotifyZeroconfApiError(self.zeroconfResponse.Status, "Launch request failed", "launch_app", self.zeroconfResponse.StatusString)
         if (not self.isLaunched):
             raise SpotifyConnectZeroconfLaunchError("Spotify Cast App could not be launched")
 
@@ -244,7 +253,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
         try:
 
             # trace.
-            _logsi.LogDictionary(SILevel.Verbose, "Chromecast Message payload received: %s" % message, data, prettyPrint=True)
+            _logsi.LogDictionary(SILevel.Verbose, "Chromecast Message payload received: %s" % message, data, prettyPrint=True, colorValue=SIColors.Tan)
             
             # message argument example: "getInfoResponse"
             #     protocol_version: CASTV2_1_0
@@ -317,7 +326,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 self.zeroconfGetInfo.ResponseSource = payloadDataType
 
                 # trace.
-                _logsi.LogObject(SILevel.Verbose, "GetInformation result (ZeroconfGetInfo) - \"%s\" (%s)" % (self.zeroconfGetInfo.RemoteName, self.zeroconfGetInfo.DeviceId), self.zeroconfGetInfo, excludeNonPublic=True)
+                _logsi.LogObject(SILevel.Verbose, "GetInformation result (ZeroconfGetInfo) - \"%s\" (%s)" % (self.zeroconfGetInfo.RemoteName, self.zeroconfGetInfo.DeviceId), self.zeroconfGetInfo, excludeNonPublic=True, colorValue=SIColors.Tan)
 
                 # getInfo response received from the initial launch.
                 self.deviceId = self.zeroconfGetInfo.DeviceId
@@ -448,7 +457,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 return True
 
             # trace.
-            _logsi.LogDictionary(SILevel.Verbose, "Chromecast Message ignored - payload type value not recognized: \"%s\"" % (payloadDataType), message, prettyPrint=True)
+            _logsi.LogDictionary(SILevel.Verbose, "Chromecast Message ignored - payload type value not recognized: \"%s\"" % (payloadDataType), message, prettyPrint=True, colorValue=SIColors.Tan)
 
             return True
 
@@ -463,7 +472,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
             self.zeroconfResponse = response
 
             # trace.
-            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format("receive_message", str(ex)), ex, logToSystemLogger=False)
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format("receive_message", str(ex)), ex, logToSystemLogger=False, colorValue=SIColors.Tan)
 
             # ignore exceptions, as there is nothing we can do at this point.
 
@@ -571,7 +580,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                     "blob": json_resp["accessToken"],
                 },
             }
-            _logsi.LogDictionary(SILevel.Debug, "Sending Spotify Connect Zeroconf AddUser Chromecast Message payload to Chromecast device (ip=%s:%s)" % (self.castDevice.socket_client.host, self.castDevice.socket_client.port), castMsg, prettyPrint=True)
+            _logsi.LogDictionary(SILevel.Debug, "Sending Spotify Connect Zeroconf AddUser Chromecast Message payload to Chromecast device (ip=%s:%s)" % (self.castDevice.socket_client.host, self.castDevice.socket_client.port), castMsg, prettyPrint=True, colorValue=SIColors.Tan)
             self.send_message(castMsg)
 
             # if we are in the process of launching, then we will wait for a response in the
@@ -589,7 +598,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 if (counter >= timeout):
                     raise SpotifyZeroconfApiError(0, "Timed out while waiting for a response", "AddUser", "timeout")
                 counter += WAIT_INTERVAL
-                _logsi.LogVerbose("Waiting for addUserResponse Chromecast Message payload (%f seconds from initial request)" % (counter))
+                _logsi.LogVerbose("Waiting for addUserResponse Chromecast Message payload (%f seconds from initial request)" % (counter), colorValue=SIColors.Tan)
 
             # if we make it here, then addUser request was processed successfully.
             return
@@ -665,7 +674,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                     "interactionIDs": [self.interactionID],
                 },
             }
-            _logsi.LogDictionary(SILevel.Debug, "Sending Spotify Connect Zeroconf Getinformation Chromecast Message payload to Chromecast device (ip=%s:%s)" % (self.castDevice.socket_client.host, self.castDevice.socket_client.port), castMsg, prettyPrint=True)
+            _logsi.LogDictionary(SILevel.Debug, "Sending Spotify Connect Zeroconf Getinformation Chromecast Message payload to Chromecast device (ip=%s:%s)" % (self.castDevice.socket_client.host, self.castDevice.socket_client.port), castMsg, prettyPrint=True, colorValue=SIColors.Tan)
             self.send_message(castMsg)
 
             # if we are in the process of launching, then we will wait for a response in the
@@ -683,7 +692,7 @@ class SpotifyConnectZeroconfCastController(BaseController):
                 if (counter >= timeout):
                     raise SpotifyZeroconfApiError(0, "Timed out while waiting for a response", "GetInformation", "timeout")
                 counter += WAIT_INTERVAL
-                _logsi.LogVerbose("Waiting for getInfoResponse Chromecast Message payload (%f seconds from initial request)" % (counter))
+                _logsi.LogVerbose("Waiting for getInfoResponse Chromecast Message payload (%f seconds from initial request)" % (counter), colorValue=SIColors.Tan)
 
             # if we make it here, then getInfo request was processed successfully.
             # return response to the caller.
@@ -691,9 +700,29 @@ class SpotifyConnectZeroconfCastController(BaseController):
 
         except SpotifyZeroconfApiError: raise  # pass handled exceptions on thru
         except Exception as ex:
+
+            # pychromecast ControllerNotRegistered can occur when launching to cast group devices
+            # that contain a Google Mini (legacy) device.
+
+            # indicate launch error.
+            self.isLaunchError = True
             
-            # format unhandled exception.
-            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+            # load zeroconfResponse instance with exception information.
+            response: ZeroconfResponse = ZeroconfResponse()
+            response.SpotifyError = 0
+            response.Status = 1001
+            response.StatusString = "ERROR-PYCHROMECAST-%s" % (type(ex).__name__.upper())
+            response.ResponseSource = "SpotifyConnectZeroconfCastController"
+            self.zeroconfResponse = response
+
+            # trace.
+            _logsi.LogException(SAAppMessages.UNHANDLED_EXCEPTION.format("GetInformation", str(ex)), ex, logToSystemLogger=False, colorValue=SIColors.Tan)
+
+            # if app is not launched, then init is waiting on the `waitAddUser` event!
+            if (not self.isLaunched):
+                self.waitAddUser.set()
+
+            # ignore exceptions, as there is nothing we can do at this point.
 
         finally:
         

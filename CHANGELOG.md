@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.260 ] - 2026/02/13
+
+  * Changed transfer playback logic for Chromecast groups to start the Google default media receiver app prior to launching the Spotify Cast application on the device.  This seems to stabilize playback transfer to the group, which should guarantee successful playback transfer.  Sometimes it takes 2 attempts to launch the Spotify Cast app on the device, and appears to be more prevalent with Google Mini devices.
+  * Added automatic (single) retry when connecting to Google Cast group devices.  These devices sometimes fail to launch the Spotify Cast App when legacy devices are present in the group, specifically the Google Mini.
+
 ###### [ 1.0.259 ] - 2026/01/07
 
   * Change encoding of Spotify Connect credentials to use UTF-8 encoding instead of ASCII encoding.  This was causing issues with authentication credetials that contain non-ascii characters.

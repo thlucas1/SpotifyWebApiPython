@@ -250,7 +250,7 @@ class ZeroconfDiscoveryResult:
         otherwise, False.
         """
         ipaddr:str = self.HostIpAddress or ""
-        if (ipaddr.find(":")):
+        if (ipaddr.count(":")) > 1:
             return True
         return False
 

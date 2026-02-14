@@ -1,6 +1,7 @@
 # external package imports.
 from pychromecast import CastInfo, HostServiceInfo
 from pychromecast.discovery import AbstractCastListener
+import ipaddress
 import threading
 from uuid import UUID
 
@@ -145,6 +146,17 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
             if (not (castType in [CAST_TYPE_AUDIO, CAST_TYPE_GROUP, CAST_TYPE_CHROMECAST, CAST_TYPE_NONE])):
                 _logsi.LogDebug("Chromecast device cast_type of \"%s\" is not supported; ignoring: \"%s\" (%s)" % (castType, castInfo.friendly_name, serviceName), colorValue=SIColors.Coral)
                 return None
+
+            # ensure IPV4 connection - ignore if IPV6.
+            # Windows OS does not support dual-stack socket handling IPv4 (224.0.0.251) and IPv6 (ff02::fb).
+            ip = ipaddress.ip_address(castInfo.host)
+            if (ip.version == 6):
+                _logsi.LogDebug("Chromecast IPV6 device addresses are not supported; device could cause problems: \"%s\" (%s)" % (castInfo.friendly_name, serviceName), colorValue=SIColors.Red)
+
+                # will still allow this for now, but we might want to ignore IPV6 devices
+                # in the future!  To do so, just uncomment the following, which will 
+                # ignore the device.
+                #return None
             
             # create new discovery result instance.
             result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()

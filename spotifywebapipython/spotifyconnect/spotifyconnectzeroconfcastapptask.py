@@ -221,6 +221,9 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
                     self._CastDevice.start()
                     self._CastDevice.wait(10)
 
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s (castAppTask pre-launch)" % (self.name, self._CastDevice.cast_info.friendly_name), self._CastDevice.status)
+
             # get spotify desktop authorization token.
             _logsi.LogVerbose("%s - Retrieving Spotify Desktop authorization token for loginId \"%s\"" % (self.name, self.SpotifyClientInstance.SpotifyConnectLoginId), colorValue=SIColors.Gold)
             tokenSP:SpotifyAuthToken = self._GetSpotifyDesktopAuthorizationToken(self.SpotifyClientInstance.SpotifyConnectLoginId)
@@ -244,6 +247,9 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
 
             # at this point the cast app should be either fully launched, or an error
             # occured while trying to launch.
+
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "%s - Chromecast device status: %s (castAppTask post-launch)" % (self.name, self._CastDevice.cast_info.friendly_name), self._CastDevice.status)
 
             # did an error occur?
             if (not self._SpotifyConnectZeroconfCastController.isLaunched):

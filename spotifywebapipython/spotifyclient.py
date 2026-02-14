@@ -251,6 +251,7 @@ class SpotifyClient:
         # create the zeroconf client if one was not specified.
         if zeroconfClient is None:
             _logsi.LogVerbose("Creating new Zeroconf instance for discovery")
+            #self._ZeroconfClient = Zeroconf(ip_version=None, interfaces=InterfaceChoice.All)   #class IPVersion(enum.Enum): Default=None, V4Only=1, V6Only=2, Any=3
             self._ZeroconfClient = Zeroconf()
         else:
             _logsi.LogObject(SILevel.Verbose, "Using existing Zeroconf instance for discovery", zeroconfClient)
@@ -10448,9 +10449,21 @@ class SpotifyClient:
             # note that `transferPlayback=false`, as transfer should be done after we return to caller.
             if (scDevice.IsChromeCast):
 
-                # activate the spotify cast application on the device.
-                _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
-                deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
+                try:
+
+                    # activate the spotify cast application on the device.
+                    _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
+                    deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
+
+                except Exception as ex:
+
+                    # give things time to settle.
+                    time.sleep(2.0)
+
+                    # try again ...
+                    # activate the spotify cast application on the device.
+                    _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s (attempt #2)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
+                    deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
 
                 # re-fetch device instance, as it has updated properties from the activation sequence.
                 # do not need to refresh from Spotify Web API, as only zeroconf response data was changed.
