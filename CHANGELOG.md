@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.262 ] - 2026/02/16
+
+  * Updated `SpotifyClient.SearchAlbums` argument `limit` to be 5, per Spotify Web API specifications.
+
 ###### [ 1.0.261 ] - 2026/02/16
 
   * Made numerous updates for the recent Spotify changes (2026/02/11) that removed functionality from their Spotify Web API.

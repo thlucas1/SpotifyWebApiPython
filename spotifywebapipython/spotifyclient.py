@@ -2378,7 +2378,7 @@ class SpotifyClient:
         Args:
             playlistId (str):  
                 A comma-separated list of Spotify playlist IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.    
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
                 If null, the currently playing playlist uri id value is used.
             userIds (str):  
@@ -3121,7 +3121,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of the Spotify artist IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
                 If null, the currently playing track artist uri id value is used.
                 
@@ -3213,7 +3213,7 @@ class SpotifyClient:
         Args:
             playlistId (str):  
                 A comma-separated list of Spotify playlist IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
                 If null, the currently playing playlist uri id value is used.
             public (bool):
@@ -3305,7 +3305,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of the Spotify user IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `smedjan`
                 
         Raises:
@@ -16657,7 +16657,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -16729,7 +16729,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -18628,7 +18628,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of Spotify artist IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
                 If null, the currently playing track artist uri id value is used.
                 
@@ -18719,7 +18719,7 @@ class SpotifyClient:
         Args:
             playlistId (str):  
                 A comma-separated list of Spotify playlist IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
                 If null, the currently playing playlist uri id value is used.
                 
@@ -18808,7 +18808,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of Spotify user IDs.  
-                A maximum of 40 IDs can be sent in one request.
+                Maximum: 40 IDs.  
                 Example: `smedjan`
                 
         Raises:
