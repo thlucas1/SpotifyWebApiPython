@@ -17,6 +17,7 @@ from spotifywebapipython.spotifyauthtoken import SpotifyAuthToken
 from spotifywebapipython.spotifyclient import SpotifyClient
 from spotifywebapipython.spotifydiscovery import SpotifyDiscovery
 from spotifywebapipython.spotifymediatypes import SpotifyMediaTypes
+from spotifywebapipython.spotifytypeprefixes import SpotifyTypePrefixes
 from spotifywebapipython.spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from spotifywebapipython.spotifywebapierror import SpotifyWebApiError
 from spotifywebapipython.sautils import GetUnixTimestampMSFromUtcNow
@@ -29,6 +30,7 @@ __all__ = [
     'SpotifyClient',
     'SpotifyDiscovery',
     'SpotifyMediaTypes',
+    'SpotifyTypePrefixes',
     'SpotifyWebApiAuthenticationError',
     'SpotifyWebApiError',
     'GetUnixTimestampMSFromUtcNow'

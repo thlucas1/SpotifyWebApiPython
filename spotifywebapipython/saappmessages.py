@@ -70,9 +70,14 @@ class SAAppMessages:
     SAM1005E - The \"%s\" configuration option was not supplied, which is required in order to reactivate a Spotify Connect device.
     """
        
-    MSG_SPOTIFY_DEPRECATED_ENDPOINT:str = "SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of November 27th 2024, and the supporting functionality is no longer available."
+    MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127:str = "SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of November 27th 2024, and the supporting functionality is no longer available."
     """
     SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of November 27th 2024, and the supporting functionality is no longer available.
+    """
+
+    MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211:str = "SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of February 11th 2026, and the supporting functionality is no longer available."
+    """
+    SAM1010E - The \"%s\" endpoint has been deprecated by Spotify without prior notice as of February 11th 2026, and the supporting functionality is no longer available.
     """
 
     MSG_SPOTIFY_WEB_PLAYER_TOKEN_INUSE:str = "Spotify Web Player authorization access token will be used for accessing Spotify Web API endpoint."

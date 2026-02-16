@@ -60,13 +60,13 @@ class SpotifyMediaTypes(StrEnum):
     """
 
 
-    def __eq__(self, other):
-        """
-        Override __eq__ so that we can compare enum members directly to their raw values 
-        without explicitly accessing the ".value".
-        """
-        if isinstance(other, self.__class__):
-            return self is other
-        elif isinstance(other, type(self.value)):
-            return self.value == other
-        return False
+    # def __eq__(self, other):
+    #     """
+    #     Override __eq__ so that we can compare enum members directly to their raw values 
+    #     without explicitly accessing the ".value".
+    #     """
+    #     if isinstance(other, self.__class__):
+    #         return self is other
+    #     elif isinstance(other, type(self.value)):
+    #         return self.value == other
+    #     return False

@@ -31,6 +31,7 @@ from .spotifyapierror import SpotifyApiError
 from .spotifyapimessage import SpotifyApiMessage
 from .spotifyauthtoken import SpotifyAuthToken
 from .spotifymediatypes import SpotifyMediaTypes
+from .spotifytypeprefixes import SpotifyTypePrefixes
 from .spotifywebapiauthenticationerror import SpotifyWebApiAuthenticationError
 from .spotifywebapierror import SpotifyWebApiError
 from .spotifywebplayertoken import SpotifyWebPlayerToken
@@ -1692,7 +1693,7 @@ class SpotifyClient:
                         break
                     
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/images'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestHeaders['Content-Type'] = 'image/jpeg'
             msg.RequestData = base64.b64encode(fData.getvalue()).decode('utf-8') 
@@ -1755,6 +1756,10 @@ class SpotifyClient:
             SpotifyApiError: 
                 If the method fails for any other reason.
 
+        All specified items are added to the playlist, even if any of the items already exist
+        in the playlist.  You must check for duplicates prior to adding items if you want to 
+        prevent duplicate items in the list.
+
         <details>
           <summary>Sample Code</summary>
         ```python
@@ -1796,7 +1801,7 @@ class SpotifyClient:
                 reqData['position'] = position
                 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('POST', msg)
@@ -1921,7 +1926,7 @@ class SpotifyClient:
                 raise ValueError('no details were provided to change.')
             
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
@@ -1963,8 +1968,8 @@ class SpotifyClient:
 
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the albums.  
-                Maximum: 20 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the albums.  
+                Maximum: 40 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,2noRn2Aes5aoNVsU6iWThc`
                 If null, the currently playing album uri id value is used.
                 
@@ -1997,6 +2002,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more albums are saved in a user's favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAlbumUri()
@@ -2005,25 +2014,29 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ALBUM.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input album id's.
-            arrIds:list[str] = ids.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2058,7 +2071,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of Spotify artist ID's to check.  
-                Maximum: 50 ID's.  
+                Maximum: 40 ID's.  
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`  
                 If null, the currently playing artist uri id value is used.
                 
@@ -2091,7 +2104,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if user is following one or more artists", apiMethodParms)
                 
-            # remove any leading / trailing spaces in case user put a space between the items.
+            # remove any leading / trailing spaces.
             if ids is not None:
                 ids = ids.replace(' ','')
                 
@@ -2103,30 +2116,33 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ARTIST.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'type': SpotifyMediaTypes.ARTIST.value,
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input id's.
-            arrIds:list[str] = ids.split(',')
-
-            # process results.               
+            # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
-
+        
             # trace.
             _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
             return result
@@ -2157,8 +2173,8 @@ class SpotifyClient:
 
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the audiobooks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the audiobooks.  
+                Maximum: 40 IDs.  
                 Example: `74aydHJKgYz3AIq3jjBSv1,4nfQ1hBJWjD0Jq9sK3YRW8,3PFyizE2tGCSRLusl2Qizf`
                 If null, the currently playing audiobook uri id value is used.
                 
@@ -2191,6 +2207,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more audiobooks are saved in a user's favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAudiobookUri()
@@ -2199,25 +2219,29 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()  # spotify web api considers audiobook a "show"!
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input album id's.
-            arrIds:list[str] = ids.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2252,8 +2276,8 @@ class SpotifyClient:
 
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the episodes.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the episodes.  
+                Maximum: 40 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 If null, the currently playing episode uri id value is used.
                 
@@ -2286,6 +2310,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more episodes are saved in a user's favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
@@ -2294,25 +2322,29 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.EPISODE.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input album id's.
-            arrIds:list[str] = ids.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2337,7 +2369,7 @@ class SpotifyClient:
 
     def CheckPlaylistFollowers(
         self, 
-        playlistId:str,
+        playlistId:str=None,
         userIds:str=None,
         ) -> dict:
         """
@@ -2345,13 +2377,12 @@ class SpotifyClient:
         
         Args:
             playlistId (str):  
-                The Spotify ID of the playlist.  
+                A comma-separated list of Spotify playlist IDs.  
+                A maximum of 40 IDs can be sent in one request.
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
+                If null, the currently playing playlist uri id value is used.
             userIds (str):  
-                DEPRECATED - A single item list containing current user's Spotify Username; Maximum of 1 id.
-                A comma-separated list of Spotify User ID's to check.  
-                Maximum: 5 ID's.  
-                Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`  
+                DEPRECATED - no longer used, but left here to maintain compatibility.
                 
         Returns:
             Array of boolean, containing a single boolean status that indicates 
@@ -2367,7 +2398,6 @@ class SpotifyClient:
         As of (at least) 2024/10/07, Spotify has deprecated the userId's argument; 
         only current user can be tested.  Any other id's specified on this argument will 
         generate a `400 Bad Request` error.
-                
 
         <details>
           <summary>Sample Code</summary>
@@ -2388,29 +2418,37 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("userIds (DEPRECATED)", userIds)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check to see if users are following a playlist", apiMethodParms)
 
-            # validations.
-            if (userIds is None):
-                userIds = self.UserProfile.Id
+            # if playlistId not specified, then return currently playing playlist id value.
+            if (playlistId is None) or (len(playlistId.strip()) == 0):
+                uri = self.GetPlayerNowPlayingPlaylistUri()
+                if uri is not None:
+                    playlistId = SpotifyClient.GetIdFromUri(uri)
+                else:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
+
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = playlistId.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.PLAYLIST.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': userIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers/contains'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input id's.
-            arrIds:list[str] = userIds.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2445,8 +2483,8 @@ class SpotifyClient:
 
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the shows.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the shows.  
+                Maximum: 40 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 If null, the currently playing show uri id value is used.
                 
@@ -2479,6 +2517,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more shows are saved in a user's favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingShowUri()
@@ -2487,25 +2529,29 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input album id's.
-            arrIds:list[str] = ids.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2540,8 +2586,8 @@ class SpotifyClient:
 
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the tracks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the tracks.  
+                Maximum: 40 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,2takcwOaAZWiXQijPHIx7B`
                 If null, the currently playing track uri id value is used.
                 
@@ -2574,6 +2620,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more tracks are saved in a user's favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
@@ -2582,25 +2632,122 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.TRACK.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input album id's.
-            arrIds:list[str] = ids.split(',')
+            # process results.
+            flags:list[bool] = msg.ResponseData
+            flagPtr:int = 0
+            for strId in arrUris:
+                if strId not in result:
+                    result[strId] = flags[flagPtr]
+                    flagPtr = flagPtr + 1
+        
+            # trace.
+            _logsi.LogDictionary(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, result)
+            return result
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def CheckUserFavorites(
+        self, 
+        uris:str=None,
+        ) -> dict:
+        """
+        Check if one or more items are already saved in the current user's library. 
+        Accepts Spotify URIs for tracks, albums, episodes, shows, audiobooks, artists, users, and playlists.
+        
+        This method requires the `user-library-read`, `user-follow-read`, and `playlist-read-private` scopes.
+
+        Args:
+            uris (str):  
+                A comma-separated list of the Spotify URIs for the items.  
+                Maximum: 40 URIs.  
+                Example: `spotify:artist:6APm8EjxOHSYM5B4i3vT3q,spotify:album:6vc9OTcyd3hyzabCmsdnwE,spotify:track:1kWUud3vY5ij5r62zxpTRy`
+                If null, the currently playing item uri value is used.
+                
+        Returns:
+            A dictionary of the uris, along with a boolean status for each that indicates 
+            if the item is saved (True) in the users 'Your Library' or not (False).
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyApiError: 
+                If the method fails for any other reason.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/CheckUserFavorites.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'CheckUserFavorites'
+        apiMethodParms:SIMethodParmListContext = None
+        result:dict = {}
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Check if one or more items are saved in a user's favorites", apiMethodParms)
+                
+            # if uris not specified, then return currently playing item uri value.
+            if (uris is None) or (len(uris.strip()) == 0):
+                uris = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value, False)
+                if uris is None:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
+
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'uris': uris
+            }
+
+            # execute spotify web api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.UrlParameters = urlParms
+            self.MakeRequest('GET', msg)
+            
+            # build list of all input item uri's.
+            arrUris:list[str] = uris.split(',')
 
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2667,30 +2814,37 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Check if user is following one or more users", apiMethodParms)
                 
-            # remove any leading / trailing spaces in case user put a space between the items.
+            # remove any leading / trailing spaces.
             if ids is not None:
                 ids = ids.replace(' ','')
+                
+            # if ids not specified, then it's an error!
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
+                
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.USER.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'type': 'user',
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following/contains')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library/contains')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('GET', msg)
             
-            # build list of all input id's.
-            arrIds:list[str] = ids.split(',')
-
             # process results.
             flags:list[bool] = msg.ResponseData
             flagPtr:int = 0
-            for strId in arrIds:
+            for strId in arrUris:
                 if strId not in result:
                     result[strId] = flags[flagPtr]
                     flagPtr = flagPtr + 1
@@ -2789,7 +2943,7 @@ class SpotifyClient:
             }
                 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
@@ -2817,7 +2971,7 @@ class SpotifyClient:
 
     def CreatePlaylist(
         self, 
-        userId:str, 
+        userId:str=None, 
         name:str=None,
         description:str=None,
         public:bool=True,
@@ -2825,15 +2979,14 @@ class SpotifyClient:
         imagePath:str=None
         ) -> Playlist:
         """
-        Create an empty playlist for a Spotify user.  
+        Create an empty playlist for the current Spotify user.  
         
         This method requires the `playlist-modify-public` and `playlist-modify-private` scope.
-        
+
         Args:
         
             userId (str):  
-                The user's Spotify user ID.
-                Example: `32k99y2kg5lnn3mxhtmd2bpdkjfu`
+                DEPRECATED - no longer used, but left here to maintain compatibility.
             name (str):
                 The name for the new playlist, for example "My Playlist".  
                 This name does not need to be unique; a user may have several playlists with 
@@ -2895,7 +3048,7 @@ class SpotifyClient:
             
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
-            apiMethodParms.AppendKeyValue("userId", userId)
+            apiMethodParms.AppendKeyValue("userId (DEPRECATED)", userId)
             apiMethodParms.AppendKeyValue("name", name)
             apiMethodParms.AppendKeyValue("description", description)
             apiMethodParms.AppendKeyValue("public", public)
@@ -2909,10 +3062,6 @@ class SpotifyClient:
             if (collaborative is None):
                 collaborative = False
 
-            # if userId is not supplied, then use profile value.
-            if userId is None or len(userId.strip()) == 0:
-                userId = self.UserProfile.Id
-                
             # if collaborative is True, then force public to false as Spotify requires it.
             if collaborative:
                 public = False
@@ -2920,14 +3069,14 @@ class SpotifyClient:
             # build spotify web api request parameters.
             reqData:dict = \
             {
-                'name': '%s' % name,
-                'description': '%s' % description,
-                'public': public,
-                'collaborative': collaborative,
+                "name": "%s" % name,
+                "description": "%s" % description,
+                "public": public,
+                "collaborative": collaborative
             }
-            
+
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/playlists')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('POST', msg)
@@ -2972,7 +3121,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of the Spotify artist IDs.  
-                A maximum of 50 IDs can be sent in one request.
+                A maximum of 40 IDs can be sent in one request.
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
                 If null, the currently playing track artist uri id value is used.
                 
@@ -3002,6 +3151,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of one or more artists", apiMethodParms)
                                    
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing artist id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingArtistUri()
@@ -3010,24 +3163,25 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ARTIST.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=artist')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
-            
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -3058,13 +3212,12 @@ class SpotifyClient:
         
         Args:
             playlistId (str):  
-                The Spotify ID of the playlist.  
+                A comma-separated list of Spotify playlist IDs.  
+                A maximum of 40 IDs can be sent in one request.
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
                 If null, the currently playing playlist uri id value is used.
             public (bool):
-                If true the playlist will be included in user's public playlists, if false it 
-                will remain private.  
-                Default is True. 
+                DEPRECATED - no longer used, but left here to maintain compatibility.
                 
         Raises:
             SpotifyWebApiError: 
@@ -3088,13 +3241,13 @@ class SpotifyClient:
             # trace.
             apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
-            apiMethodParms.AppendKeyValue("public", public)
+            apiMethodParms.AppendKeyValue("public (DEPRECATED)", public)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of a playlist", apiMethodParms)
             
-            # validations.
-            if (public is None):
-                public = True
-                
+            # remove any leading / trailing spaces.
+            if playlistId is not None:
+                playlistId = playlistId.replace(' ','')
+
             # if playlistId not specified, then return currently playing playlist id value.
             if (playlistId is None) or (len(playlistId.strip()) == 0):
                 uri = self.GetPlayerNowPlayingPlaylistUri()
@@ -3103,17 +3256,25 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = playlistId.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.PLAYLIST.value + arrUris[idx].strip()
+                
             # build spotify web api request parameters.
-            reqData:dict = {}
-            if public is not None:
-                reqData['public'] = public
+            urlParms:dict = \
+            {
+                'uris': ",".join(arrUris)
+            }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
-            
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -3144,7 +3305,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of the Spotify user IDs.  
-                A maximum of 50 IDs can be sent in one request.
+                A maximum of 40 IDs can be sent in one request.
                 Example: `smedjan`
                 
         Raises:
@@ -3173,24 +3334,25 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Add the current user as a follower of one or more users", apiMethodParms)
                 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.USER.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=user')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
-            
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -3492,6 +3654,14 @@ class SpotifyClient:
         sortResult:bool=True,
         ) -> AlbumPageSimplified:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get a list of new album releases featured in Spotify (shown, for example, on a 
         Spotify player's "Browse" tab).
         
@@ -3558,6 +3728,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of new album releases", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -3655,6 +3834,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Album]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for multiple albums.
         
         Args:
@@ -3699,6 +3886,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple albums", apiMethodParms)
+
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
                 
             # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
             market = self._ValidateMarket(market, forceReturnValue=True)
@@ -4585,7 +4781,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # validations.
             if sortResult is None: 
@@ -4638,6 +4834,14 @@ class SpotifyClient:
         ids:list[str], 
         ) -> list[Artist]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for several artists based on their Spotify IDs.
         
         Args:
@@ -4674,6 +4878,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple artists", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # build spotify web api request parameters.
             urlParms:dict = \
             {
@@ -4880,6 +5093,14 @@ class SpotifyClient:
         sortResult:bool=True,
         ) -> list[Track]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information about an artist's top tracks by country.
         
         Args:
@@ -4931,6 +5152,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information about an artist's top tracks", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if sortResult is None: 
                 sortResult = True
@@ -5428,6 +5658,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[AudiobookSimplified]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for several audiobooks based on their Spotify IDs.
         
         Args:
@@ -5478,6 +5716,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple audiobooks", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -5527,6 +5774,14 @@ class SpotifyClient:
         refresh:bool=True,
         ) -> Playlist:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get a single category used to tag items in Spotify.
         
         Args:
@@ -5590,6 +5845,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("locale", locale)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a single category used to tag items in Spotify", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if (refresh is None):
                 refresh = True
@@ -5653,6 +5917,14 @@ class SpotifyClient:
         sortResult:bool=True,
         ) -> CategoryPage:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get categories used to tag items in Spotify.
         
         Args:
@@ -5729,6 +6001,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a page of categories used to tag items in Spotify", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -6034,7 +6315,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # validations.
             if limit is None: 
@@ -6249,6 +6530,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Chapter]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for several chapters based on their Spotify IDs.
         
         Args:
@@ -6299,6 +6588,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple chapters", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -6843,6 +7141,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Episode]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for several episodes based on their Spotify IDs.
         
         Args:
@@ -6893,6 +7199,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple episodes", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -7048,7 +7363,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # validations.
             if limit is None: 
@@ -7204,7 +7519,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # validations.
             if (refresh is None):
@@ -7562,6 +7877,14 @@ class SpotifyClient:
         refresh:bool=True
         ) -> list[str]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get the list of markets (country codes) where Spotify is available.
 
         Args:
@@ -7600,6 +7923,15 @@ class SpotifyClient:
             _logsi.EnterMethod(SILevel.Debug, apiMethodName)
             _logsi.LogVerbose("Get a sorted list of available markets (country codes)")
             
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if (refresh is None):
                 refresh = True
@@ -8214,6 +8546,7 @@ class SpotifyClient:
     def GetPlayerNowPlayingUri(
         self,
         additionalTypes:str=None,
+        checkSpecificType:bool=True,
         ) -> str:
         """
         Returns the uri value of the currently playing media type if something is
@@ -8224,6 +8557,9 @@ class SpotifyClient:
                 An item type that your client supports besides the default track type.  
                 Valid types are: `track` and `episode`.  
                 Specify `episode` to get podcast track information.  
+            checkSpecificType (bool):
+                If true, the currently playing type MUST match the specified additional type value;
+                otherwise, it will return any uri that is currently playing.
         
         Raises:
             SpotifyApiError: 
@@ -8238,7 +8574,7 @@ class SpotifyClient:
         # is anything playing?  if so, return the uri value.
         if nowPlaying is not None:
             if nowPlaying.Item is not None:
-                if additionalTypes is None:
+                if (additionalTypes is None) or (checkSpecificType == False):
                     # if not validating uri type then just return the uri.
                     result = nowPlaying.Item.Uri
                 elif nowPlaying.CurrentlyPlayingType == additionalTypes:
@@ -8249,7 +8585,7 @@ class SpotifyClient:
                     raise SpotifyApiError("Currently playing item is not a %s" % additionalTypes, logsi=_logsi)
             else:
                 # otherwise nowplaying item does not contain the desired type!
-                if additionalTypes is None:
+                if (additionalTypes is None) or (checkSpecificType == False):
                     raise SpotifyApiError("Currently playing item context is not set", logsi=_logsi)
                 else:
                     raise SpotifyApiError("Currently playing item context is not a %s item" % additionalTypes, logsi=_logsi)
@@ -9083,7 +9419,7 @@ class SpotifyClient:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/images'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/images'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
@@ -9281,7 +9617,7 @@ class SpotifyClient:
             while True:
 
                 # execute spotify web api request.
-                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/tracks'.format(id=playlistId))
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
                 msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
@@ -9515,6 +9851,14 @@ class SpotifyClient:
         sortResult:bool=True,
         ) -> PlaylistPageSimplified:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get a list of the playlists owned or followed by a Spotify user.
         
         This method requires the `playlist-read-private` and `playlist-read-collaborative` scope.
@@ -9580,6 +9924,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the playlists owned or followed by a Spotify user", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # validations.
             if limit is None: 
                 limit = 20
@@ -9609,7 +9962,7 @@ class SpotifyClient:
             while True:
 
                 # execute spotify web api request.
-                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}/playlists'.format(user_id=userId))
+                msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{id}/playlists'.format(id=userId))
                 msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
                 msg.UrlParameters = urlParms
                 self.MakeRequest('GET', msg)
@@ -10139,6 +10492,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[ShowSimplified]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for several shows based on their Spotify IDs.
         
         Args:
@@ -10189,6 +10550,15 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple shows", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -10852,7 +11222,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
@@ -11121,6 +11491,14 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Track]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get Spotify catalog information for multiple tracks based on their Spotify IDs.
         
         Args:
@@ -11165,7 +11543,16 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple tracks", apiMethodParms)
-                
+
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+                            
             # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
             market = self._ValidateMarket(market, forceReturnValue=True)
 
@@ -11261,7 +11648,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features')
@@ -11569,7 +11956,7 @@ class SpotifyClient:
             # if spotify web player credentials not configured then we are done; the Spotify Web API
             # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
             if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT % apiMethodName)
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
 
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
@@ -11859,6 +12246,14 @@ class SpotifyClient:
         userId:str,
         ) -> UserProfileSimplified:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+
         Get public profile information about a Spotify user.
        
         Args:
@@ -11894,8 +12289,17 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("userId", userId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get public profile information about a Spotify user", apiMethodParms)
                 
+            # are spotify web player credentials configured? if so, then we will use them to create
+            # an elevated authorization access token for the Spotify Web API endpoint call.
+            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+
+            # if spotify web player credentials not configured then we are done; the Spotify Web API
+            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
+            if (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{user_id}'.format(user_id=userId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{id}'.format(id=userId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             self.MakeRequest('GET', msg)
 
@@ -14537,8 +14941,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the albums.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the albums.  
+                Maximum: 40 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX`
                 If null, the currently playing track album uri id value is used.
                 
@@ -14572,6 +14976,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove album(s) from user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAlbumUri()
@@ -14580,24 +14988,25 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ALBUM.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
-            
+           
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -14627,8 +15036,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the audiobooks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the audiobooks.  
+                Maximum: 40 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
                 If null, the currently playing audiobook uri id value is used.
                 
@@ -14662,6 +15071,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove audiobook(s) from user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAudiobookUri()
@@ -14670,22 +15083,23 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()  # spotify web api considers audiobook a "show"!
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -14717,8 +15131,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the episodes.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the episodes.  
+                Maximum: 40 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
                 If null, the currently playing episode uri id value is used.
                 
@@ -14752,6 +15166,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove episode(s) from user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
@@ -14760,22 +15178,23 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.EPISODE.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -14903,6 +15322,8 @@ class SpotifyClient:
 
         The `snapshotId` argument value will be returned if no items were removed; otherwise, a
         new snapshot id value will be returned.
+
+        If the playlist contains duplicate items, then all of the item instances will be removed.
         
         <details>
           <summary>Sample Code</summary>
@@ -14936,21 +15357,21 @@ class SpotifyClient:
             for idx in range(0, len(arrUris)):
                 arrUris[idx] = arrUris[idx].strip()
                 
-            # build tracks dictionary.
-            tracks:list[dict] = []
+            # build items dictionary.
+            items:list[dict] = []
             for idx in range(0, len(arrUris)):
-                tracks.append({'uri': '%s' % arrUris[idx]})
+                items.append({'uri': '%s' % arrUris[idx]})
                 
             # build spotify web api request parameters.
             reqData:dict = \
             {
-                'tracks': tracks
+                'items': items
             }
             if snapshotId is not None:
                 reqData['snapshot_id'] = snapshotId
                 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('DELETE', msg)
@@ -14987,8 +15408,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the shows.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the shows.  
+                Maximum: 40 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
                 If null, the currently playing show uri id value is used.
                 
@@ -15022,6 +15443,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove show(s) from user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingShowUri()
@@ -15030,18 +15455,21 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            if (ids is not None):
-                ids = ids.replace(" ","")
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
@@ -15075,8 +15503,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the tracks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the tracks.  
+                Maximum: 40 IDs.  
                 Example: `1kWUud3vY5ij5r62zxpTRy,4eoYKv2kDwJS7gRGh5q6SK`
                 If null, the currently playing track uri id value is used.
                 
@@ -15110,6 +15538,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove track(s) from user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
@@ -15118,22 +15550,112 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.TRACK.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
+            self.MakeRequest('DELETE', msg)
+            
+            # process results.
+            # no results to process - this is pass or fail.
+            return
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def RemoveUserFavorites(
+        self, 
+        uris:str=None
+        ) -> None:
+        """
+        Remove one or more items from the current user's library.  
+        Accepts Spotify URIs for tracks, albums, episodes, shows, audiobooks, users, and playlists.
+        
+        This method requires the `user-library-modify`, `user-follow-modify`, and `playlist-modify-public` scopes.
+        
+        Args:
+            uris (str):  
+                A comma-separated list of the Spotify URIs for the items.  
+                Maximum: 40 URIs.  
+                Example: `spotify:artist:6APm8EjxOHSYM5B4i3vT3q,spotify:album:6vc9OTcyd3hyzabCmsdnwE,spotify:track:1kWUud3vY5ij5r62zxpTRy`
+                If null, the currently playing item uri value is used.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyApiError: 
+                If the method fails for any other reason.
+                
+        No error will be raised if an item uri in the list does not exist in the 
+        user's 'Your Library'.
+        
+        An SpotifyWebApiError will be raised if a specified item uri does not exist
+        in the Spotify music catalog.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/RemoveUserFavorites.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'RemoveUserFavorites'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Remove item(s) from user favorites", apiMethodParms)
+                
+            # if uris not specified, then return currently playing item uri value.
+            if (uris is None) or (len(uris.strip()) == 0):
+                uris = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value, False)
+                if uris is None:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
+
+            # build a list of all item uri's.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = uris.split(',')
+            for idx in range(0, len(arrUris)):
+                arrUris[idx] = arrUris[idx].strip()
+                
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'uris': ",".join(arrUris)
+            }
+
+            # execute spotify web api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -15250,7 +15772,7 @@ class SpotifyClient:
                 reqData['snapshot_id'] = snapshotId
                 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
@@ -15350,7 +15872,7 @@ class SpotifyClient:
             }
                 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/tracks'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{id}/items'.format(id=playlistId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.RequestJson = reqData
             self.MakeRequest('PUT', msg)
@@ -15387,8 +15909,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the albums.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the albums.  
+                Maximum: 40 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
                 If null, the currently playing track album uri id value is used.
                 
@@ -15422,6 +15944,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save album(s) to user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing album id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAlbumUri()
@@ -15430,22 +15956,23 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
-                
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ALBUM.value + arrUris[idx].strip()
+
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/albums')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
             # process results.
@@ -15477,8 +16004,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the audiobooks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the audiobooks.  
+                Maximum: 40 IDs.  
                 Example: `3PFyizE2tGCSRLusl2Qizf,7iHfbu1YPACw6oZPAFJtqe`
                 If null, the currently playing audiobook uri id value is used.
                 
@@ -15512,6 +16039,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save audiobook(s) to user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingAudiobookUri()
@@ -15520,24 +16051,25 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()  # spotify web api considers audiobook a "show"!
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/audiobooks')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
-            
+                        
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -15567,8 +16099,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the episodes.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the episodes.  
+                Maximum: 40 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
                 If null, the currently playing episode uri id value is used.
                 
@@ -15602,6 +16134,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save episode(s) to user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value)
@@ -15610,22 +16146,23 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.EPISODE.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/episodes')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
             # process results.
@@ -15657,8 +16194,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the shows.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the shows.  
+                Maximum: 40 IDs.  
                 Example: `6kAsbP8pxwaU2kPibKTuHE,4rOoJ6Egrf8K2IrywzwOMk`
                 If null, the currently playing show uri id value is used.
                 
@@ -15692,6 +16229,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save show(s) to user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingShowUri()
@@ -15700,18 +16241,21 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            if (ids is not None):
-                ids = ids.replace(" ","")
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.SHOW.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
             urlParms:dict = \
             {
-                'ids': ids
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/shows')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
             msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
@@ -15745,8 +16289,8 @@ class SpotifyClient:
         
         Args:
             ids (str):  
-                A comma-separated list of the Spotify IDs for the tracks.  
-                Maximum: 50 IDs.  
+                A comma-separated list of the Spotify ID's (or URI's) for the tracks.  
+                Maximum: 40 IDs.  
                 Example: `6vc9OTcyd3hyzabCmsdnwE,382ObEPsp2rxGrnsizN5TX,2noRn2Aes5aoNVsU6iWThc`
                 If null, the currently playing track uri id value is used.
                 
@@ -15780,6 +16324,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Save track(s) to user favorites", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
@@ -15788,22 +16336,112 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.TRACK.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/tracks')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
+            self.MakeRequest('PUT', msg)
+            
+            # process results.
+            # no results to process - this is pass or fail.
+            return
+
+        except SpotifyApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
+        except Exception as ex:
+            
+            # format unhandled exception.
+            raise SpotifyApiError(SAAppMessages.UNHANDLED_EXCEPTION.format(apiMethodName, str(ex)), ex, logsi=_logsi)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def SaveUserFavorites(
+        self, 
+        uris:str=None
+        ) -> None:
+        """
+        Add one or more items to the current user's library. 
+        Accepts Spotify URIs for tracks, albums, episodes, shows, audiobooks, users, and playlists.
+        
+        This method requires the `user-library-modify`, `user-follow-modify`, and `playlist-modify-public` scopes.
+        
+        Args:
+            uris (str):  
+                A comma-separated list of the Spotify URIs for the items.  
+                Maximum: 40 URIs.  
+                Example: `spotify:artist:6APm8EjxOHSYM5B4i3vT3q,spotify:album:6vc9OTcyd3hyzabCmsdnwE,spotify:track:1kWUud3vY5ij5r62zxpTRy`
+                If null, the currently playing item uri value is used.
+                
+        Raises:
+            SpotifyWebApiError: 
+                If the Spotify Web API request was for a non-authorization service 
+                and the response contains error information.
+            SpotifyApiError: 
+                If the method fails for any other reason.
+                
+        No error will be raised if an item uri in the list already exists in the 
+        user's 'Your Library'.
+        
+        An SpotifyWebApiError will be raised if a specified item uri does not exist
+        in the Spotify music catalog.
+
+        <details>
+          <summary>Sample Code</summary>
+        ```python
+        .. include:: ../docs/include/samplecode/SpotifyClient/SaveUserFavorites.py
+        ```
+        </details>
+        """
+        apiMethodName:str = 'SaveUserFavorites'
+        apiMethodParms:SIMethodParmListContext = None
+        
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("uris", uris)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Save item(s) to user favorites", apiMethodParms)
+                
+            # if uris not specified, then return currently playing item uri value.
+            if (uris is None) or (len(uris.strip()) == 0):
+                uris = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.EPISODE.value, False)
+                if uris is None:
+                    raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'uris'), logsi=_logsi)
+
+            # build a list of all item uri's.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = uris.split(',')
+            for idx in range(0, len(arrUris)):
+                arrUris[idx] = arrUris[idx].strip()
+                
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'uris': ",".join(arrUris)
+            }
+
+            # execute spotify web api request.
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
+            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.UrlParameters = urlParms
             self.MakeRequest('PUT', msg)
             
             # process results.
@@ -15874,7 +16512,7 @@ class SpotifyClient:
                 The maximum number of items to return for the request, per criteria type.
                 Paging is automatically used to retrieve all available items up to the
                 maximum number specified per type.
-                Default: 20
+                Default: 10
                 
         Returns:
             A `SearchResponse` object that contains the search results.
@@ -15921,12 +16559,12 @@ class SpotifyClient:
             if isinstance(criteriaType, SpotifyMediaTypes):
                 criteriaType = SpotifyMediaTypes.value
             if limitTotal is None: 
-                limitTotal = 20
+                limitTotal = 10
             if not isinstance(limitTotal, int):
-                limitTotal = 20
+                limitTotal = 10
                 
             # are we auto-paging?  if so, then use max limit.
-            limit:int = 50
+            limit:int = 10
             if limit > limitTotal:
                 limit = limitTotal
 
@@ -15994,7 +16632,7 @@ class SpotifyClient:
     def SearchAlbums(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16188,7 +16826,7 @@ class SpotifyClient:
     def SearchArtists(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16213,7 +16851,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -16285,7 +16923,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -16293,7 +16931,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ArtistPage()
@@ -16382,7 +17020,7 @@ class SpotifyClient:
     def SearchAudiobooks(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16407,7 +17045,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -16481,7 +17119,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -16489,7 +17127,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AudiobookPageSimplified()
@@ -16578,7 +17216,7 @@ class SpotifyClient:
     def SearchEpisodes(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16603,7 +17241,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -16675,7 +17313,7 @@ class SpotifyClient:
             
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -16683,7 +17321,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = EpisodePageSimplified()
@@ -16772,7 +17410,7 @@ class SpotifyClient:
     def SearchPlaylists(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16797,7 +17435,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -16869,7 +17507,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -16877,7 +17515,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = PlaylistPageSimplified()
@@ -16966,7 +17604,7 @@ class SpotifyClient:
     def SearchShows(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -16991,7 +17629,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -17063,7 +17701,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -17071,7 +17709,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = ShowPageSimplified()
@@ -17160,7 +17798,7 @@ class SpotifyClient:
     def SearchTracks(
         self, 
         criteria:str,
-        limit:int=20, 
+        limit:int=5, 
         offset:int=0,
         market:str=None,
         includeExternal:str=None,
@@ -17185,7 +17823,7 @@ class SpotifyClient:
                 can be used to return only albums with the lowest 10% popularity.
             limit (int):
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 5, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):
                 The page index offset of the first item to return.  
@@ -17257,7 +17895,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 5
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -17265,7 +17903,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = TrackPage()
@@ -17990,7 +18628,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of Spotify artist IDs.  
-                A maximum of 50 IDs can be sent in one request.
+                A maximum of 40 IDs can be sent in one request.
                 Example: `2CIMQHirSU0MQqyYHq0eOx,1IQ2e1buppatiN1bxUVkrk`
                 If null, the currently playing track artist uri id value is used.
                 
@@ -18020,6 +18658,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of one or more artists", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if ids is not None:
+                ids = ids.replace(' ','')
+
             # if ids not specified, then return currently playing artist id value.
             if (ids is None) or (len(ids.strip()) == 0):
                 uri = self.GetPlayerNowPlayingArtistUri()
@@ -18028,22 +18670,23 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.ARTIST.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=artist')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
@@ -18075,7 +18718,8 @@ class SpotifyClient:
         
         Args:
             playlistId (str):  
-                The Spotify ID of the playlist.  
+                A comma-separated list of Spotify playlist IDs.  
+                A maximum of 40 IDs can be sent in one request.
                 Example: `3cEYpjA9oz9GiPac4AsH4n`
                 If null, the currently playing playlist uri id value is used.
                 
@@ -18103,6 +18747,10 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("playlistId", playlistId)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove the current user as a follower of a playlist", apiMethodParms)
                 
+            # remove any leading / trailing spaces.
+            if playlistId is not None:
+                playlistId = playlistId.replace(' ','')
+
             # if playlistId not specified, then return currently playing playlist id value.
             if (playlistId is None) or (len(playlistId.strip()) == 0):
                 uri = self.GetPlayerNowPlayingPlaylistUri()
@@ -18111,11 +18759,25 @@ class SpotifyClient:
                 else:
                     raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'playlistId'), logsi=_logsi)
 
+            # build a list of all item uri's from id values.
+            # remove any leading / trailing spaces in case user put a space between the items.
+            arrUris:list[str] = playlistId.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.PLAYLIST.value + arrUris[idx].strip()
+                
+            # build spotify web api request parameters.
+            urlParms:dict = \
+            {
+                'uris': ",".join(arrUris)
+            }
+
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/playlists/{playlist_id}/followers'.format(playlist_id=playlistId))
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
-            
+
             # process results.
             # no results to process - this is pass or fail.
             return
@@ -18146,7 +18808,7 @@ class SpotifyClient:
         Args:
             ids (str):  
                 A comma-separated list of Spotify user IDs.  
-                A maximum of 50 IDs can be sent in one request.
+                A maximum of 40 IDs can be sent in one request.
                 Example: `smedjan`
                 
         Raises:
@@ -18175,22 +18837,23 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Remove current user as a follower of one or more users", apiMethodParms)
                 
-            # build a list of all item id's.
+            # build a list of all item uri's from id values.
             # remove any leading / trailing spaces in case user put a space between the items.
-            arrIds:list[str] = ids.split(',')
-            for idx in range(0, len(arrIds)):
-                arrIds[idx] = arrIds[idx].strip()
+            arrUris:list[str] = ids.split(',')
+            for idx in range(0, len(arrUris)):
+                if (arrUris[idx].find(":") == -1):
+                    arrUris[idx] = SpotifyTypePrefixes.USER.value + arrUris[idx].strip()
                 
             # build spotify web api request parameters.
-            reqData:dict = \
+            urlParms:dict = \
             {
-                'ids': arrIds
+                'uris': ",".join(arrUris)
             }
 
             # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/following?type=user')
+            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/me/library')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.RequestJson = reqData
+            msg.UrlParameters = urlParms
             self.MakeRequest('DELETE', msg)
             
             # process results.
