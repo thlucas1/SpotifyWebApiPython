@@ -1068,7 +1068,8 @@ class AuthClient:
 
             # fetch the newly issued authorization token.
             self.FetchToken(authorization_response=authResponse, 
-                            audience=token_audience
+                            audience=token_audience,
+                            **kwargs
                            )
 
             # return to caller.

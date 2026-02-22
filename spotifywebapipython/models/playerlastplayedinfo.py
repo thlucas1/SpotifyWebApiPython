@@ -121,8 +121,9 @@ class PlayerLastPlayedInfo:
         """ 
         True if the item type is an advertisement; otherwise, false.
         """
-        if self._Item.Type == "ad":
-            return True
+        if self._Item:
+            if self._Item.Type == "ad":
+                return True
         return False
 
 

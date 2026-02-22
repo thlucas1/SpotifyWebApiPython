@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7f5e9bd8-8ccb-4d04-93bb-cbacf4fc4d17</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test\test_SpotifyConnectZeroconf.py</StartupFile>
+    <StartupFile>test\test_AuthTokenGenerator_Sonos_Control.py</StartupFile>
     <SearchPath>.;test</SearchPath>
     <WorkingDirectory>C:\Users\thluc\source\repos\SpotifyWebApiPythonProject</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -352,6 +352,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SpotifyDesktop.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_SONOS.py" />
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />
+    <Compile Include="test\test_AuthTokenGenerator_Sonos_Control.py" />
     <Compile Include="test\test_ImagePalette.py" />
     <Compile Include="test\test_SampleCode_PREMIUM.py" />
     <Compile Include="test\test_SampleCode_SpotifyConnect.py" />

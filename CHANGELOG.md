@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.263 ] - 2026/02/22
+
+  * Updated `SpotifyClient.GetPlayerPlaybackState` method to load the `DeviceMusicSource` property with the currently selected music source for Sonos devices.
+  * Added keyword argument (kwargs) support when fetching newly issued OAuth2 authorization tokens.  This allows support for non-Spotify authroization token processing (e.g. Sonos Controller API, etc).
+
 ###### [ 1.0.262 ] - 2026/02/16
 
   * Updated `SpotifyClient.SearchAlbums` argument `limit` to be 5, per Spotify Web API specifications.

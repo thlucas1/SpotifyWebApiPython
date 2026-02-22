@@ -67,6 +67,10 @@ from .const import (
 
 CACHE_SOURCE_CACHED:str = "cached"
 CACHE_SOURCE_CURRENT:str = "current"
+CACHE_KEY_GETSPOTIFYCONNECTDEVICES:str = "GetSpotifyConnectDevices"
+
+MUSIC_SOURCE_SPOTIFY_LOCAL_QUEUE:str = "SPOTIFY_LOCAL_QUEUE"
+MUSIC_SOURCE_SPOTIFY_CONNECT:str = "SPOTIFY_CONNECT"
 
 DELAY_DISCONNECT:float = 0.350
 """
@@ -1083,6 +1087,10 @@ class SpotifyClient:
             # all zeroconf update threads are active and actively processing
             # Spotify Connect devices on the local network.  
             self._SpotifyConnectDirectory.WaitForInitComplete.wait()
+
+            # load initial configuration cache with devices we have found thus far.
+            # no need to refresh, since they were just loaded (just loads the cache).
+            self.GetSpotifyConnectDevices(refresh=False)
 
             # trace.
             _logsi.LogVerbose("Spotify Connect Directory task was started and initialized successfully")
@@ -6844,9 +6852,17 @@ class SpotifyClient:
                     # get Sonos playback state via Sonos Controller instance.
                     playerStateSonos:PlayerPlayState = self.GetPlayerPlaybackStateSonos(scDevice)
 
-                    # return the device playstate.
-                    _logsi.LogVerbose("Sonos device %s playstate will be returned" % (scDevice.Title))
-                    result = playerStateSonos
+                    # is the device still playing spotify content?
+                    if (playerStateSonos.DeviceMusicSource in [MUSIC_SOURCE_SPOTIFY_CONNECT, MUSIC_SOURCE_SPOTIFY_LOCAL_QUEUE]):
+
+                        # yes - return the device playstate.
+                        _logsi.LogVerbose("Sonos device %s playstate will be returned (music source=\"%s\")" % (scDevice.Title, playerStateSonos.DeviceMusicSource))
+                        result = playerStateSonos
+
+                    else:
+
+                        # no - return an empty playstate.
+                        _logsi.LogVerbose("Sonos device %s music source (%s) is not Spotify; an empty playstate will be returned" % (scDevice.Title, playerStateSonos.DeviceMusicSource))
 
                     # did Sonos Controller instance return a playstate?
                     # if so, then update the player last played info if something is playing.
@@ -8705,18 +8721,25 @@ class SpotifyClient:
                         else:
                             result.ItemType = SpotifyMediaTypes.PODCAST.value
         
-            # check for a restricted device; if found, then grab the device id from the 
-            # cached list of spotify connect devices (if present).
+            # if device id is not present (e.g. a restricted device), then get the device id 
+            # from the cached list of spotify connect devices (if present).
             if (not result.IsEmpty):
                 device:Device = result.Device
                 if (device is not None) and (device.Id is None or device.Id == ''):
-                    cacheKey:str = 'GetSpotifyConnectDevices'
+                    cacheKey:str = CACHE_KEY_GETSPOTIFYCONNECTDEVICES
                     if (cacheKey in self._ConfigurationCache):
                         devices:SpotifyConnectDevices = self._ConfigurationCache[cacheKey]
                         scDevice:SpotifyConnectDevice = devices.GetDeviceByName(device.Name)
                         if scDevice is not None:
                             device.Id = scDevice.DeviceInfo.DeviceId
-        
+                            # is this a Sonos device? if so, then update the music source.
+                            # at this point, it will probably be "SPOTIFY_CONNECT" since it was
+                            # detected in the Spotify Web API device list.
+                            if (scDevice.IsSonos):
+                                sonosPlayer = self._SpotifyConnectDirectory.GetSonosPlayer(scDevice)
+                                if (sonosPlayer):
+                                    result.DeviceMusicSource = sonosPlayer.music_source
+
             # did Spotify return a playstate?
             # if so, then update the player last played info if something is playing.
             if (not result.IsEmpty):
@@ -8795,6 +8818,16 @@ class SpotifyClient:
             # indicate this is a device-specific playstate.
             playerState.IsDeviceState = True
             playerState.DeviceMusicSource = "" + str(sonosPlayer.music_source)
+
+            # at this point, the the device music_source is probably set to one of the following:
+            # - "UNKNOWN": indicates that Spotify is POSSIBLY playing from the Sonos local queue.
+            # - "SPOTIFY_CONNECT": indicates that Spotify is playing via Spotify Connect using Spotify App.
+            # if not SPOTIFY_CONNECT, then check the currently playing track info to see if it's
+            # a Spotify uri; if so, then it's (probably) playing Spotify from the local queue, so 
+            # we will set the music source to the "SPOTIFY_LOCAL_QUEUE" custom value.
+            if (playerState.DeviceMusicSource != MUSIC_SOURCE_SPOTIFY_CONNECT):
+                if (sonosTrackInfo.get('uri','').startswith("x-sonos-spotify:")):
+                    playerState.DeviceMusicSource = MUSIC_SOURCE_SPOTIFY_LOCAL_QUEUE
 
             # update Spotify Web API player state with Sonos player state.
             playerState._Device._Id = scDevice.Id
@@ -10869,7 +10902,7 @@ class SpotifyClient:
                 # was the Sonos device music source set to SPOTIFY_CONNECT?
                 # if not, then issue a Disconnect to (hopefully) reset the music source. this should allow
                 # the subsequent Connect to re-establish a SPOTIFY_CONNECT music source on the Sonos device.
-                if sonosMusicSource != "SPOTIFY_CONNECT":
+                if sonosMusicSource != MUSIC_SOURCE_SPOTIFY_CONNECT:
                     _logsi.LogVerbose("Issuing Disconnect to Sonos Spotify Connect device %s" % (scDevice.Title))
                     zcfResult = zconn.Disconnect(ignoreStatusResult=True)
 
@@ -10893,7 +10926,7 @@ class SpotifyClient:
 
                 # was the Sonos device music source set to Spotify Connect?
                 # if not, then it's a lost cause at this point since it's probably in an UNKNOWN state.
-                if sonosMusicSource != "SPOTIFY_CONNECT":
+                if sonosMusicSource != MUSIC_SOURCE_SPOTIFY_CONNECT:
                     _logsi.LogVerbose("Sonos device %s music source after Connect is not SPOTIFY_CONNECT; it will probably fail to play" % (scDevice.Title))
                 elif (self.HasSpotifyWebPlayerCredentials):
                     # if using Spotify Web Player credentials, then we don't have to wait for device.
@@ -11048,7 +11081,7 @@ class SpotifyClient:
             result = self._SpotifyConnectDirectory.GetDevices()
 
             # update cache.
-            self._ConfigurationCache[apiMethodName] = result
+            self._ConfigurationCache[CACHE_KEY_GETSPOTIFYCONNECTDEVICES] = result
 
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE_CACHED % (apiMethodName, type(result).__name__, cacheDesc), result)
