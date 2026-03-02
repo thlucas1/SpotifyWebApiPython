@@ -3842,14 +3842,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Album]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for multiple albums.
         
         Args:
@@ -3895,37 +3887,42 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple albums", apiMethodParms)
 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-                
             # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
             market = self._ValidateMarket(market, forceReturnValue=True)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids,
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                result.append(self.GetAlbum(strId, market))
 
-            # process results.
-            items = msg.ResponseData.get('albums',None)
-            if items is not None:
-                for item in items:
-                    result.append(Album(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids,
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/albums')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('albums',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(Album(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Album]'), result)
@@ -4842,14 +4839,6 @@ class SpotifyClient:
         ids:list[str], 
         ) -> list[Artist]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for several artists based on their Spotify IDs.
         
         Args:
@@ -4886,32 +4875,37 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("ids", ids)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple artists", apiMethodParms)
                 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                result.append(self.GetArtist(strId))
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids
-            }
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids
+            # }
 
-            # process results.
-            items = msg.ResponseData.get('artists',None)
-            if items is not None:
-                for item in items:
-                    result.append(Artist(root=item))
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/artists')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('artists',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(Artist(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Artist]'), result)
@@ -5666,14 +5660,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[AudiobookSimplified]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for several audiobooks based on their Spotify IDs.
         
         Args:
@@ -5700,6 +5686,8 @@ class SpotifyClient:
             SpotifyApiError: 
                 If the method fails for any other reason.
 
+        Note that `AudiobookSimplified` details do not contain chapter data.
+
         Important policy notes:  
         - Spotify content may not be downloaded.  
         - Keep visual content in its original form.  
@@ -5724,37 +5712,45 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple audiobooks", apiMethodParms)
                 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids,
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                dataObj = self.GetAudiobook(strId, market)
+                # convert Audiobook object to a AudiobookSimplified object.
+                dataObj._Chapters = None
+                result.append(dataObj)
 
-            # process results.
-            items = msg.ResponseData.get('audiobooks',None)
-            if items is not None:
-                for item in items:
-                    result.append(AudiobookSimplified(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids,
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audiobooks')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('audiobooks',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(AudiobookSimplified(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[AudiobookSimplified]'), result)
@@ -6538,14 +6534,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Chapter]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for several chapters based on their Spotify IDs.
         
         Args:
@@ -6596,37 +6584,42 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple chapters", apiMethodParms)
                 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids,
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/chapters')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                result.append(self.GetChapter(strId, market))
 
-            # process results.
-            items = msg.ResponseData.get('chapters',None)
-            if items is not None:
-                for item in items:
-                    result.append(Chapter(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids,
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/chapters')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('chapters',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(Chapter(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Chapter]'), result)
@@ -7157,14 +7150,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Episode]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for several episodes based on their Spotify IDs.
         
         Args:
@@ -7215,37 +7200,42 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple episodes", apiMethodParms)
                 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids,
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/episodes')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                result.append(self.GetEpisode(strId, market))
 
-            # process results.
-            items = msg.ResponseData.get('episodes',None)
-            if items is not None:
-                for item in items:
-                    result.append(Episode(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids,
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/episodes')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('episodes',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(Episode(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Episode]'), result)
@@ -10525,14 +10515,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[ShowSimplified]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for several shows based on their Spotify IDs.
         
         Args:
@@ -10559,6 +10541,8 @@ class SpotifyClient:
             SpotifyApiError: 
                 If the method fails for any other reason.
 
+        Note that `ShowSimplified` details do not contain episode data.
+
         Important policy notes:  
         - Spotify content may not be downloaded.  
         - Keep visual content in its original form.  
@@ -10583,37 +10567,45 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple shows", apiMethodParms)
                 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids,
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                dataObj = self.GetShow(strId, market)
+                # convert Show object to a ShowSimplified object.
+                dataObj._Episodes = None
+                result.append(dataObj)
 
-            # process results.
-            items = msg.ResponseData.get('shows',None)
-            if items is not None:
-                for item in items:
-                    result.append(ShowSimplified(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids,
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/shows')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('shows',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(ShowSimplified(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[ShowSimplified]'), result)
@@ -11524,14 +11516,6 @@ class SpotifyClient:
         market:str=None,
         ) -> list[Track]:
         """
-        <span class="deprecated">
-            DEPRECATED - api endpoint no longer supported by Spotify as of 2026/02/11 for unauthorized Spotify Developer Applications.
-            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
-            More information about the deprecated functionality can be found on the 
-            <a href="https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security" target="_blank">Spotify Developer Forum Blog</a>
-            page.
-        </span>       
-
         Get Spotify catalog information for multiple tracks based on their Spotify IDs.
         
         Args:
@@ -11577,37 +11561,42 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get Spotify catalog information for multiple tracks", apiMethodParms)
 
-            # are spotify web player credentials configured? if so, then we will use them to create
-            # an elevated authorization access token for the Spotify Web API endpoint call.
-            accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
-
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-                            
             # ensure we have a market value, in order to return track relinking (e.g. `linked_from`) data.
             market = self._ValidateMarket(market, forceReturnValue=True)
 
-            # build spotify web api request parameters.
-            urlParms:dict = \
-            {
-                'ids': ids
-            }
-            if market is not None:
-                urlParms['market'] = market
+            # if ids not specified, then we are done.
+            if (ids is None) or (len(ids.strip()) == 0):
+                raise SpotifyApiError(SAAppMessages.ARGUMENT_REQUIRED_ERROR % (apiMethodName, 'ids'), logsi=_logsi)
 
-            # execute spotify web api request.
-            msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks')
-            msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
-            msg.UrlParameters = urlParms
-            self.MakeRequest('GET', msg)
+            # build list of all input item id's, and retrieve them one-by-one.
+            ids = ids.replace(" ", "")
+            arrIds:list[str] = ids.split(',')
+            for strId in arrIds:
+                result.append(self.GetTrack(strId, market))
 
-            # process results.
-            items = msg.ResponseData.get('tracks',None)
-            if items is not None:
-                for item in items:
-                    result.append(Track(root=item))
+            # ------------------------------------------------------------------------------------------
+            # the following is the pre-2026/02/11 endpoint for retrieving this information.
+            # ------------------------------------------------------------------------------------------
+
+            # # build spotify web api request parameters.
+            # urlParms:dict = \
+            # {
+            #     'ids': ids
+            # }
+            # if market is not None:
+            #     urlParms['market'] = market
+
+            # # execute spotify web api request.
+            # msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/tracks')
+            # msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
+            # msg.UrlParameters = urlParms
+            # self.MakeRequest('GET', msg)
+
+            # # process results.
+            # items = msg.ResponseData.get('tracks',None)
+            # if items is not None:
+            #     for item in items:
+            #         result.append(Track(root=item))
         
             # trace.
             _logsi.LogArray(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, 'list[Track]'), result)
