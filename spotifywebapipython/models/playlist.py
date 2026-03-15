@@ -46,6 +46,11 @@ class Playlist(PlaylistSimplified):
             item:dict = root.get('tracks',None)
             if item is not None:
                 self._Tracks = PlaylistPage(root=item)
+            else:
+                # check for post 2026/02 api changes:
+                item:dict = root.get('items',None)
+                if item is not None:
+                    self._Tracks = PlaylistPage(root=item)
 
         
     def __repr__(self) -> str:

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.266 ] - 2026/03/15
+
+  * Updated the following `SpotifyClient` methods to support [Spotify Web API 2026/02 Migration Changes](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) functionality:  `GetPlaylist`.
+
 ###### [ 1.0.265 ] - 2026/03/15
 
   * Updated the following `SpotifyClient` methods to support [Spotify Web API 2026/02 Migration Changes](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) functionality:  `GetPlaylistItems`.
