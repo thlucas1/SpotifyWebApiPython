@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.265 ] - 2026/03/15
+
+  * Updated the following `SpotifyClient` methods to support [Spotify Web API 2026/02 Migration Changes](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) functionality:  `GetPlaylistItems`.
+  * Updated `SpotifyConnectZeroconfCastListener` processing to prefer ipv4 address info over ipv6 address info for Google Cast devices.
+
 ###### [ 1.0.264 ] - 2026/03/02
 
   * Restored the following `SpotifyClient` methods to utilize the individual method calls but maintain the same functionality: `GetAlbums`, `GetArtists`, `GetAudiobooks`, `GetChapters`, `GetEpisodes`, `GetShows`, `GetTracks`.  Note that this approach is more resource intensive, as the Spotify Web API returns much more data for some individual methods (e.g. `GetShow` especially).

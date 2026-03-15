@@ -1,7 +1,6 @@
 # external package imports.
 from pychromecast import CastInfo, HostServiceInfo
 from pychromecast.discovery import AbstractCastListener
-import ipaddress
 import threading
 from uuid import UUID
 
@@ -102,35 +101,36 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
             castInfo:CastInfo = castInfo_removed
             if (castInfo is None):
 
-                # map the CastInfo object.
+                # map the CastInfo object - assume IPV4 address info.
                 castInfo:CastInfo = self._ParentDirectory._CastBrowser.services[uuid]
                 castInfoHost = castInfo.host
                 castInfoPort = castInfo.port
 
-                # 20250628 commented out the ipv6 address resolution code.
-                # the `get_multizone_status` (in directorytask) could possibly return ipv6 info, with no ipv4 data!
+                # 20260315 restored the ipv6 address resolution code.
+                # note that `get_multizone_status` (in directorytask) could possibly return ipv6 info, with no ipv4 data!
 
-                # # find ipv4 host and port number.
-                # # if the base CastInfo object is ipv6, then find the ipv4 HostServiceInfo
-                # # service record and get it from there.
-                # if ((castInfoHost + "").find(":") != -1):
+                # is the CastInfo object ipv6 address info (e.g. ff02::fb)?
+                # if so, then prefer ipv4 address info (if it exists).
+                if ((castInfo.host + "").count(":")) > 1:  # IPV6?
 
-                #     # cast info host information is ipv6!
-                #     # find the ipv4 host service info object.
-                #     _logsi.LogDebug("Chromecast Zeroconf discovery service notification contained IPV6 HostServiceInfo data: \"%s\" (%s)" % (serviceName, "searching for IPV4 info"), colorValue=SIColors.Coral)
-                #     castHostIpv4:HostServiceInfo = None
-                #     for castSvc in castInfo.services:
-                #         if (isinstance(castSvc, HostServiceInfo)):
-                #             if ((castSvc.host + "").find(":") == -1):
-                #                 castInfoHost = castSvc.host
-                #                 castInfoPort = castSvc.port
-                #                 castHostIpv4 = castSvc
-                #                 break
+                    _logsi.LogDebug("Chromecast Zeroconf discovery service notification contained IPV6 host data: \"%s\" (%s)" % (serviceName, "searching services for IPV4 HostServiceInfo entry"), colorValue=SIColors.Coral)
+                    castHostIpv4:HostServiceInfo = None
+                    castInfoContainsHostInfo:bool = False
 
-                #     # if ipv4 host service info not found then we are done, as Spotify Connect 
-                #     # zeroconf requires an IPV4 address structure.
-                #     if (castHostIpv4 is None):
-                #         _logsi.LogDebug("Chromecast Zeroconf discovery service notification did not contain IPV4 HostServiceInfo service entry: \"%s\" (%s)" % (serviceName, "IPV6 HostServiceInfo may fail"), colorValue=SIColors.Coral)
+                    # find ipv4 (e.g. 224.0.0.251) HostServiceInfo service record and use that address info.
+                    for castSvc in castInfo.services:
+                        if (isinstance(castSvc, HostServiceInfo)):
+                            castInfoContainsHostInfo = True
+                            if ((castSvc.host + "").count(":")) == 0:  # IPV4?
+                                castInfoHost = castSvc.host
+                                castInfoPort = castSvc.port
+                                castHostIpv4 = castSvc
+                                break
+
+                    # if ipv4 host service info not found then we are done, as Spotify Connect 
+                    # zeroconf requires an IPV4 address structure.
+                    if (castHostIpv4 is None) and (castInfoContainsHostInfo == True):
+                        _logsi.LogDebug("Chromecast Zeroconf discovery service notification did not contain IPV4 HostServiceInfo service entry: \"%s\" (%s)" % (serviceName, "IPV6 HostServiceInfo may fail"), colorValue=SIColors.Coral)
 
             else:
 
@@ -149,8 +149,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
             # ensure IPV4 connection - ignore if IPV6.
             # Windows OS does not support dual-stack socket handling IPv4 (224.0.0.251) and IPv6 (ff02::fb).
-            ip = ipaddress.ip_address(castInfo.host)
-            if (ip.version == 6):
+            if (castInfoHost.count(":")) > 1:
                 _logsi.LogDebug("Chromecast IPV6 device addresses are not supported; device could cause problems: \"%s\" (%s)" % (castInfo.friendly_name, serviceName), colorValue=SIColors.Red)
 
                 # will still allow this for now, but we might want to ignore IPV6 devices

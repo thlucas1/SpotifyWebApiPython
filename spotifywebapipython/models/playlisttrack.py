@@ -42,7 +42,11 @@ class PlaylistTrack:
             item:dict = root.get('track',None)
             if item is not None:
                 self._Track = Track(root=item)
-
+            else:
+                # check for post 2026/02 api changes:
+                item:dict = root.get('item',None)
+                if item is not None:
+                    self._Track = Track(root=item)
         
     def __repr__(self) -> str:
         return self.ToString()
