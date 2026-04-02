@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.268 ] - 2026/04/02
+
+  * Changed configuration data file key for player last played information: from `player_last_played_info` to `PlayerLastPlayedInfo`.
+
 ###### [ 1.0.267 ] - 2026/04/02
 
   * Added logic to persist the player last played information to disk, so that playback can be restored from the given point.  This replaces the behavior of always defaulting to favorite tracks play.  Note that player last played information is tracked on a "per-user" basis (e.g. user A cannot resume play where user B left off).
