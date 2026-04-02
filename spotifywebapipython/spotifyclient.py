@@ -4,6 +4,8 @@ from datetime import datetime
 import json
 from io import BytesIO
 from oauthlib.oauth2 import BackendApplicationClient, WebApplicationClient
+import os.path
+import platformdirs
 import random
 from soco import SoCo
 from soco.core import (
@@ -51,6 +53,7 @@ from .const import (
     SPOTIFY_DESKTOP_APP_CLIENT_ID,
     SPOTIFY_DEFAULT_MARKET,
     SPOTIFY_WEBAPI_URL_BASE,
+    SPOTIFYWEBAPIPYTHON_CONFIG_FILE,
     SPOTIFYWEBAPIPYTHON_TOKEN_CACHE_FILE,
     TRACE_METHOD_RESULT,
     TRACE_METHOD_RESULT_TYPE,
@@ -68,6 +71,8 @@ from .const import (
 CACHE_SOURCE_CACHED:str = "cached"
 CACHE_SOURCE_CURRENT:str = "current"
 CACHE_KEY_GETSPOTIFYCONNECTDEVICES:str = "GetSpotifyConnectDevices"
+
+CONFIG_DATA_KEY_PLAYERLASTPLAYEDINFO:str = "player_last_played_info"
 
 MUSIC_SOURCE_SPOTIFY_LOCAL_QUEUE:str = "SPOTIFY_LOCAL_QUEUE"
 MUSIC_SOURCE_SPOTIFY_CONNECT:str = "SPOTIFY_CONNECT"
@@ -218,11 +223,12 @@ class SpotifyClient:
         self._AuthToken:SpotifyAuthToken = None
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
+        self._ConfigurationDataPath:str = None
         self._DefaultDeviceId:str = None
         self._HasSpotifyWebPlayerCredentials:bool = False
         self._IsDisposed:bool = False
         self._Manager:PoolManager = manager
-        self._PlayerLastPlayedInfo:PlayerLastPlayedInfo = PlayerLastPlayedInfo()
+        self._PlayerLastPlayedInfo:PlayerLastPlayedInfo = None
         self._SpotifyConnectUsername:str = spotifyConnectUsername
         self._SpotifyConnectPassword:str = spotifyConnectPassword
         self._SpotifyConnectLoginId:str = spotifyConnectLoginId
@@ -252,6 +258,15 @@ class SpotifyClient:
                                         maxsize=30,     # maximum number of connections to keep in the pool.
                                         block=True      # limit number of connections to the device.
                                         )
+
+
+        # verify token storage directory exists.
+        if tokenStorageDir is None:
+            tokenStorageDir = platformdirs.site_config_dir('SpotifyWebApiPython', ensure_exists=True, appauthor=False)
+        os.makedirs(tokenStorageDir, exist_ok=True)  # succeeds even if directory exists.
+
+        # set configuration data path.
+        self._ConfigurationDataPath = os.path.join(tokenStorageDir, SPOTIFYWEBAPIPYTHON_CONFIG_FILE)
 
         # create the zeroconf client if one was not specified.
         if zeroconfClient is None:
@@ -921,6 +936,129 @@ class SpotifyClient:
 
 
 
+    def _LoadConfigurationData(
+        self, 
+        dataKey:str,
+        defaultValue=None,
+        ) -> object:
+        """
+        Loads a data key value from the configuration data file.
+
+        Args:
+            dataKey (str):
+                Data key to retrieve the value for.
+            defaultValue (object):
+                A default object to return if the specified data key was not found (default is null).
+
+        Returns:
+            The value previously stored for the specified dataKey, if found in the file; otherwise, null.
+
+        This method will not raise any exceptions.
+        """
+        apiMethodName:str = '_LoadConfigurationData'
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Config data storage key: \"%s\"" % (dataKey))           
+            _logsi.LogVerbose("Config data storage file path: \"%s\"" % (self._ConfigurationDataPath))
+            
+            # does the config data file exist?
+            if os.path.exists(self._ConfigurationDataPath):
+
+                # open the config data storage file, and load it's contents.
+                _logsi.LogVerbose("Opening config data storage file")
+                with open(self._ConfigurationDataPath, 'r') as f:
+                    
+                    dataKeys = json.load(f)
+
+                    # if config data key exists then return its data; otherwise, return the default.
+                    if dataKey in dataKeys:
+                        _logsi.LogDictionary(SILevel.Verbose, "Data was loaded from config data storage file for key: \"%s\"" % (dataKey), dataKeys[dataKey], prettyPrint=True)
+                        return dataKeys[dataKey]
+                    else:
+                        _logsi.LogVerbose("DataKey was not found in config data storage file for key: \"%s\"" % (dataKey))           
+                        return defaultValue
+
+            else:
+
+                _logsi.LogVerbose("Config data storage file was not found: \"%s\"" % (self._ConfigurationDataPath))           
+                return defaultValue
+
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException("Could not load config data from disk (exception will be ignored)", ex)
+            return defaultValue
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def _SaveConfigurationData(
+        self,
+        dataKey:str,
+        dataValue=None,
+        ) -> None:
+        """
+        Saves a data key value to the configuration data file.
+        
+        Args:
+            dataKey (str):
+                Data key to store the value for.
+            dataValue (object):
+                Data value to save.
+
+        This method will not raise any exceptions.
+        """
+        apiMethodName:str = '_SaveConfigurationData'
+        
+        try:
+            
+            # trace.
+            _logsi.EnterMethod(SILevel.Debug, apiMethodName)
+            _logsi.LogVerbose("Config data storage key: \"%s\"" % (dataKey))           
+            _logsi.LogVerbose("Config data storage file path: \"%s\"" % (self._ConfigurationDataPath))
+            if (isinstance(dataValue, dict)):
+                _logsi.LogDictionary(SILevel.Verbose, "Config data storage value (pretty print)", dataValue, prettyPrint=True)
+            else:
+                _logsi.LogValue(SILevel.Verbose, "Config data storage value (non-dict)", dataValue)
+
+            dataKeys:dict = {}
+        
+            # does the config data storage file exist?
+            if os.path.exists(self._ConfigurationDataPath):
+                
+                # open the config data storage file, and load it's contents.
+                #_logsi.LogVerbose("Loading config data storage file contents")
+                with open(self._ConfigurationDataPath, 'r') as f:
+                    dataKeys = json.load(f)
+                    
+            if dataValue is not None:
+                               
+                # store the config data for the key.
+                #_logsi.LogVerbose("Updating config key value in config data storage")
+                dataKeys[dataKey] = dataValue
+
+            # save the config data storage file changes.
+            _logsi.LogVerbose("Saving config key data to disk: \"%s\"" % (dataKey))
+            with open(self._ConfigurationDataPath, 'w') as f:
+                json.dump(dataKeys, f, indent=4, sort_keys=True)
+
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException("Could not store config key data to disk: \"%s\" (exception will be ignored)" % (dataKey), ex)
+
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
     def _ResolveDeviceObject(
         self,
         device:str | SpotifyConnectDevice,
@@ -1015,6 +1153,10 @@ class SpotifyClient:
             if (self._SpotifyConnectLoginId is None) or (len(self._SpotifyConnectLoginId.strip()) == 0):
                 _logsi.LogVerbose("Spotify Connect LoginId not specified on class constructor; using Spotify UserProfile ID value \"%s\"" % (self._UserProfile.Id), colorValue=SIColors.Coral)
                 self._SpotifyConnectLoginId = self._UserProfile.Id
+
+            # retrieve player last played info for the user from config data file.
+            playerLastPlayedData:dict = self._LoadConfigurationData(f"{self._SpotifyConnectLoginId}/{CONFIG_DATA_KEY_PLAYERLASTPLAYEDINFO}", PlayerLastPlayedInfo())
+            self._PlayerLastPlayedInfo = PlayerLastPlayedInfo.FromDictionary(playerLastPlayedData)
 
             try:
 
@@ -1123,6 +1265,10 @@ class SpotifyClient:
 
             # ensure the object exists.
             if (self._SpotifyConnectDirectory is not None):
+
+                # store player last played info for the user to config data file.
+                if (self._PlayerLastPlayedInfo) and (not self._PlayerLastPlayedInfo.IsEmpty):
+                    self._SaveConfigurationData(f"{self._SpotifyConnectLoginId}/{CONFIG_DATA_KEY_PLAYERLASTPLAYEDINFO}", self._PlayerLastPlayedInfo.ToDictionary())
 
                 # is the task alive?
                 if (self._SpotifyConnectDirectory.is_alive()):
@@ -14879,12 +15025,28 @@ class SpotifyClient:
                 else:
 
                     # yes - play previously played content.
-                    if (self.PlayerLastPlayedInfo.Context is not None):
-                        _logsi.LogVerbose("Resuming last played context and track instead of transferring playback")
-                        self.PlayerMediaPlayContext(self.PlayerLastPlayedInfo.Context.Uri, self.PlayerLastPlayedInfo.Item.Uri, None, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+                    if (self.PlayerLastPlayedInfo.Context) and (self.PlayerLastPlayedInfo.Context.Uri is not None):
+
+                        try:
+
+                            # try playing the track within the specified context.  this will fail with a 
+                            # "403 restriction violated" error if the specified track is not in the playlist 
+                            # context, which can happen if the playlist has played through all of it's items.
+                            _logsi.LogVerbose("Resuming last played context and track instead of transferring playback")
+                            self.PlayerMediaPlayContext(self.PlayerLastPlayedInfo.Context.Uri, self.PlayerLastPlayedInfo.Item.Uri, None, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+
+                        except SpotifyWebApiError as ex:
+
+                            if ((ex.Message or "").lower().find("restriction violated") > -1):
+                                _logsi.LogVerbose("Resuming last played track, as the context has been completely played through and the track is not part of the context")
+                                self.PlayerMediaPlayTracks(self.PlayerLastPlayedInfo.Item.Uri, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+                            else:
+                                raise
+
                     else:
                         _logsi.LogVerbose("Resuming last played track instead of transferring playback")
                         self.PlayerMediaPlayTracks(self.PlayerLastPlayedInfo.Item.Uri, self.PlayerLastPlayedInfo.ProgressMS, scDevice, shuffle=False)
+
                     return scDevice
 
             # is the resolved device already active?

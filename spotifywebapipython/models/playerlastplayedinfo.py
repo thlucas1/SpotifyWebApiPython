@@ -274,6 +274,67 @@ class PlayerLastPlayedInfo:
         return self._Timestamp
 
 
+    @classmethod
+    def FromDictionary(cls, data:dict) -> "PlayerLastPlayedInfo":
+        """
+        Creates a PlayerLastPlayedInfo instance from a dictionary.
+        """
+        # if not a dictionary, then just return a new default class instance.
+        if not isinstance(data, dict):
+            return cls()
+
+        # create new object to return.
+        obj = cls()
+
+        # simple fields.
+        obj._IsEmpty = data.get("is_empty", True)
+        obj._IsDeviceState = data.get("is_device_state", False)
+        obj._DeviceMusicSource = data.get("device_music_source")
+        obj._ProgressMS = data.get("progress_ms", 0)
+        obj._RepeatState = data.get("repeat_state", "off")
+        obj._ShuffleState = data.get("shuffle_state", False)
+        obj._Timestamp = data.get("timestamp", 0)
+        obj._ItemType = data.get("item_type")
+
+        # load device info.
+        device_data = data.get("device")
+        if isinstance(device_data, dict):
+            obj._Device = Device(device_data)
+        else:
+            obj._Device = Device()
+
+        # load context info.
+        context_data = data.get("context")
+        if isinstance(context_data, dict):
+            obj._Context = Context(context_data)
+        else:
+            obj._Context = None
+
+        # load item info (Track / Episode).
+        item_data = data.get("item")
+        if isinstance(item_data, dict):
+            item_type = obj._ItemType
+
+            if item_type == SpotifyMediaTypes.TRACK.value:
+                obj._Item = Track(item_data)
+
+            elif item_type in (
+                SpotifyMediaTypes.EPISODE.value,
+                SpotifyMediaTypes.AUDIOBOOK.value,
+                SpotifyMediaTypes.PODCAST.value,
+            ):
+                obj._Item = Episode(item_data)
+
+            else:
+                # fallback if unknown type
+                obj._Item = None
+        else:
+            obj._Item = None
+
+        # return object to caller.
+        return obj
+        
+
     def ToDictionary(self) -> dict:
         """
         Returns a dictionary representation of the class.
