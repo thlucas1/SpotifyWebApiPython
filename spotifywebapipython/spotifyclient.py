@@ -9293,7 +9293,8 @@ class SpotifyClient:
             # if no before or after values, then get the last 50 tracks played.
             if (after == 0) and (before == 0):
                 before = GetUnixTimestampMSFromUtcNow(seconds=-1)
-                limitTotal = 100  # spotify only returns 50 max.
+                if limitTotal == 0: 
+                    limitTotal = 100  # spotify only returns 50 max.
                 _logsi.LogVerbose("Defaulting to retrieve play history of the last 50 recently played items (before = %d)" % before)
                                 
             # are we auto-paging?  if so, then use max limit.

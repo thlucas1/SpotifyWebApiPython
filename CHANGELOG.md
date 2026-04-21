@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.269 ] - 2026/04/21
+
+  * Updated `SpotifyClient` method `GetPlayerRecentTracks` to correct a limit bug that was always causing 50 items to be returned.
+
 ###### [ 1.0.268 ] - 2026/04/02
 
   * Changed configuration data file key for player last played information: from `player_last_played_info` to `PlayerLastPlayedInfo`.
