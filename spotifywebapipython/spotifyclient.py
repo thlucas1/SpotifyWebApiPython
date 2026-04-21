@@ -9294,8 +9294,8 @@ class SpotifyClient:
             if (after == 0) and (before == 0):
                 before = GetUnixTimestampMSFromUtcNow(seconds=-1)
                 if limitTotal == 0: 
-                    limitTotal = 100  # spotify only returns 50 max.
-                _logsi.LogVerbose("Defaulting to retrieve play history of the last 50 recently played items (before = %d)" % before)
+                    limitTotal = limit or 50  # spotify only returns 50 max.
+                _logsi.LogVerbose("Defaulting to retrieve play history of the last %d recently played items (before = %d)" % (limitTotal, before))
                                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
