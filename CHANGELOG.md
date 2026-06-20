@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.271 ] - 2026/06/20
+
+  * Updated model `UserProfileSimplified` to add `AccountId` property; A public, immutable, pseudoanonymous identifier for the user's account.  Use account_id rather than id when linking user accounts to your service, as it is stable and will not change over the lifetime of the account.  Added by Spotify in March 2026.
+
 ###### [ 1.0.270 ] - 2026/04/21
 
   * Updated `SpotifyClient` method `GetPlayerRecentTracks` to correct a limit bug that was always causing 50 items to be returned if `limit` argument was used.

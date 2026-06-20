@@ -24,6 +24,7 @@ class UserProfileSimplified:
                 Spotify Web API JSON response in dictionary format, used to load object
                 attributes; otherwise, None to not load attributes.
         """
+        self._AccountId:str = None
         self._DisplayName:str = None
         self._ExternalUrls:ExternalUrls = None
         self._Followers:Followers = None
@@ -39,6 +40,7 @@ class UserProfileSimplified:
         
         else:
 
+            self._AccountId = root.get('account_id', None)
             self._DisplayName = root.get('display_name', None)
             self._Href = root.get('href', None)
             self._Id = root.get('id', None)
@@ -65,6 +67,8 @@ class UserProfileSimplified:
         # this is done, as some authorization levels will not return some of these details;
         if self._DisplayName is None or len(self._DisplayName.strip()) == 0:
             self._DisplayName = self._Id
+        if self._AccountId is None or len(self._AccountId.strip()) == 0:
+            self._AccountId = self._Id
         if self._Type is None or len(self._Type.strip()) == 0:
             self._Type = 'user'
 
@@ -75,6 +79,27 @@ class UserProfileSimplified:
 
     def __str__(self) -> str:
         return self.ToString()
+
+
+    @property
+    def AccountId(self) -> str:
+        """ 
+        A public, immutable, pseudoanonymous identifier for the user's account.
+        
+        Example: `brhMgzADp6`
+
+        Use account_id rather than id when linking user accounts to your service, as it is stable 
+        and will not change over the lifetime of the account. 
+        """
+        return self._AccountId
+
+    @AccountId.setter
+    def AccountId(self, value:str):
+        """ 
+        Sets the Id property value.
+        """
+        if isinstance(value, str):
+            self._AccountId = value
 
 
     @property
@@ -207,6 +232,7 @@ class UserProfileSimplified:
             'followers': followers,
             'href': self._Href,
             'id': self._Id,
+            'account_id': self._AccountId,
             'image_url': self.ImageUrl,
             'images': [ item.ToDictionary() for item in self._Images ],
             'type': self._Type,
@@ -233,6 +259,7 @@ class UserProfileSimplified:
         if self._Followers is not None: msg = '%s\n Followers Count=%s' % (msg, str(self._Followers.Total))
         if self._Href is not None: msg = '%s\n Href="%s"' % (msg, str(self._Href))
         if self._Id is not None: msg = '%s\n Id="%s"' % (msg, str(self._Id))
+        if self._AccountId is not None: msg = '%s\n AccountId="%s"' % (msg, str(self._AccountId))
         if self._Images is not None: msg = '%s\n Images Count=%s' % (msg, str(len(self._Images)))
         if self._Type is not None: msg = '%s\n Type="%s"' % (msg, str(self._Type))
         return msg 
