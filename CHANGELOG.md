@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.272 ] - 2026/07/13
+
+  * Updated configuration data read / write to be thread safe.  This was causing issues in Home Assistant where multiple service definitions were defined that were overwriting configurations.
+
 ###### [ 1.0.271 ] - 2026/06/20
 
   * Updated model `UserProfileSimplified` to add `AccountId` property; A public, immutable, pseudoanonymous identifier for the user's account.  Use account_id rather than id when linking user accounts to your service, as it is stable and will not change over the lifetime of the account.  Added by Spotify in March 2026.

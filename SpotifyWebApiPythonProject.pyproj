@@ -464,6 +464,7 @@ PYTHONWARNINGS=always</Environment>
     <Content Include="test\testdata\PlaylistCoverImage.jpg" />
     <Content Include="test\testdata\PlaylistCoverImage_TooLarge.jpg" />
     <Content Include="test\testdata\RollingTheDice [454 x 625].jpg" />
+    <Content Include="test\testdata\SpotifyWebApiPython_config.json" />
     <Content Include="test\testdata\SpotifyWebApiPython_librespot_credentials.json" />
     <Content Include="test\testdata\SpotifyWebApiPython_tokens.json" />
     <Content Include="VSDebugCleanup.cmd" />

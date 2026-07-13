@@ -224,6 +224,7 @@ class SpotifyClient:
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
         self._ConfigurationDataPath:str = None
+        self._ConfigurationData_RLock:threading.RLock = threading.RLock()
         self._DefaultDeviceId:str = None
         self._HasSpotifyWebPlayerCredentials:bool = False
         self._IsDisposed:bool = False
@@ -964,27 +965,30 @@ class SpotifyClient:
             _logsi.LogVerbose("Config data storage key: \"%s\"" % (dataKey))           
             _logsi.LogVerbose("Config data storage file path: \"%s\"" % (self._ConfigurationDataPath))
             
-            # does the config data file exist?
-            if os.path.exists(self._ConfigurationDataPath):
+            # make the following thread-safe, so we don't read / write the config at the same time.
+            with self._ConfigurationData_RLock:
 
-                # open the config data storage file, and load it's contents.
-                _logsi.LogVerbose("Opening config data storage file")
-                with open(self._ConfigurationDataPath, 'r') as f:
+                # does the config data file exist?
+                if os.path.exists(self._ConfigurationDataPath):
+
+                    # open the config data storage file, and load it's contents.
+                    _logsi.LogVerbose("Opening config data storage file")
+                    with open(self._ConfigurationDataPath, 'r') as f:
                     
-                    dataKeys = json.load(f)
+                        dataKeys = json.load(f)
 
-                    # if config data key exists then return its data; otherwise, return the default.
-                    if dataKey in dataKeys:
-                        _logsi.LogDictionary(SILevel.Verbose, "Data was loaded from config data storage file for key: \"%s\"" % (dataKey), dataKeys[dataKey], prettyPrint=True)
-                        return dataKeys[dataKey]
-                    else:
-                        _logsi.LogVerbose("DataKey was not found in config data storage file for key: \"%s\"" % (dataKey))           
-                        return defaultValue
+                        # if config data key exists then return its data; otherwise, return the default.
+                        if dataKey in dataKeys:
+                            _logsi.LogDictionary(SILevel.Verbose, "Data was loaded from config data storage file for key: \"%s\"" % (dataKey), dataKeys[dataKey], prettyPrint=True)
+                            return dataKeys[dataKey]
+                        else:
+                            _logsi.LogVerbose("DataKey was not found in config data storage file for key: \"%s\"" % (dataKey))           
+                            return defaultValue
 
-            else:
+                else:
 
-                _logsi.LogVerbose("Config data storage file was not found: \"%s\"" % (self._ConfigurationDataPath))           
-                return defaultValue
+                    _logsi.LogVerbose("Config data storage file was not found: \"%s\"" % (self._ConfigurationDataPath))           
+                    return defaultValue
 
         except Exception as ex:
             
@@ -1027,26 +1031,29 @@ class SpotifyClient:
             else:
                 _logsi.LogValue(SILevel.Verbose, "Config data storage value (non-dict)", dataValue)
 
-            dataKeys:dict = {}
-        
-            # does the config data storage file exist?
-            if os.path.exists(self._ConfigurationDataPath):
-                
-                # open the config data storage file, and load it's contents.
-                #_logsi.LogVerbose("Loading config data storage file contents")
-                with open(self._ConfigurationDataPath, 'r') as f:
-                    dataKeys = json.load(f)
-                    
-            if dataValue is not None:
-                               
-                # store the config data for the key.
-                #_logsi.LogVerbose("Updating config key value in config data storage")
-                dataKeys[dataKey] = dataValue
+            # make the following thread-safe, so we don't read / write the config at the same time.
+            with self._ConfigurationData_RLock:
 
-            # save the config data storage file changes.
-            _logsi.LogVerbose("Saving config key data to disk: \"%s\"" % (dataKey))
-            with open(self._ConfigurationDataPath, 'w') as f:
-                json.dump(dataKeys, f, indent=4, sort_keys=True)
+                dataKeys:dict = {}
+        
+                # does the config data storage file exist?
+                if os.path.exists(self._ConfigurationDataPath):
+                
+                    # open the config data storage file, and load it's contents.
+                    #_logsi.LogVerbose("Loading config data storage file contents")
+                    with open(self._ConfigurationDataPath, 'r') as f:
+                        dataKeys = json.load(f)
+                    
+                if dataValue is not None:
+                               
+                    # store the config data for the key.
+                    #_logsi.LogVerbose("Updating config key value in config data storage")
+                    dataKeys[dataKey] = dataValue
+
+                # save the config data storage file changes.
+                _logsi.LogVerbose("Saving config key data to disk: \"%s\"" % (dataKey))
+                with open(self._ConfigurationDataPath, 'w') as f:
+                    json.dump(dataKeys, f, indent=4, sort_keys=True)
 
         except Exception as ex:
             
