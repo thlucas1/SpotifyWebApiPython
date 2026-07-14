@@ -111,23 +111,31 @@ class SpotifyConnectZeroconfListener:
             # trace.
             _logsi.LogObject(SILevel.Debug, "Spotify Connect Zeroconf service details: \"%s\" (%s) (serviceinfo object)" % (deviceName, serviceInfo.name), serviceInfo) 
 
+            # for devices that are discovered from more than one interface ...
             # get originating source ip address for each discovered address.
             # this will determine if a discovered address is on the same subnet or not.
             # we will not use the address if it's not on the same subnet, as Spotify Connect
             # requires discovered devices to be on the same subnet.
             # Spotify Connect Zeroconf discovery IP Address Name for ipAddr "172.30.32.1" = "192.168.1.1"
             ipAddressVerified:str = None
-            for ipAddr in ipAddressList:
-                ipAddrSource = get_source_ip(ipAddr)
-                _logsi.LogVerbose("Spotify Connect Zeroconf discovery is verifying IP Address \"%s\" from Source IP \"%s\" for device name \"%s\"" % (ipAddr, ipAddrSource, deviceName))
-                if ipAddrSource is not None:
-                    if ipAddrSource.count(".") == 3:
-                        lastDotIdx = ipAddrSource.rfind(".")
-                        if (lastDotIdx > -1) and (len(ipAddr) >= lastDotIdx):
-                            if ipAddrSource[0:lastDotIdx] == ipAddr[0:lastDotIdx]:
-                                ipAddressVerified = ipAddr
-                                _logsi.LogVerbose("Spotify Connect Zeroconf discovery will use device IP Address \"%s\" for device name \"%s\"" % (ipAddressVerified, deviceName))
-                                break    # use the first one that matches the same subnet.
+            if (ipAddressList is not None) and (len(ipAddressList) > 1):
+                for ipAddr in ipAddressList:
+                    ipAddrSource = get_source_ip(ipAddr)
+                    _logsi.LogVerbose("Spotify Connect Zeroconf discovery is verifying IP Address \"%s\" from Source IP \"%s\" for device name \"%s\"" % (ipAddr, ipAddrSource, deviceName))
+                    if ipAddrSource is not None:
+                        if ipAddrSource.count(".") == 3:
+                            lastDotIdx = ipAddrSource.rfind(".")
+                            if (lastDotIdx > -1) and (len(ipAddr) >= lastDotIdx):
+                                if ipAddrSource[0:lastDotIdx] == ipAddr[0:lastDotIdx]:
+                                    ipAddressVerified = ipAddr
+                                    _logsi.LogVerbose("Spotify Connect Zeroconf discovery will use device IP Address \"%s\" for device name \"%s\"" % (ipAddressVerified, deviceName))
+                                    break    # use the first one that matches the same subnet.
+
+                # if address was verified, then add it to the end of the list.
+                # this simulates zeroconf LIFO order of the list, which will
+                # cause the entry to be used as the primary host address.
+                if (ipAddressVerified is not None):
+                    ipAddressList.append(ipAddressVerified)
             
             # create new discovery result instance.
             result:ZeroconfDiscoveryResult = ZeroconfDiscoveryResult()
@@ -135,8 +143,6 @@ class SpotifyConnectZeroconfListener:
             result.Domain = '.local'
             for item in ipAddressList:
                 result.HostIpAddresses.append(item)
-            if (len(result.HostIpAddresses) > 1): # only use verified address if more than 1 address discovered.
-                result.HostIpAddress = ipAddressVerified
             result.HostIpPort = serviceInfo.port
             result.HostTTL = serviceInfo.host_ttl
             result.Key = serviceInfo.key
