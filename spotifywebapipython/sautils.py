@@ -1,5 +1,6 @@
 # external package imports.
 from datetime import datetime, timedelta, timezone
+import socket
 import sys
 
 """
@@ -127,6 +128,30 @@ def export(fn):
 
     return fn
     
+
+def get_source_ip(destination_ip: str) -> str:
+    """
+    Returns the local IP address that the operating system has assigned to a socket
+    that has been opened to a specified remote IP address.
+
+    Args:
+        destination_ip (str):
+            Remote IP address to connect to.
+    """
+    result:str = None
+    sock = None
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((destination_ip, 1))
+        result = sock.getsockname()[0]
+    except:
+        pass  # ignore exceptions.
+    finally:
+        if (sock):
+            sock.close()
+    return result
+
 
 def validateDelay(
         delay:float, 

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.273 ] - 2026/07/14
+
+  * Updated `SpotifyConnectZeroconfCastListener` processing to verify which ip address to use for a discovered Spotify Connect device that contains multiple `HostIpAddresses`.  This will enumerate each discovered address, looking for an address subnet prefix match.  Some third-party devices are returning an internal Docker container address(es), which is not on the same subnet as source device (e.g. Home Assistant Server, etc).
+
 ###### [ 1.0.272 ] - 2026/07/13
 
   * Updated configuration data read / write to be thread safe.  This was causing issues in Home Assistant where multiple service definitions were defined that were overwriting configurations.
