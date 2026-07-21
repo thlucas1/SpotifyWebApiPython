@@ -1588,18 +1588,21 @@ class SpotifyClient:
                     time.sleep(LOOP_DELAY)
                     loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
-                # check for temporary server response: 401 - Access token missing
-                elif (response.status == 401):
+                # check for temporary server responses:
+                # - 401: Access token missing
+                # - 403: Player command failed: Premium required
+                elif (response.status in [401,403]):
 
                     # Spotify made some sort of change in their API on 2026/07/20 that is not recognizing 
                     # a valid access token that is passed!  The same request can be passed through after a 
                     # slight delay successfully, which indicates it's a problem on the Spotify side.  
                     # This logic will retry the request a few times in a row, before giving up.
 
-                    # is this an "Access token missing" response?
+                    # is this a temporary response?
                     if (response.data is not None) and (len(response.data) > 0):
                         data = "" + response.data.decode('utf-8').lower()
-                        if (data.find("access token missing") > -1):
+                        if (data.find("access token missing") > -1) \
+                        or (data.find("premium required") > -1):
                             # only retry so many times before we give up;
                             if (loopTotalDelay >= LOOP_TIMEOUT):
                                 raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_TIMEOUT % (loopTotalDelay), None, logsi=_logsi)
