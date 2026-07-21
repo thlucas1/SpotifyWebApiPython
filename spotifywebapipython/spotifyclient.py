@@ -1588,6 +1588,36 @@ class SpotifyClient:
                     time.sleep(LOOP_DELAY)
                     loopTotalDelay = loopTotalDelay + LOOP_DELAY
 
+                # check for temporary server response: 401 - Access token missing
+                elif (response.status == 401):
+
+                    # Spotify made some sort of change in their API on 2026/07/20 that is not recognizing 
+                    # a valid access token that is passed!  The same request can be passed through after a 
+                    # slight delay successfully, which indicates it's a problem on the Spotify side.  
+                    # This logic will retry the request a few times in a row, before giving up.
+
+                    # is this an "Access token missing" response?
+                    if (response.data is not None) and (len(response.data) > 0):
+                        data = "" + response.data.decode('utf-8').lower()
+                        if (data.find("access token missing") > -1):
+                            # only retry so many times before we give up;
+                            if (loopTotalDelay >= LOOP_TIMEOUT):
+                                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_TIMEOUT % (loopTotalDelay), None, logsi=_logsi)
+
+                            # trace.
+                            _logsi.LogString(SILevel.Verbose, "SpotifyClient http response [%s]: '%s' (string)" % (response.status, response.reason), data)
+                            _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_RESPONSE_STATUS % (response.status, response.reason), colorValue=SIColors.Red)
+
+                            # wait just a bit between requests.
+                            _logsi.LogVerbose(SAAppMessages.MSG_SPOTIFY_WEB_API_RETRY_REQUEST_DELAY % (LOOP_DELAY))
+                            time.sleep(LOOP_DELAY)
+                            loopTotalDelay = loopTotalDelay + LOOP_DELAY
+                        else:
+                            break  # otherwise, break out of retry loop and process response.
+
+                    else:
+                        break  # otherwise, break out of retry loop and process response.                  
+
                 else:
 
                     # otherwise, break out of retry loop and process response.
