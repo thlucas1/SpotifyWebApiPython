@@ -9391,7 +9391,8 @@ class SpotifyClient:
         playlistId:str=None, 
         market:str=None,
         fields:str=None,
-        additionalTypes:str=None
+        additionalTypes:str=None,
+        excludeItems:bool|None=None,
         ) -> Playlist:
         """
         Get a playlist owned by a Spotify user.
@@ -9428,7 +9429,12 @@ class SpotifyClient:
                 Valid types are: track and episode.  
                 Note: This parameter was introduced to allow existing clients to maintain their current behaviour 
                 and might be deprecated in the future.  In addition to providing this parameter, make sure that your 
-                client properly handles cases of new types in the future by checking against the type field of each object.                
+                client properly handles cases of new types in the future by checking against the type field of each object.  
+            excludeItems (bool):
+                True to return only the basic fields of the playlist; the items collection will not be included in the returned object.  
+                The `fields` argument will be overridden to specify the fields to return.  
+                If False (or omitted, default), then playlist items will be included in the returned object.  
+                This argument is not part of the Spotify Web API specification.  
                 
         Returns:
             A `Playlist` object that contains the playlist details.
@@ -9472,6 +9478,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("fields", fields)
             apiMethodParms.AppendKeyValue("additionalTypes", additionalTypes)
+            apiMethodParms.AppendKeyValue("excludeItems", excludeItems)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a playlist owned by a Spotify user", apiMethodParms)
                 
             # are spotify web player credentials configured? if so, then we will use them to create
@@ -9509,6 +9516,11 @@ class SpotifyClient:
                 _logsi.LogVerbose("Spotify DJ Playlist detected; request will be bypassed, and a basic PlayList object returned")
                 _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
                 return result
+
+            # if excluding playlist item information, then just return the basic fields.
+            if (excludeItems == True):
+                _logsi.LogVerbose("Items will be excluded from the PlayList object returned")
+                fields = "collaborative,description,external_urls,href,id,images,name,owner,public,snapshotId,type,uri,followers"
 
             # build spotify web api request parameters.
             urlParms:dict = {}

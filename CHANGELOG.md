@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.275 ] - 2026/07/21
+
+  * Updated `SpotifyClient.GetPlaylist` method to add the `excludeItems` argument; If True, only the basic fields of the playlist will be returned; If False (or omitted, default), then playlist items will be included in the returned object.  This argument is not part of the Spotify Web API specification.  
+
 ###### [ 1.0.274 ] - 2026/07/14
 
   * Updated `SpotifyConnectZeroconfCastListener` processing to verify which ip address to use for a discovered Spotify Connect device that contains multiple `HostIpAddresses`.  This will enumerate each discovered address, looking for an address subnet prefix match.  Some third-party devices are returning an internal Docker container address(es), which is not on the same subnet as source device (e.g. Home Assistant Server, etc).
