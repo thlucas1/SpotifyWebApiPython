@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.278 ] - 2026/07/25
+
+  * Updated `ZeroconfConnect` logic to use a 10 second connection timeout value and a 30 second read timeout value for all `requests.post` calls. A local LAN connected device should establish a connection in well under 1 second. If a Spotify Connect device doesn't answer within 5–10 seconds, it's usually offline or unresponsive; once connected, the device should respond with data within 30 seconds - if not, then there is a problem.
+
 ###### [ 1.0.277 ] - 2026/07/21
 
   * Updated `MakeRequest` logic to check for `403 - Player command failed: Premium required` errors in the Spotify Web API response.  Spotify made some sort of change in their API that is not recognizing a valid access token that is passed!  The same request can be passed through after a slight delay successfully, which indicates it's a problem on the Spotify side.  This logic will retry the request a few times in a row, before giving up.

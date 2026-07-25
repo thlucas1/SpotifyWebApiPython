@@ -696,11 +696,15 @@ class ZeroconfConnect:
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
 
             # execute spotify zeroconf api request.
+            # the 10 second connect timeout prevents our application from hanging when trying an unreachable IP address.
+            # a local LAN connected device should establish a connection in well under 1 second.
+            # if a Spotify Connect device doesn't answer within 5–10 seconds, it's usually offline or unresponsive.
+            # once connected, the device should respond with data within 30 seconds; if not, then there is a problem.
             response = requests.post(
                 self._Uri,
-                timeout=10,
+                timeout=(10,30),        # wait 10 seconds for the connection, and 30 seconds for a response
                 headers=reqHeaders,
-                data=reqData   # send data in POST request body
+                data=reqData            # send data in POST request body
             )
         
             # check response for initial errors, and return json response.
@@ -865,9 +869,9 @@ class ZeroconfConnect:
             # execute spotify access token request.
             response = requests.post(
                 SPOTIFY_API_TOKEN_URL,
-                timeout=10,
+                timeout=(10,30),        # wait 10 seconds for the connection, and 30 seconds for a response
                 headers=tokHeaders,
-                data=tokData
+                data=tokData            # send data in POST request body
             )
 
             # check response for initial errors, and return json response.
@@ -1056,9 +1060,9 @@ class ZeroconfConnect:
             # execute spotify zeroconf api request.
             response = requests.post(
                 self._Uri,
-                timeout=10,
+                timeout=(10,30),        # wait 10 seconds for the connection, and 30 seconds for a response
                 headers=reqHeaders,
-                data=reqData   # send data in POST request body
+                data=reqData            # send data in POST request body
             )
 
             # check response for initial errors, and return json response.
