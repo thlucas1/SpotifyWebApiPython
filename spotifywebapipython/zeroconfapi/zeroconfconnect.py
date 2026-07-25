@@ -695,11 +695,18 @@ class ZeroconfConnect:
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
             _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
 
+            # The 10 second connect timeout prevents the application from hanging when
+            # attempting to connect to an unreachable IP address.
+            #
+            # A Spotify Connect device on the local LAN should establish a connection
+            # in well under 1 second. If the connection cannot be established within
+            # 10 seconds, the device is likely offline or otherwise unreachable.
+            #
+            # Once connected, the device should begin returning data within 30 seconds.
+            # If no data is received during that period, the request will fail with a
+            # read timeout.
+
             # execute spotify zeroconf api request.
-            # the 10 second connect timeout prevents our application from hanging when trying an unreachable IP address.
-            # a local LAN connected device should establish a connection in well under 1 second.
-            # if a Spotify Connect device doesn't answer within 5–10 seconds, it's usually offline or unresponsive.
-            # once connected, the device should respond with data within 30 seconds; if not, then there is a problem.
             response = requests.post(
                 self._Uri,
                 timeout=(10,30),        # wait 10 seconds for the connection, and 30 seconds for a response
