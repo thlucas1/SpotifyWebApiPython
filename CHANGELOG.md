@@ -6,9 +6,14 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.282 ] - 2026/07/27
+
+  * Updated `ZeroconfConnect` logic to automatically retry Spotify Connect Zeroconf addUser request for `202 ERROR-LOGIN-FAILED` responses.
+  * Updated `authclient._SaveToken` method to flush token storage file contents to disk after the write.  This will prevent possible token storage file corruption if multiple instances try to update the token storage file simultaneously.
+
 ###### [ 1.0.281 ] - 2026/07/26
 
-  * Updated `SpotifyConnect._SaveConfigurationData` method to flush configuration file contents to disk after the write.  This was causing multiple SpotifyPlus instances to corrupt the configuration file when HA was restarted ot stopped.
+  * Updated `SpotifyConnect._SaveConfigurationData` method to flush configuration file contents to disk after the write.  This was causing multiple SpotifyPlus instances to corrupt the configuration file when HA was restarted or stopped.
 
 ###### [ 1.0.280 ] - 2026/07/26
 

@@ -426,6 +426,9 @@ class ZeroconfConnect:
             # we will process the results with a `ZeroconfGetInfo` object, in case a publicKey was returned.
             result = ZeroconfGetInfo(root=responseData)
 
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, '%s result (addUser %s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
+
             # is the device fully available?  The info.Availability property can be used to determine this.
             # if the device is fully available (Availability=""), then the addUser request should return
             # immediately - hopefully with a 0 status (OK) to denote the request was successul.
@@ -438,7 +441,6 @@ class ZeroconfConnect:
             if (result.Status == 203) and (result.StatusString == "ERROR-INVALID-PUBLICKEY"):
 
                 # trace.
-                _logsi.LogObject(SILevel.Verbose, '%s result (%s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
                 _logsi.LogVerbose("Spotify Connect addUser request returned an ERROR-INVALID-PUBLICKEY response for Device id '%s'; addUser will be retried with the returned publicKey" % (info.DeviceId))
 
                 # wait for the device to be fully loaded.
@@ -476,48 +478,29 @@ class ZeroconfConnect:
                 # process results.
                 result = ZeroconfResponse(root=responseData)
 
-            # TEST TODO REMOVEME
-            # the following code was added while trying to determine errors received for a Sonos Move device.
-
-            # did we get a 202 (ERROR-LOGIN-FAILED) status?  if so, then we will wait a little bit and
-            # poll the device again for it's status as it may need more time for Spotify Connect to startup
-            # or switch the user context.  this is especially true for Sonos devices, as they can be a little 
-            # slow since they are considered restricted devices.
-            elif (result.Status == 202) and (result.StatusString == "ERROR-LOGIN-FAILED"):
-
-                _logsi.LogObject(SILevel.Verbose, '%s result (addUser %s object)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True, colorValue=SIColors.Red)
-                _logsi.LogVerbose("Spotify Connect addUser request returned an ERROR-LOGIN-FAILED response for Device id '%s'; addUser will be retried again after repeated getInfo polling" % (info.DeviceId), colorValue=SIColors.Red)
-
-                # wait 10 seconds, calling "getInfo" 2x every second to see what it displays.
-                # after this loop, we will call addUser one more time.
-
-                # wait for the device to be fully loaded.
-                # once this happens, the device Status code should be 101 (OK).
-                loopTotalDelay:float = 0
-                LOOP_DELAY:float = 0.50
-                LOOP_TIMEOUT:float = 15.0
-                while True:
-                        
-                    # wait just a bit between device info queries.
-                    _logsi.LogVerbose("Delaying for %s seconds before callling getInfo for Spotify Connect device id '%s'" % (LOOP_DELAY, info.DeviceId), colorValue=SIColors.Red)
-                    time.sleep(LOOP_DELAY)
-                    loopTotalDelay = loopTotalDelay + LOOP_DELAY
-
-                    # get device information;
-                    info = self.GetInformation()
-                    # if info.Status == 101:
-                    #     _logsi.LogVerbose("Spotify Connect Device id '%s' status changed to '%s'(%s) within %f seconds of initial addUser request" % (info.DeviceId, info.Status, info.StatusString, loopTotalDelay))
-                    #     break
-                        
-                    # only check so many times before we give up;
-                    if (loopTotalDelay > LOOP_TIMEOUT):
-                        _logsi.LogVerbose("Done polling Spotify Connect device id '%s' via getInfo" % (info.DeviceId), colorValue=SIColors.Red)
-                        break
-
                 # trace.
-                _logsi.LogVerbose("Calling Spotify Connect addUser 1 last time for device id '%s' ..." % (info.DeviceId), colorValue=SIColors.Red)
+                _logsi.LogObject(SILevel.Verbose, '%s result (addUser %s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
 
-                # now that the device is (hopefully) fully available, try the addUser request again.
+            # did we get a 202 (ERROR-LOGIN-FAILED) status?  if so, we will retry the addUser call
+            # a few times.  this is required for devices that may be having issues contacting the 
+            # Spotify backend from the Spotify Connect zeroconf service running on the device.
+            # Sonos devices seem to be the major offender for this scenario.
+            LOOP_ATTEMPTS:int = 0
+            LOOP_ATTEMPTS_MAX:int = 5
+            LOOP_DELAY:float = 0.25
+            while (result.Status == 202) and (result.StatusString == "ERROR-LOGIN-FAILED"):
+                        
+                # only check so many times before we give up;
+                LOOP_ATTEMPTS += 1
+                if (LOOP_ATTEMPTS > LOOP_ATTEMPTS_MAX):
+                    _logsi.LogVerbose("Max attempts (%s) reached while retrying addUser request due to ERROR-LOGIN-FAILED for device id '%s'" % (LOOP_ATTEMPTS_MAX, info.DeviceId), colorValue=SIColors.Red)
+                    break
+
+                # wait just a bit between attempts.
+                _logsi.LogVerbose("Delaying for %s seconds before retrying addUser request due to ERROR-LOGIN-FAILED (attempt # %s)" % (LOOP_DELAY, LOOP_ATTEMPTS), colorValue=SIColors.Red)
+                time.sleep(LOOP_DELAY)
+
+                # try the addUser request again.
                 responseData = self._ConnectAddUser(
                     info,
                     username,
@@ -528,13 +511,24 @@ class ZeroconfConnect:
 
                 # process results.
                 result = ZeroconfResponse(root=responseData)
-            
-            # trace.
-            _logsi.LogObject(SILevel.Verbose, '%s result (addUser %s)' % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
 
+                # trace.
+                _logsi.LogObject(SILevel.Verbose, '%s result (addUser %s - retry attempt #%s)' % (apiMethodName, type(result).__name__, LOOP_ATTEMPTS), result, excludeNonPublic=True, colorValue=SIColors.Red)
+
+                # get device information; we do this just to log trace data for
+                # debugging purposes; some Sonos devices will change the ActiveUser
+                # property when the user context changes (e.g. Sonos Move), while
+                # others will not change the ActiveUser property (e.g. Sonos Ikea Symfonisk).
+                info = self.GetInformation()
+                
             # if result status is not ok, then raise an exception.
             if (result.Status != 101):
                 raise SpotifyZeroconfApiError(result.Status, result.ToString(), apiMethodName, result.StatusString, _logsi)
+
+            # get device information; we do this just to log trace data for debugging purposes.
+            # some Sonos devices will change the ActiveUser property when the user context 
+            # changes (e.g. Sonos Move), while others will not (e.g. Sonos Ikea Symfonisk).
+            info = self.GetInformation()
 
             # give spotify zeroconf api time to process the change.
             if delay > 0:

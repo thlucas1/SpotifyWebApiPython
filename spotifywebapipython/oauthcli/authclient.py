@@ -631,6 +631,8 @@ class AuthClient:
             _logsi.LogVerbose('Saving token storage file updates')
             with open(self._TokenStoragePath, 'w') as f:
                 json.dump(tokens, f, indent=4, sort_keys=True)
+                f.flush()            # flush Python's buffer to the OS
+                os.fsync(f.fileno()) # force the OS to flush to disk
                 
         except Exception as ex:
             
