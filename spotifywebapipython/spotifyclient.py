@@ -1054,6 +1054,8 @@ class SpotifyClient:
                 _logsi.LogVerbose("Saving config key data to disk: \"%s\"" % (dataKey))
                 with open(self._ConfigurationDataPath, 'w') as f:
                     json.dump(dataKeys, f, indent=4, sort_keys=True)
+                    f.flush()            # flush Python's buffer to the OS
+                    os.fsync(f.fileno()) # force the OS to flush to disk
 
         except Exception as ex:
             

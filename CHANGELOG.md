@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.281 ] - 2026/07/26
+
+  * Updated `SpotifyConnect._SaveConfigurationData` method to flush configuration file contents to disk after the write.  This was causing multiple SpotifyPlus instances to corrupt the configuration file when HA was restarted ot stopped.
+
 ###### [ 1.0.280 ] - 2026/07/26
 
   * Updated `ZeroconfConnect` logic to add trace code for Spotify Connect Zeroconf `202 ERROR-LOGIN-FAILED` responses.
