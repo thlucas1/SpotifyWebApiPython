@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.283 ] - 2026/07/28
+
+  * Updated `SpotifyClient` to use a shared configuration file lock object.  Prior to this fix, it was using an instance variable instead of a shared variable.  This was causing multiple SpotifyPlus instances to corrupt the configuration file when HA was restarted or stopped.
+  * Updated the following `SpotifyClient` methods to remove the "deprecated" exception, as they can still be used by older authorization access tokens; note that new Spotify authorization access tokens (as of 2024/11/27 and later) will return a `deprecated` exception for these methods if the Spotify Web API returns a `404 - Not Found` status.  The methods restored were: `GetAlbumNewReleases`, `GetArtistRelatedArtists`, `GetArtistTopTracks`, `GetBrowseCategory`, `GetBrowseCategorys`, `GetCategoryPlaylists`, `GetFeaturedPlaylists`, `GetGenres`, `GetMarkets`, `GetPlaylistsForUser`, `GetTrackAudioFeatures`, `GetTracksAudioFeatures`, `GetTrackRecommendations`, `GetUsersPublicProfile`.  
+
 ###### [ 1.0.282 ] - 2026/07/27
 
   * Updated `ZeroconfConnect` logic to automatically retry Spotify Connect Zeroconf addUser request for `202 ERROR-LOGIN-FAILED` responses.

@@ -111,7 +111,9 @@ class SpotifyClient:
     SpotifyWebApiUrlBase = SPOTIFY_WEBAPI_URL_BASE
     """ Url base name used to access tthe Spotify Web API. """
     
-    
+    _ConfigurationData_RLock:threading.RLock = threading.RLock()
+    """ ConfigurationData file thread lock variable. """
+
     def __init__(
         self, 
         manager:PoolManager=None,
@@ -224,7 +226,6 @@ class SpotifyClient:
         self._AuthClient:AuthClient = None
         self._ConfigurationCache:dict = {}
         self._ConfigurationDataPath:str = None
-        self._ConfigurationData_RLock:threading.RLock = threading.RLock()
         self._DefaultDeviceId:str = None
         self._HasSpotifyWebPlayerCredentials:bool = False
         self._IsDisposed:bool = False
@@ -966,7 +967,7 @@ class SpotifyClient:
             _logsi.LogVerbose("Config data storage file path: \"%s\"" % (self._ConfigurationDataPath))
             
             # make the following thread-safe, so we don't read / write the config at the same time.
-            with self._ConfigurationData_RLock:
+            with SpotifyClient._ConfigurationData_RLock:
 
                 # does the config data file exist?
                 if os.path.exists(self._ConfigurationDataPath):
@@ -1032,7 +1033,7 @@ class SpotifyClient:
                 _logsi.LogValue(SILevel.Verbose, "Config data storage value (non-dict)", dataValue)
 
             # make the following thread-safe, so we don't read / write the config at the same time.
-            with self._ConfigurationData_RLock:
+            with SpotifyClient._ConfigurationData_RLock:
 
                 dataKeys:dict = {}
         
@@ -3928,11 +3929,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if limit is None: 
                 limit = 20
@@ -4011,7 +4007,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -4971,11 +4970,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # validations.
             if sortResult is None: 
                 sortResult = True
@@ -5009,7 +5003,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -5346,11 +5343,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if sortResult is None: 
                 sortResult = True
@@ -5393,7 +5385,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -6041,11 +6036,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if (refresh is None):
                 refresh = True
@@ -6086,7 +6076,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -6197,11 +6190,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if limit is None: 
                 limit = 20
@@ -6282,7 +6270,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -6504,11 +6495,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # validations.
             if limit is None: 
                 limit = 20
@@ -6591,7 +6577,10 @@ class SpotifyClient:
             return result, resultMessage
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -7554,11 +7543,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # validations.
             if limit is None: 
                 limit = 20
@@ -7642,7 +7626,10 @@ class SpotifyClient:
             return result, resultMessage
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -7710,11 +7697,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # validations.
             if (refresh is None):
                 refresh = True
@@ -7745,7 +7727,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -8121,11 +8106,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if (refresh is None):
                 refresh = True
@@ -8156,7 +8136,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -10152,11 +10135,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # validations.
             if limit is None: 
                 limit = 20
@@ -10232,7 +10210,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -11445,11 +11426,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # if trackId not specified, then return currently playing track id value.
             if (trackId is None) or (len(trackId.strip()) == 0):
                 uri = self.GetPlayerNowPlayingUri(SpotifyMediaTypes.TRACK.value)
@@ -11471,7 +11447,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -11822,6 +11801,14 @@ class SpotifyClient:
         ids:list[str], 
         ) -> list[AudioFeatures]:
         """
+        <span class="deprecated">
+            DEPRECATED - api endpoint no longer supported by Spotify as of 2024/11/27 for unauthorized Spotify Developer Applications.
+            The api endpoint IS still supported by Spotify for authorized Spotify Developer Applications.
+            More information about the deprecated functionality can be found on the 
+            <a href="https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api" target="_blank">Spotify Developer Forum Blog</a>
+            page.
+        </span>       
+        
         Get audio features for multiple tracks based on their Spotify IDs.
         
         Args:
@@ -11868,11 +11855,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/audio-features')
             msg.RequestHeaders[self.AuthToken.HeaderKey] = accessTokenHeaderValue or self.AuthToken.HeaderValue
@@ -11890,7 +11872,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -12176,11 +12161,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2024/11/27.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
-
             # ensure market was either supplied or implied; default if neither.
             market = self._ValidateMarket(market)
 
@@ -12311,7 +12291,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20241127 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
@@ -12516,11 +12499,6 @@ class SpotifyClient:
             # an elevated authorization access token for the Spotify Web API endpoint call.
             accessTokenHeaderValue:str = self._GetSpotifyWebPlayerTokenHeaderValue()
 
-            # if spotify web player credentials not configured then we are done; the Spotify Web API
-            # endpoint is no longer supported by unauthorized Spotify Developer Applications as of 2026/02/11.
-            if (accessTokenHeaderValue is None):
-                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
-
             # execute spotify web api request.
             msg:SpotifyApiMessage = SpotifyApiMessage(apiMethodName, '/users/{id}'.format(id=userId))
             msg.RequestHeaders[self.AuthToken.HeaderKey] = self.AuthToken.HeaderValue
@@ -12534,7 +12512,10 @@ class SpotifyClient:
             return result
 
         except SpotifyApiError: raise  # pass handled exceptions on thru
-        except SpotifyWebApiError: raise  # pass handled exceptions on thru
+        except SpotifyWebApiError as ex: 
+            if (ex.Status == 404) and (accessTokenHeaderValue is None):
+                raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_DEPRECATED_ENDPOINT_20260211 % apiMethodName)
+            raise  # pass handled exceptions on thru
         except SpotifyWebApiAuthenticationError: raise  # pass handled exceptions on thru
         except Exception as ex:
             
