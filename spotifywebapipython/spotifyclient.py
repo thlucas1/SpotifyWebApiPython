@@ -6554,10 +6554,12 @@ class SpotifyClient:
                     for item in pageObj.Items:
                         # for some reason, Spotify returns duplicates so we have to check before we add.
                         if not result.ContainsId(item.Id):
-                            result.Items.append(item)
-                            result.Limit = result.ItemsCount
-                            if result.ItemsCount >= limitTotal:
-                                break
+                            # also ensure item contains basic details; if not, then discard it.
+                            if (item.Id is not None) and (item.Uri is not None):
+                                result.Items.append(item)
+                                result.Limit = result.ItemsCount
+                                if result.ItemsCount >= limitTotal:
+                                    break
                     
                     # anymore pages to process?  if not, then exit the loop.
                     if not self._CheckForNextPageWithOffset(pageObj, result.ItemsCount, limit, limitTotal, urlParms):

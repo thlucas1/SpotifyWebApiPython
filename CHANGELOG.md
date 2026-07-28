@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.284 ] - 2026/07/28
+
+  * Updated `SpotifyClient.GetCategoryPlaylists` to check for (and discard) null item entries, which are sometimes returned by the Spotify Web API.  
+
 ###### [ 1.0.283 ] - 2026/07/28
 
   * Updated `SpotifyClient` to use a shared configuration file lock object.  Prior to this fix, it was using an instance variable instead of a shared variable.  This was causing multiple SpotifyPlus instances to corrupt the configuration file when HA was restarted or stopped.
