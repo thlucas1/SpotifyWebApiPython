@@ -2,14 +2,18 @@
 
 # our package imports.
 from ..sautils import export
-from .albumpagesimplified import AlbumPageSimplified
-from .artistpage import ArtistPage
-from .audiobookpagesimplified import AudiobookPageSimplified
+from .albumpagesaved import AlbumPageSaved, AlbumSaved
+from .albumpagesimplified import AlbumPageSimplified, AlbumSimplified
+from .artistpage import ArtistPage, Artist
+from .audiobookpagesimplified import AudiobookPageSimplified, AudiobookSimplified
 from .episodepagesimplified import EpisodePageSimplified
+from .playhistorypage import PlayHistoryPage, PlayHistory
 from .playlistpagesimplified import PlaylistPageSimplified
 from .playlistsimplified import PlaylistSimplified
+from .showpagesaved import ShowPageSaved, ShowSaved
 from .showpagesimplified import ShowPageSimplified
-from .trackpage import TrackPage
+from .trackpage import TrackPage, Track
+from .trackpagesaved import TrackPageSaved, TrackSaved
 
 @export
 class SearchResponse:
@@ -313,6 +317,105 @@ class SearchResponse:
 
         # return to caller.
         return result
+
+
+    def LoadAlbumsFromAlbumPageSaved(self, pageObj:AlbumPageSaved) -> None:
+        """
+        Adds the album items contained in a `AlbumPageSaved` object to the Albums collection.
+        """
+        if (isinstance(pageObj, AlbumPageSaved)):
+
+            item:AlbumSaved
+            for item in pageObj.Items:
+                self._Albums.Items.append(item.Album)
+    
+        
+    def LoadAlbumsFromAlbumPageSimplified(self, pageObj:AlbumPageSimplified) -> None:
+        """
+        Adds the album items contained in a `AlbumPageSimplified` object to the Albums collection.
+        """
+        if (isinstance(pageObj, AlbumPageSimplified)):
+
+            item:AlbumSimplified
+            for item in pageObj.Items:
+                self._Albums.Items.append(item)
+    
+        
+    def LoadArtistsFromArtistPage(self, pageObj:ArtistPage) -> None:
+        """
+        Adds the artist items contained in a `ArtistPage` object to the Artists collection.
+        """
+        if (isinstance(pageObj, ArtistPage)):
+
+            item:Artist
+            for item in pageObj.Items:
+                self._Artists.Items.append(item)
+    
+        
+    def LoadAudiobooksFromAudiobookPageSimplified(self, pageObj:AudiobookPageSimplified) -> None:
+        """
+        Adds the audiobook items contained in a `AudiobookPageSimplified` object to the Audiobooks collection.
+        """
+        if (isinstance(pageObj, AudiobookPageSimplified)):
+
+            item:AudiobookSimplified
+            for item in pageObj.Items:
+                self._Audiobooks.Items.append(item)
+    
+        
+    def LoadPlaylistsFromPlaylistPageSimplified(self, pageObj:PlaylistPageSimplified) -> None:
+        """
+        Adds the playlist items contained in a `PlaylistPageSimplified` object to the Playlists collection.
+        """
+        if (isinstance(pageObj, PlaylistPageSimplified)):
+
+            item:PlaylistSimplified
+            for item in pageObj.Items:
+                self._Playlists.Items.append(item)
+    
+        
+    def LoadShowsFromShowPageSaved(self, pageObj:ShowPageSaved) -> None:
+        """
+        Adds the show items contained in a `ShowPageSaved` object to the Shows collection.
+        """
+        if (isinstance(pageObj, ShowPageSaved)):
+
+            item:ShowSaved
+            for item in pageObj.Items:
+                self._Shows.Items.append(item.Show)
+    
+        
+    def LoadTracksFromPlayHistoryPage(self, pageObj:PlayHistoryPage) -> None:
+        """
+        Adds the track items contained in a `PlayHistoryPage` object to the Tracks collection.
+        """
+        if (isinstance(pageObj, PlayHistoryPage)):
+
+            item:PlayHistory
+            for item in pageObj.Items:
+                self._Tracks.Items.append(item.Track)
+    
+        
+    def LoadTracksFromTrackPageSaved(self, pageObj:TrackPageSaved) -> None:
+        """
+        Adds the track items contained in a `TrackPageSaved` object to the Tracks collection.
+        """
+        if (isinstance(pageObj, TrackPageSaved)):
+
+            item:TrackSaved
+            for item in pageObj.Items:
+                self._Tracks.Items.append(item.Track)
+    
+        
+    def LoadTracksFromTrackPage(self, pageObj:TrackPage) -> None:
+        """
+        Adds the track items contained in a `TrackPage` object to the Tracks collection.
+        """
+        if (isinstance(pageObj, TrackPage)):
+
+            item:Track
+            for item in pageObj.Items:
+                self._Tracks.Items.append(item)
     
         
     def ToDictionary(self) -> dict:

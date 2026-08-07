@@ -3822,7 +3822,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
             
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
 
                 # sort result items.
@@ -3873,6 +3873,7 @@ class SpotifyClient:
         country:str=None,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> AlbumPageSimplified:
         """
         <span class="deprecated">
@@ -3910,6 +3911,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a album name or uri value.  
+                Value can be a full name (e.g. "My Album Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `AlbumPageSimplified` object that contains simplified album information.
@@ -3947,6 +3951,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("country", country)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of new album releases", apiMethodParms)
                 
             # are spotify web player credentials configured? if so, then we will use them to create
@@ -4021,10 +4026,29 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:AlbumSimplified = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -4575,8 +4599,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+    
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
@@ -5140,6 +5166,7 @@ class SpotifyClient:
         limit:int=20, 
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> ArtistPage:
         """
         Get the current user's followed artists.
@@ -5163,6 +5190,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a audiobook name or uri value.  
+                Value can be a full name (e.g. "My AudioBook Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -5199,6 +5229,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limit", limit)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's followed artists", apiMethodParms)
                 
             # validations.
@@ -5274,11 +5305,30 @@ class SpotifyClient:
             result.CursorAfter = pageObj.CursorAfter
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:Artist = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -5843,7 +5893,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
 
                 # sort result items.
@@ -6308,8 +6358,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
@@ -6617,8 +6669,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
@@ -7351,7 +7405,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
 
                 # sort result items.
@@ -7690,8 +7744,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
 
@@ -9295,7 +9351,8 @@ class SpotifyClient:
         limit:int=50,
         after:int=None,
         before:int=None,
-        limitTotal:int=None
+        limitTotal:int=None,
+        filterCriteria:str|None=None,
         ) -> PlayHistoryPage:
         """
         Get tracks from the current user's recently played tracks.  
@@ -9326,6 +9383,9 @@ class SpotifyClient:
                 and paging is automatically used to retrieve all available items up to the
                 maximum number specified.  
                 Default: None (disabled)
+            filterCriteria (str):
+                Filter returned entries by a track name or uri value.  
+                Value can be a full name (e.g. "My Track Name"), or a partial name (e.g. "My").
                 
         Spotify currently limits the maximum number of items returned to 50 no matter what you 
         supply for the `limitTotal` argument.
@@ -9371,6 +9431,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("after", after)
             apiMethodParms.AppendKeyValue("before", before)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get tracks from the current user's recently played tracks", apiMethodParms)
             
             # validations.
@@ -9459,6 +9520,26 @@ class SpotifyClient:
             result.CursorAfter = pageObj.CursorAfter
             result.CursorBefore = pageObj.CursorBefore
             result.DateLastRefreshed = datetime.utcnow().timestamp()
+
+            # any results to process?
+            if (len(result.Items) > 0):
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:PlayHistory = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Track.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Track.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT_TYPE % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -10105,7 +10186,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
 
                 # sort result items.
@@ -10298,8 +10379,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
             
@@ -10769,7 +10852,7 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
 
                 # sort result items.
@@ -12816,8 +12899,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
@@ -12983,8 +13068,10 @@ class SpotifyClient:
             result.Total = pageObj.Total
             result.DateLastRefreshed = datetime.utcnow().timestamp()
 
-            # sort result items.
+            # any results to process?
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
