@@ -3674,6 +3674,7 @@ class SpotifyClient:
         market:str=None,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> AlbumPageSaved:
         """
         Get a list of the albums saved in the current Spotify user's 'Your Library'.
@@ -3707,6 +3708,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a album name or uri value.  
+                Value can be a full name (e.g. "My Album Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `AlbumPageSaved` object that contains saved album information.
@@ -3744,6 +3748,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("market", market)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the user's album favorites", apiMethodParms)
                 
             # validations.
@@ -3819,11 +3824,30 @@ class SpotifyClient:
             
             # sort result items.
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Album.Name or "").lower(), reverse=False)
                 else:
                     result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
 
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:AlbumSaved = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Album.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Album.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+            
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -5687,6 +5711,7 @@ class SpotifyClient:
         offset:int=0,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> AudiobookPageSimplified:
         """
         Get a list of the audiobooks saved in the current Spotify user's 'Your Library'.
@@ -5712,6 +5737,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a audiobook name or uri value.  
+                Value can be a full name (e.g. "My AudioBook Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `AudiobookPageSimplified` object that contains saved audiobook information.
@@ -5748,6 +5776,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users audiobook favorites", apiMethodParms)
                 
             # validations.
@@ -5816,8 +5845,27 @@ class SpotifyClient:
 
             # sort result items.
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:AudiobookSimplified = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
 
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -7169,6 +7217,7 @@ class SpotifyClient:
         offset:int=0,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> EpisodePageSaved:
         """
         Get a list of the episodes saved in the current Spotify user's 'Your Library'.
@@ -7194,6 +7243,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a episode name or uri value.  
+                Value can be a full name (e.g. "My Episode Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `EpisodePageSaved` object that contains saved episode information.
@@ -7230,6 +7282,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users episode favorites", apiMethodParms)
                 
             # validations.
@@ -7300,11 +7353,30 @@ class SpotifyClient:
 
             # sort result items.
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Episode.Name or "").lower(), reverse=False)
                 else:
                     result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
             
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:EpisodeSaved = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Episode.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Episode.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -9888,6 +9960,7 @@ class SpotifyClient:
         offset:int=0,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> PlaylistPageSimplified:
         """
         Get a list of the playlists owned or followed by the current Spotify user.
@@ -9913,6 +9986,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a playlist name or uri value.  
+                Value can be a full name (e.g. "My Playlist Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `PlaylistPageSimplified` object that contains playlist information.
@@ -9958,6 +10034,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users playlist favorites", apiMethodParms)
                 
             # are spotify web player credentials configured? if so, then we will use them to create
@@ -10030,8 +10107,27 @@ class SpotifyClient:
 
             # sort result items.
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:PlaylistSimplified = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
             
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
@@ -10513,6 +10609,7 @@ class SpotifyClient:
         limitTotal:int=None,
         sortResult:bool=True,
         excludeAudiobooks:bool=True,
+        filterCriteria:str|None=None,
         ) -> ShowPageSaved:
         """
         Get a list of the shows saved in the current Spotify user's 'Your Library'.
@@ -10542,6 +10639,9 @@ class SpotifyClient:
                 True to exclude audiobook shows from the returned list, leaving only podcast shows;
                 otherwise, False to include all results returned by the Spotify Web API.  
                 Default: True  
+            filterCriteria (str):
+                Filter returned entries by a show name or uri value.  
+                Value can be a full name (e.g. "My Show Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `ShowPageSaved` object that contains saved show information.
@@ -10584,6 +10684,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             apiMethodParms.AppendKeyValue("excludeAudiobooks", excludeAudiobooks)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users show favorites", apiMethodParms)
                 
             # validations.
@@ -10670,11 +10771,30 @@ class SpotifyClient:
 
             # sort result items.
             if (len(result.Items) > 0):
+
+                # sort result items.
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Show.Name or "").lower(), reverse=False)
                 else:
                     result.Items.sort(key=lambda x: (x.AddedAt or "").lower(), reverse=True)
             
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:ShowSaved = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Show.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Show.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -11474,6 +11594,7 @@ class SpotifyClient:
         sortResult:bool=True,
         filterArtist:str=None,
         filterAlbum:str=None,
+        filterCriteria:str|None=None,
         ) -> TrackPageSaved:
         """
         Get a list of the tracks saved in the current Spotify user's 'Your Library'.
@@ -11513,6 +11634,9 @@ class SpotifyClient:
             filterAlbum (str):
                 Filter returned entries by an album name or uri value.
                 Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
+            filterCriteria (str):
+                Filter returned entries by a track name or uri value.  
+                Value can be a full name (e.g. "My Track Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `TrackPageSaved` object that contains saved track information.
@@ -11552,6 +11676,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
             apiMethodParms.AppendKeyValue("filterArtist", filterArtist)
             apiMethodParms.AppendKeyValue("filterAlbum", filterAlbum)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get a list of the users track favorites", apiMethodParms)
                 
             # validations.
@@ -11672,6 +11797,23 @@ class SpotifyClient:
                             elif ((album.Name or "").lower().find(filterAlbumCompare) > -1):
                                 albumFound = True
                         if (not albumFound):
+                            result.Items.pop(idx)
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("track", filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:TrackSaved = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Track.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Track.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
                             result.Items.pop(idx)
 
             # trace.

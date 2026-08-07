@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.285 ] - 2026/08/07
+
+  * Added `filterCriteria` argument to various favorite retrieval methods: `GetAlbumFavorites`, `GetAudiobookFavorites`, `GetEpisodeFavorites`, `GetPlaylistFavorites`, `GetShowFavorites`, `GetTrackFavorites`.  This allows calling applications to provide simple filtering of Spotify favorites.
+
 ###### [ 1.0.284 ] - 2026/07/28
 
   * Updated `SpotifyClient.GetCategoryPlaylists` to check for (and discard) null item entries, which are sometimes returned by the Spotify Web API.  
