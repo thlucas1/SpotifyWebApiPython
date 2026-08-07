@@ -5352,6 +5352,7 @@ class SpotifyClient:
         artistId:str=None, 
         market:str=None, 
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> list[Track]:
         """
         <span class="deprecated">
@@ -12762,6 +12763,7 @@ class SpotifyClient:
         offset:int=0,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterCriteria:str|None=None,
         ) -> ArtistPage:
         """
         Get the current user's top artists based on calculated affinity.
@@ -12793,6 +12795,9 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterCriteria (str):
+                Filter returned entries by a artist name or uri value.  
+                Value can be a full name (e.g. "My Artist Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -12830,6 +12835,7 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top artists", apiMethodParms)
                 
             # validations.
@@ -12906,6 +12912,23 @@ class SpotifyClient:
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:Artist = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+            
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
@@ -12931,6 +12954,9 @@ class SpotifyClient:
         offset:int=0,
         limitTotal:int=None,
         sortResult:bool=True,
+        filterArtist:str|None=None,
+        filterAlbum:str|None=None,
+        filterCriteria:str|None=None,
         ) -> TrackPage:
         """
         Get the current user's top tracks based on calculated affinity.
@@ -12962,6 +12988,15 @@ class SpotifyClient:
                 True to sort the items by name; otherwise, False to leave the items in the same order they 
                 were returned in by the Spotify Web API.  
                 Default: True
+            filterArtist (str):
+                Filter returned entries by an artist name or uri value.  
+                Value can be the full name of the artist (e.g. "Jeremy Camp"), or a partial name (e.g. "Camp").
+            filterAlbum (str):
+                Filter returned entries by an album name or uri value.
+                Value can be the full name of the album (e.g. "Carried Me"), or a partial name (e.g. "Carried").
+            filterCriteria (str):
+                Filter returned entries by a track name or uri value.  
+                Value can be a full name (e.g. "My Track Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `TrackPage` object of matching results.
@@ -12999,6 +13034,9 @@ class SpotifyClient:
             apiMethodParms.AppendKeyValue("offset", offset)
             apiMethodParms.AppendKeyValue("limitTotal", limitTotal)
             apiMethodParms.AppendKeyValue("sortResult", sortResult)
+            apiMethodParms.AppendKeyValue("filterArtist", filterArtist)
+            apiMethodParms.AppendKeyValue("filterAlbum", filterAlbum)
+            apiMethodParms.AppendKeyValue("filterCriteria", filterCriteria)
             _logsi.LogMethodParmList(SILevel.Verbose, "Get the current user's top tracks", apiMethodParms)
                 
             # validations.
@@ -13075,6 +13113,63 @@ class SpotifyClient:
                 if (sortResult is True):
                     result.Items.sort(key=lambda x: (x.Name or "").lower(), reverse=False)
         
+                # apply artist filter criteria.
+                if (filterArtist is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("artist", filterArtist))
+                    filterArtistCompare:str = (filterArtist or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterArtistCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        track:Track = result.Items[idx]
+                        artistFound:bool = False
+                        artist:ArtistSimplified = None
+                        for artist in track.Artists:
+                            if (isFilterUri):
+                                if ((artist.Uri or "").lower() == filterArtistCompare):
+                                    artistFound = True
+                                    break
+                            elif ((artist.Name or "").lower().find(filterArtistCompare) > -1):
+                                artistFound = True
+                                break
+                        if (not artistFound):
+                            result.Items.pop(idx)
+
+                # apply album filter criteria.
+                if (filterAlbum is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: %s=\"%s\"" % ("album", filterAlbum))
+                    filterAlbumCompare:str = (filterAlbum or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterAlbumCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        track:Track = result.Items[idx]
+                        albumFound:bool = False
+                        album:Album = track.Album
+                        if (album is not None):
+                            if (isFilterUri):
+                                if ((album.Uri or "").lower() == filterAlbumCompare):
+                                    albumFound = True
+                            elif ((album.Name or "").lower().find(filterAlbumCompare) > -1):
+                                albumFound = True
+                        if (not albumFound):
+                            result.Items.pop(idx)
+
+                # apply filter criteria (if specified).
+                if (filterCriteria is not None):
+                    _logsi.LogVerbose("Applying filter criteria to results list: \"%s\"" % (filterCriteria))
+                    filterCriteriaCompare:str = (filterCriteria or "").lower()
+                    isFilterUri:bool = SpotifyClient.IsSpotifyUri(filterCriteriaCompare)
+                    # process list in reverse order since we are removing items.
+                    for idx in reversed(range(len(result.Items))):
+                        item:Track = result.Items[idx]
+                        itemFound:bool = False
+                        if (isFilterUri):
+                            if ((item.Uri or "").lower() == filterCriteriaCompare):
+                                itemFound = True
+                        elif ((item.Name or "").lower().find(filterCriteriaCompare) > -1):
+                            itemFound = True
+                        if (not itemFound):
+                            result.Items.pop(idx)
+            
             # trace.
             _logsi.LogObject(SILevel.Verbose, (TRACE_METHOD_RESULT_TYPE + result.PagingInfo) % (apiMethodName, type(result).__name__), result, excludeNonPublic=True)
             return result
