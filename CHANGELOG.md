@@ -6,6 +6,11 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.288 ] - 2026/08/10
+
+  * Disabled automatic retry logic in all `urllib3.PoolManager.request` method calls.  This was causing Home Assistant worker thread hangs if the Spotify Web API returned HTTP status `429 Too Many Requests` with a `Retry-After: nn` response header specified.  The `urllib3.PoolManager.request` request would sleep for the specified number of seconds in the `retry-after` header, which would in turn cause the HA worker process to wait.  This fix will force the response status `429 Too Many Requests` to be returned immediately (without retrying).  Note that other request responses will still be re-tried automatically (e.g. 401,403,503,504), but the 429 will not.
+  * Added `RetryAfter` property to `SpotifyWebApiError` object for HTTP status code 429 errors.
+
 ###### [ 1.0.287 ] - 2026/08/07
 
   * Added `filterCriteria` argument to various favorite retrieval methods: `GetUsersTopArtists`, `GetUsersTopTracks`.  This allows calling applications to provide simple filtering of Spotify favorites.

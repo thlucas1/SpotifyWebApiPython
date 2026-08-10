@@ -15,7 +15,7 @@ from soco.plugins.sharelink import ShareLinkPlugin
 import time
 import threading
 from typing import Tuple, Callable, Union
-from urllib3 import PoolManager, Timeout, HTTPResponse
+from urllib3 import PoolManager, Timeout, HTTPResponse, Retry
 from urllib.parse import urlencode
 import urllib.parse
 from lxml.etree import fromstring, Element
@@ -252,15 +252,28 @@ class SpotifyClient:
         # "WARNING:urllib3.connectionpool:Connection pool is full, discarding connection: x.x.x.x. Connection pool size: 1"
         if (manager is None) or (not isinstance(manager,PoolManager)):
 
+            # setup retry details for each request made to the Spotify Web API.
+            # this allows the urllib3 PoolManager to automatically retry requests that fail due to
+            # connection and read related scenarios (e.g. temporary connection issues, redirects, etc);
+            # it allows our library to manually handle other types of retry scenarios (e.g. temporary
+            # Spotify Web API backend server, unauthorized / forbidden requests, etc).
+            retry = Retry(
+                total=3,                            # total number of retries to allow (takes precedence over other counts)
+                connect=2,                          # number of times to retry on connection-related errors (errors raised before request is sent to server)
+                read=2,                             # number of times to retry on read errors (errors raised after request was sent to server)
+                status=0,                           # number of times to retry on bad status codes (0=never retry; let us handle them manually and ignore `status_forcelist`)
+                respect_retry_after_header=False,   # whether to respect Retry-After header on status codes
+            )
+
             # create new pool manager with specified timeouts and limits.
             timeout = Timeout(connect=float(30), read=None)
-            self._Manager = PoolManager(headers={'User-Agent': 'SpotifyApiPython/1.0.0'},
+            self._Manager = PoolManager(headers={'User-Agent': 'SpotifyWebApiPython/1.0.0'},
                                         timeout=timeout,
                                         num_pools=10,   # number of connection pools to allocate.
                                         maxsize=30,     # maximum number of connections to keep in the pool.
-                                        block=True      # limit number of connections to the device.
+                                        block=True,     # limit number of connections to the device.
+                                        retries=retry,  # specific way to handle retry on errors.
                                         )
-
 
         # verify token storage directory exists.
         if tokenStorageDir is None:
@@ -706,6 +719,7 @@ class SpotifyClient:
         responseData:dict = None
         responseUTF8:str = None
         contentType:str = None
+        retryAfterSeconds:int|None = None
         
         try:
 
@@ -740,8 +754,16 @@ class SpotifyClient:
                 # do response headers contain a content-type value?
                 # if so, we will use it to determine how to convert the response data.
                 if response.headers:
+
                     if 'content-type' in response.headers:
                         contentType = response.headers['content-type']
+
+                    # Spotify normally returns a seconds value for `retry-after`, but it could change to a date.
+                    if 'retry-after' in response.headers:
+                        try:
+                            retryAfterSeconds = int(response.headers.get('retry-after', 0))
+                        except Exception as ex:
+                            retryAfterSeconds = None
 
                 # do we have response data?
                 if len(response.data) == 0:
@@ -839,9 +861,16 @@ class SpotifyClient:
                         
                     if errCode is None:
                         errCode = response.status
+
+                    # if "retry-after" response header, then append the amount to the message.
+                    if (retryAfterSeconds is not None):
+                        errMessage += " (retry-after: %s seconds)" % retryAfterSeconds
                         
                     if (not msg.IgnoreResponseErrors):
-                        raise SpotifyWebApiError(errCode, errMessage, msg.MethodName, response.reason, _logsi)
+                        exObj = SpotifyWebApiError(errCode, errMessage, msg.MethodName, response.reason, _logsi)
+                        if (retryAfterSeconds is not None):
+                            exObj.RetryAfter = retryAfterSeconds
+                        raise exObj
 
                 elif isinstance(errObj, str):
                     
@@ -1565,6 +1594,18 @@ class SpotifyClient:
                     _logsi.LogDictionary(SILevel.Verbose, "SpotifyClient http request: '%s' (no body)" % (url), msg.RequestData, prettyPrint=True)
                     response = self._Manager.request(method, url, headers=msg.RequestHeaders)
 
+                # TEST TODO - simulate http response for testing purposes.
+                # _logsi.LogWarning("SpotifyClient MakeRequest forced HTTPResponse for testing!", colorValue=SIColors.Red)
+                # response = HTTPResponse(
+                #     status=429,
+                #     reason="Too Many Requests (TEST)",
+                #     body=b'{"error":{"status":429,"message":"API rate limit exceeded"}}',
+                #     headers={
+                #         "Content-Type": "application/json",
+                #         "Retry-After": "41",
+                #     },
+                # )
+
                 # TEST TODO - for testing retry logic.
                 # if (response.status_code == 200) and (loopTotalDelay <= 0.200):
                 #     _logsi.LogWarning("TEST TODO - Testing Spotify Web API 504 status (Gateway timeout) condition ...", colorValue=SIColors.Red)
@@ -1577,7 +1618,7 @@ class SpotifyClient:
 
                 # check for errors that are temporary in nature; for these errors, we will retry the 
                 # request for a specified number of tries with a small wait period in between.
-                if (response.status == 504):
+                if (response.status in [503,504]):
 
                     # only retry so many times before we give up;
                     if (loopTotalDelay >= LOOP_TIMEOUT):
@@ -3722,6 +3763,11 @@ class SpotifyClient:
             SpotifyApiError: 
                 If the method fails for any other reason.
 
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
+
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -3924,6 +3970,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -5191,8 +5242,8 @@ class SpotifyClient:
                 were returned in by the Spotify Web API.  
                 Default: True
             filterCriteria (str):
-                Filter returned entries by a audiobook name or uri value.  
-                Value can be a full name (e.g. "My AudioBook Name"), or a partial name (e.g. "My").
+                Filter returned entries by an artist name or uri value.  
+                Value can be a full name (e.g. "My Artist Name"), or a partial name (e.g. "My").
                 
         Returns:
             An `ArtistPage` object of matching results.
@@ -5203,6 +5254,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -5801,6 +5857,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -7311,6 +7372,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -9397,6 +9463,11 @@ class SpotifyClient:
         If both `after` and `before` arguments are null (or zero), then a `before` value
         is generated that will retrieve the last 50 recently played tracks.
                 
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
+
         Returns:
             A `PlayHistoryPage` object that contains the recently played items.
                 
@@ -10091,6 +10162,11 @@ class SpotifyClient:
             target="_blank">Spotify Developer Forum Blog</a> page.
         <span>
 
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
+
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -10741,6 +10817,11 @@ class SpotifyClient:
         Spotify Web API returns only audiobooks with the `/me/audiobooks` service.
         The reasoning for that is unclear, but the `excludeAudiobooks` argument allows you to
         only return podcast shows in the results if desired.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -11731,6 +11812,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>
@@ -12809,6 +12895,11 @@ class SpotifyClient:
             SpotifyApiError: 
                 If the method fails for any other reason.
 
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
+
         <details>
           <summary>Sample Code - Manual Paging</summary>
         ```python
@@ -13007,6 +13098,11 @@ class SpotifyClient:
                 and the response contains error information.
             SpotifyApiError: 
                 If the method fails for any other reason.
+
+        Filter criteria is applied after data (up to the limit) has been retrieved.  
+        This is important, in that if you set the limit too low it will not find any matching entries because 
+        it could not retrieve them all.  If filtering, ensure that you set higher a limit value to that ALL data 
+        is considered by the filter.
 
         <details>
           <summary>Sample Code - Manual Paging</summary>

@@ -39,6 +39,7 @@ class SpotifyWebApiError(Exception):
         self._Message:str = message
         self._MethodName:str = methodName
         self._Status:int = status
+        self._RetryAfter:int = 0
 
         # trace.
         if logsi is not None:
@@ -93,6 +94,29 @@ class SpotifyWebApiError(Exception):
         Example: `400`
         """
         return self._Status
+
+
+    @property
+    def RetryAfter(self) -> int:
+        """ 
+        The number of seconds to wait before retrying a method call that resulted in
+        an HTTP status of 429 (rate-limit exceeded).
+
+        This value is only valid if the HTTP response headers contained a `retry-after` key.
+        This usually only happens when HTTP status code = 429.
+        
+        Example: `21`
+        """
+        return self._RetryAfter
+
+    @RetryAfter.setter
+    def RetryAfter(self, value:int):
+        """ 
+        Sets the RetryAfter property value.
+        """
+        if isinstance(value, int):
+            if (value > 0):
+                self._RetryAfter = value
 
 
     def ToString(self) -> str:
