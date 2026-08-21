@@ -17379,7 +17379,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AlbumPageSimplified()

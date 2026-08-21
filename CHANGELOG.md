@@ -6,9 +6,13 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.290 ] - 2026/08/21
+
+  * Updated `SpotifyClient.SearchAlbums` method to make the `limit` argument max value of 10 instead of 50.  It appears that for some newer authentication tokens, the limit is now 10 (not sure when they changed that; sometime around 2026/07).  Note that a limit value of 50 is still allowed when using older authentication tokens.
+
 ###### [ 1.0.289 ] - 2026/08/21
 
-  * Updated `SpotifyClient.GetArtistAlbums` method to make the `limit` argument max value of 10 instead of 50.  It appears that for some newer authentication tokens, the limit is now 10 (not sure when they changed thatl sometime around 2026/07).  Note that a limit value of 50 is still allowed when using older authentication tokens.
+  * Updated `SpotifyClient.GetArtistAlbums` method to make the `limit` argument max value of 10 instead of 50.  It appears that for some newer authentication tokens, the limit is now 10 (not sure when they changed that; sometime around 2026/07).  Note that a limit value of 50 is still allowed when using older authentication tokens.
 
 ###### [ 1.0.288 ] - 2026/08/10
 
