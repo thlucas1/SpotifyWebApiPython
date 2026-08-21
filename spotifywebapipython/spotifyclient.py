@@ -4486,7 +4486,7 @@ class SpotifyClient:
         self, 
         artistId:str=None, 
         include_groups:str='album', 
-        limit:int=20, 
+        limit:int=10, 
         offset:int=0,
         market:str=None,
         limitTotal:int=None,
@@ -4508,7 +4508,7 @@ class SpotifyClient:
                 Example: `single,appears_on`
             limit (int):  
                 The maximum number of items to return in a page of items when manual paging is used.  
-                Default: 20, Range: 1 to 50.  
+                Default: 10, Range: 1 to 10.  
                 See the `limitTotal` argument for automatic paging option.  
             offset (int):  
                 The index of the first item to return; use with limit to get the next set of items.  
@@ -4574,7 +4574,7 @@ class SpotifyClient:
                 
             # validations.
             if limit is None: 
-                limit = 20
+                limit = 10
             if offset is None: 
                 offset = 0
             if not isinstance(limitTotal, int):
@@ -4584,7 +4584,7 @@ class SpotifyClient:
                 
             # are we auto-paging?  if so, then use max limit.
             if limitTotal > 0: 
-                limit = 50
+                limit = 10
                 if limit > limitTotal:
                     limit = limitTotal
                 result = AlbumPageSimplified()

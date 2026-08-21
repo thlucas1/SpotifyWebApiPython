@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.289 ] - 2026/08/21
+
+  * Updated `SpotifyClient.GetArtistAlbums` method to make the `limit` argument max value of 10 instead of 50.  It appears that for some newer authentication tokens, the limit is now 10 (not sure when they changed thatl sometime around 2026/07).  Note that a limit value of 50 is still allowed when using older authentication tokens.
+
 ###### [ 1.0.288 ] - 2026/08/10
 
   * Disabled automatic retry logic in all `urllib3.PoolManager.request` method calls.  This was causing Home Assistant worker thread hangs if the Spotify Web API returned HTTP status `429 Too Many Requests` with a `Retry-After: nn` response header specified.  The `urllib3.PoolManager.request` request would sleep for the specified number of seconds in the `retry-after` header, which would in turn cause the HA worker process to wait.  This fix will force the response status `429 Too Many Requests` to be returned immediately (without retrying).  Note that other request responses will still be re-tried automatically (e.g. 401,403,503,504), but the 429 will not.
