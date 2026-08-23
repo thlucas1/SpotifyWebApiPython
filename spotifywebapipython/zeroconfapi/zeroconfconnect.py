@@ -586,7 +586,7 @@ class ZeroconfConnect:
             _logsi.LogMethodParmList(SILevel.Verbose, "Issuing Spotify Connect Zeroconf addUser request (ip=%s:%s)" % (self._HostIpAddress, self._HostIpPort), apiMethodParms)
         
             # set request endpoint.
-            endpoint:str = self.GetEndpoint('addUser')
+            endpoint:str = self.GetEndpoint('addUser', info.Version)
             
             # set request headers.
             reqHeaders:dict = {
@@ -677,6 +677,35 @@ class ZeroconfConnect:
                 # get authorization_code access token.
                 blob:str = self._GetSpotifyConnectAuthorizationCodeToken(info, loginId=loginId)
                 
+            # special processing for tokenType "accesstoken":
+            elif info.TokenType == 'accesstoken':
+
+                # trace.
+                _logsi.LogVerbose("Spotify Connect token type is '%s' - using Spotify Desktop Client OAuth2 token to connect: '%s' (ip=%s)" % (info.TokenType, info.RemoteName, self._HostIpAddress))
+
+                # validations.
+                if (loginId is None) or (not isinstance(loginId,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectLoginId"), logsi=_logsi)
+                if (username is None) or (not isinstance(username,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectUsername"), logsi=_logsi)
+                if (password is None) or (not isinstance(password,str)):
+                    raise SpotifyApiError(SAAppMessages.MSG_SPOTIFY_ACTIVATE_CREDENTIAL_REQUIRED % ("SpotifyConnectPassword"), logsi=_logsi)
+
+                # create credentials and builder objects.
+                credentials:Credentials = Credentials(username, password, AuthenticationTypes.SPOTIFY_TOKEN)
+                builder = BlobBuilder(credentials, info.DeviceId, info.PublicKey)
+
+                # set defaults used by token type "accesstoken".
+                # - use clientKey from getInfo response.
+                # - exclude origin device information from the addUser request.
+                # - use tokenType from getInfo response.
+                clientKey = info.ClientId or ''
+                includeOriginDeviceInfo = False
+                tokenType = info.TokenType
+
+                # get access token.
+                blob:str = self._GetSpotifyConnectAccessToken(info, loginId=loginId)
+                
             else:
                 
                 # trace.
@@ -713,7 +742,7 @@ class ZeroconfConnect:
             # set request parameters.
             reqData={
                 "action": "addUser",
-                "version": self.Version, # info.Version,
+                "version": info.Version or self.Version,
                 "tokenType": tokenType,
                 "clientKey": clientKey,
                 "loginId": loginId or '',                                   # canonical login id (e.g. "31l77fd87g8h9j00k89f07jf87ge")
@@ -740,7 +769,7 @@ class ZeroconfConnect:
 
             # trace.
             _logsi.LogDictionary(SILevel.Debug, "ZeroconfConnect http request: '%s' (headers)" % (endpoint), reqHeaders)
-            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (json dict)" % (endpoint), reqData, prettyPrint=True)
 
             # The 10 second connect timeout prevents the application from hanging when
             # attempting to connect to an unreachable IP address.
@@ -764,6 +793,129 @@ class ZeroconfConnect:
             # check response for initial errors, and return json response.
             responseData:dict = self._CheckResponseForErrors(response, apiMethodName, endpoint)
             return responseData
+        
+        finally:
+        
+            # trace.
+            _logsi.LeaveMethod(SILevel.Debug, apiMethodName)
+
+
+    def _GetSpotifyConnectAccessToken(
+            self,    
+            info:ZeroconfGetInfo,
+            loginId:str,
+            ) -> str:
+        """
+        Get the Spotify OAuth2 access token value.
+        The resulting token will be used as the `blob` argument for the Spotify Connect Zeroconf `addUser` request.
+        """
+        apiMethodName:str = '_GetSpotifyConnectAccessToken'
+        apiMethodParms:SIMethodParmListContext = None
+        tracePrefix:str = 'SpotifyConnectAccessToken exchange'
+
+        # the access token is loaded from the token storage file (e.g. `spotifyplus_tokens.json`, etc).
+        # if not found, then an exception will be raised to indicate there is no access token stored.
+        # if found, the token is then checked to see if it has expired, and is automatically refreshed if so.
+        # the "access_token" value is then returned, and passed on the Spotify Connect Zeroconf "adduser" 
+        # call as the "blob" parameter (e.g. `AuthenticationTypes.SPOTIFY_TOKEN`).
+
+        try:
+            
+            # trace.
+            apiMethodParms = _logsi.EnterMethodParmList(SILevel.Debug, apiMethodName)
+            apiMethodParms.AppendKeyValue("loginId", loginId)
+            apiMethodParms.AppendKeyValue("info.DeviceId", info.DeviceId)
+            apiMethodParms.AppendKeyValue("info.RemoteName", info.RemoteName)
+            apiMethodParms.AppendKeyValue("info.BrandDisplayName", info.BrandDisplayName)
+            apiMethodParms.AppendKeyValue("info.ModelDisplayName", info.ModelDisplayName)
+            apiMethodParms.AppendKeyValue("self.TokenAuthInBrowser", self.TokenAuthInBrowser)
+            _logsi.LogMethodParmList(SILevel.Verbose, "Preparing to generate a new access token for Spotify Connect device: '%s' (%s)" % (info.RemoteName, info.DeviceId), apiMethodParms)
+        
+            # set variables for spotify access token generation.
+            # the redirect uri variables were obtained via Fiddler trace using Spotify Desktop App to initiate Spotify Connect to device.
+            redirectUriHost:str = '127.0.0.1'   
+            redirectUriPort:str = 4381
+            redirectUriPath:str = '/login'
+            authorizationType:str = 'Authorization Code PKCE'
+            
+            # Spotify Desktop App scopes requested for Spotify Connect (streaming only as of 2024/08/13)
+            SPOTIFY_SCOPES:list = \
+            [
+                'streaming',
+            ]
+                
+            # create oauth provider for spotify authentication code with pkce.
+            _logsi.LogVerbose('creating OAuth2 provider for Spotify Authentication Code with PKCE')
+            authClient:AuthClient = AuthClient(
+                authorizationType=authorizationType,
+                authorizationUrl=SPOTIFY_API_AUTHORIZE_URL,
+                tokenUrl=SPOTIFY_API_TOKEN_URL,
+                scope=SPOTIFY_SCOPES,
+                clientId=SPOTIFY_DESKTOP_APP_CLIENT_ID,
+                tokenStorageDir=self.TokenStorageDir,
+                tokenStorageFile=self.TokenStorageFile,
+                tokenProviderId='SpotifyWebApiAuthCodePkce',
+                tokenProfileId=loginId,
+            )
+           
+            # raise an exception if the authorization token is not present, or the scope has changed.
+            # the user must create the authorization token outside of this process, as the Spotify
+            # authorization token is driven by responding to a web request for access using OAuth.
+            # as this process is running on a server, there is no way for the user to respond to the
+            # request (e.g. via browser nor command-line).
+            isAuthorized = authClient.IsAuthorized
+            _logsi.LogVerbose('Checking OAuth2 authorization status: IsAuthorized=%s' % isAuthorized)
+
+            if (isAuthorized == False):
+
+                # can the user interact with a local default browser to authorize the request?
+                if self.TokenAuthInBrowser:
+                    
+                    # at this point, we need a new authorization token.
+                    # the user has up to 2 minutes to respond to the request by copying / pasting the 
+                    # message / auth approval url from the system log into a browser window that is
+                    # running on the local machine.
+                    _logsi.LogVerbose('Preparing to retrieve a new OAuth2 authorization access token')
+                    authClient.AuthorizeWithServer(
+                        host=redirectUriHost, 
+                        port=redirectUriPort, 
+                        redirect_uri_path=redirectUriPath,
+                        open_browser=True, 
+                        timeout_seconds=120
+                    )
+                
+                else:
+                
+                    # user cannot approve the request - raise an exception.
+                    raise SpotifyZeroconfApiError(401, 'Spotify Desktop Client Application access token was not authorized', apiMethodName, 'Token Not Authorized', _logsi)
+                
+            else:
+                
+                _logsi.LogVerbose('OAuth2 authorization token has previously been authorized')
+
+            # process results.
+            oauth2token:dict = authClient.Session.token
+            authToken = SpotifyAuthToken(authClient.AuthorizationType, authClient.TokenProfileId, root=oauth2token)
+            
+            # does token need to be refreshed?
+            if authToken.IsExpired:
+
+                # refresh the token.  
+                # this will also store the refreshed token to disk to be used later if required.
+                _logsi.LogVerbose('OAuth2 authorization token has expired, or is about to; token will be refreshed')
+                oauth2token:dict = authClient.RefreshToken()
+                authToken = SpotifyAuthToken(authClient.AuthorizationType, authClient.TokenProfileId, root=oauth2token)
+                _logsi.LogObject(SILevel.Verbose, TRACE_METHOD_RESULT % apiMethodName, authToken, excludeNonPublic=True)
+            
+            else:
+                
+                _logsi.LogVerbose('OAuth2 authorization token has not expired')
+
+            # get access token value.
+            result = oauth2token.get("access_token", None)
+
+            # return access token to caller.
+            return result
         
         finally:
         
@@ -803,7 +955,7 @@ class ZeroconfConnect:
             _logsi.LogMethodParmList(SILevel.Verbose, "Preparing to generate a new authorization_code access token for Spotify Connect device: '%s' (%s)" % (info.RemoteName, info.DeviceId), apiMethodParms)
         
             # set variables for spotify authorization_code token generation.
-            # the redirecy uri variables were obtained via Fiddler trace using Spotify Desktop App to initiate Spotify Connect to device.
+            # the redirect uri variables were obtained via Fiddler trace using Spotify Desktop App to initiate Spotify Connect to device.
             redirectUriHost:str = '127.0.0.1'   
             redirectUriPort:str = 4381
             redirectUriPath:str = '/login'
@@ -918,7 +1070,7 @@ class ZeroconfConnect:
             # trace.
             _logsi.LogVerbose('Exchanging OAuth2 authorization access token for an authorization_code access token')
             _logsi.LogDictionary(SILevel.Debug, "%s http request: '%s' (headers)" % (tracePrefix, SPOTIFY_API_TOKEN_URL), tokHeaders)
-            _logsi.LogDictionary(SILevel.Verbose, "%s http request: '%s' (data)" % (tracePrefix, SPOTIFY_API_TOKEN_URL), tokData)
+            _logsi.LogDictionary(SILevel.Verbose, "%s http request: '%s' (json dict)" % (tracePrefix, SPOTIFY_API_TOKEN_URL), tokData, prettyPrint=True)
             
             # execute spotify access token request.
             response = requests.post(
@@ -1109,7 +1261,7 @@ class ZeroconfConnect:
                 "action": "resetUsers",
                 "version": self.Version,
             }
-            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (data)" % (endpoint), reqData)
+            _logsi.LogDictionary(SILevel.Verbose, "ZeroconfConnect http request: '%s' (json dict)" % (endpoint), reqData, prettyPrint=True)
 
             # execute spotify zeroconf api request.
             response = requests.post(
@@ -1202,7 +1354,8 @@ class ZeroconfConnect:
 
     def GetEndpoint(
             self,
-            action:str
+            action:str,
+            version:str|None=None,
             ) -> str:
         """
         Gets a Spotify Zeroconf API endpoint uri.
@@ -1210,6 +1363,9 @@ class ZeroconfConnect:
         Args:
             action (str):
                 Action parameter value (e.g. "getInfo", "addUser", "resetUsers", etc).
+            version (str):
+                Version parameter value (e.g. "2.7.1", "2.9.0", etc).  
+                For some devices, this is important and must match what is returned on the getInfo request!
         
         Returns:
             A string containing the endpoint.
@@ -1217,7 +1373,7 @@ class ZeroconfConnect:
         return "{uri}?action={action}&version={version}".format(
             uri=self._Uri,
             action=action,
-            version=self.Version, 
+            version=version or self.Version, 
             )
 
 

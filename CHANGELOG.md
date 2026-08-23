@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.291 ] - 2026/08/23
+
+  * Updated `ZeroconfConnect` processing for `accesstoken` token types to use the Spotify OAuth token that is stored in the Token Cache File.  See the SpotifyPlus wiki docs for the [Spotify Desktop Player Authentication](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-desktop-player-authentication-configuration) configuration options for more details.
+
 ###### [ 1.0.290 ] - 2026/08/21
 
   * Updated `SpotifyClient.SearchAlbums` method to make the `limit` argument max value of 10 instead of 50.  It appears that for some newer authentication tokens, the limit is now 10 (not sure when they changed that; sometime around 2026/07).  Note that a limit value of 50 is still allowed when using older authentication tokens.

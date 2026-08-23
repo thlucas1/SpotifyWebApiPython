@@ -2376,6 +2376,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
                         scDevice.Name = scDevice.DeviceInfo.RemoteName
 
+                        # if service discovery version not set, then use the getInfo version.
+                        if (zeroconfDiscoveryResult.SpotifyConnectVersion is None):
+                            if (scDevice.DeviceInfo.Version is not None):
+                                zeroconfDiscoveryResult.SpotifyConnectVersion = scDevice.DeviceInfo.Version
+
                         # if remote name was not specified, then set device name to first alias name.
                         # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
                         if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
@@ -2410,6 +2415,11 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.Id = scDevice.DeviceInfo.DeviceId
                             scDevice.Name = scDevice.DeviceInfo.RemoteName
                     
+                            # if service discovery version not set, then use the getInfo version.
+                            if (zeroconfDiscoveryResult.SpotifyConnectVersion is None):
+                                if (scDevice.DeviceInfo.Version is not None):
+                                    zeroconfDiscoveryResult.SpotifyConnectVersion = scDevice.DeviceInfo.Version
+
                             # if remote name was not specified, then set device name to first alias name.
                             # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
                             if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
