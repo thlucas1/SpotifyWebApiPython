@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "spotifywebapipython",
+#     "lxml"
+# ]
+# ///
+
 from spotifywebapipython import *
 from spotifywebapipython.zeroconfapi import *
 from spotifywebapipython.const import SPOTIFY_DESKTOP_APP_CLIENT_ID, SPOTIFY_DESKTOP_APP_CLIENT_DISPLAY_NAME
