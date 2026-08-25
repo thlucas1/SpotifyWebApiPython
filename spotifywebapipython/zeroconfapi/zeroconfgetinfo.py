@@ -373,6 +373,32 @@ class ZeroconfGetInfo(ZeroconfResponse):
         if (isinstance(value, str)) or (value is None):
             self._RemoteName = value
 
+    @property
+    def RemoteNameOrAlias(self) -> str:
+        """ 
+        Name to be displayed for the device (e.g. "BOSE-ST10-1").
+
+        If a RemoteName value is not defined, then the first alias name will be
+        returned if one is defined.
+        
+        This value will be null if the response does not contain a RemoteName value
+        and there are no Aliases defined.
+        """
+        if (self._RemoteName is not None) and ((self._RemoteName + "").strip() != ""):
+
+            # if remote name is defined, then return it.
+            return self._RemoteName
+
+        elif (self.HasAliases):
+
+            # if aliases are defined then return the first alias name.
+            return self._Aliases[0].Name
+
+        else:
+
+            # otherwise return null.
+            return None
+
 
     @property
     def ResolverVersion(self) -> str:

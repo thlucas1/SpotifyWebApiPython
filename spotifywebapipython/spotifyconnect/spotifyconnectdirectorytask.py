@@ -2312,6 +2312,8 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         # syncronize access via lock, as we are accessing the collection.
         with self._SpotifyConnectDevices_RLock:
 
+            zconn:ZeroconfConnect = None
+
             try:
 
                 # trace.
@@ -2374,19 +2376,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         # retrieve initial spotify connect device information (by ip address).
                         scDevice.DeviceInfo = zconn.GetInformation()
                         scDevice.Id = scDevice.DeviceInfo.DeviceId
-                        scDevice.Name = scDevice.DeviceInfo.RemoteName
+                        scDevice.Name = scDevice.DeviceInfo.RemoteNameOrAlias
 
                         # if service discovery version not set, then use the getInfo version.
                         if (zeroconfDiscoveryResult.SpotifyConnectVersion is None):
                             if (scDevice.DeviceInfo.Version is not None):
                                 zeroconfDiscoveryResult.SpotifyConnectVersion = scDevice.DeviceInfo.Version
-
-                        # if remote name was not specified, then set device name to first alias name.
-                        # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
-                        if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
-                            if (scDevice.DeviceInfo.HasAliases):
-                                _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                scDevice.Name = scDevice.DeviceInfo.Aliases[0].Name
 
                     except Exception as ex:
 
@@ -2413,19 +2408,12 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             # retrieve initial spotify connect device information (by dns alias).
                             scDevice.DeviceInfo = zconn.GetInformation()
                             scDevice.Id = scDevice.DeviceInfo.DeviceId
-                            scDevice.Name = scDevice.DeviceInfo.RemoteName
+                            scDevice.Name = scDevice.DeviceInfo.RemoteNameOrAlias
                     
                             # if service discovery version not set, then use the getInfo version.
                             if (zeroconfDiscoveryResult.SpotifyConnectVersion is None):
                                 if (scDevice.DeviceInfo.Version is not None):
                                     zeroconfDiscoveryResult.SpotifyConnectVersion = scDevice.DeviceInfo.Version
-
-                            # if remote name was not specified, then set device name to first alias name.
-                            # note that we will not reset the RemoteName, as the "" value indicates an alias is in use.
-                            if ((scDevice.DeviceInfo.RemoteName + "").strip() == ""):
-                                if (scDevice.DeviceInfo.HasAliases):
-                                    _logsi.LogVerbose("Spotify Connect Zeroconf GetInformation alias name will be utilized for Zeroconf Discovery Result: \"%s\" (%s)" % (zeroconfDiscoveryResult.DeviceName, zeroconfDiscoveryResult.Name))
-                                    scDevice.Name = scDevice.DeviceInfo.Aliases[0].Name
 
                             # update HostIpAddress in discovery result so it knows to use the dns alias
                             # instead of the ip address.
@@ -2526,25 +2514,84 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                     scDevice = self._SpotifyConnectDevices.Items[idx]
 
                     # were any changes made to the zeroconf discovery results?
+                    # this can happen when the Spotify Connect zeroconf server on the device has
+                    # been restarted (e.g. "resetUsers" called, etc).  if so, then we need to update
+                    # the DiscoveryResult since it could possibly point to a different host address
+                    # (or port number) for the zeroconf endpoints (e.g. getInfo, addUser, etc).  we will
+                    # also call "getInfo" to update any Spotify Connect changes (e.g. RemoteName, Id, etc).
                     if (not scDevice.DiscoveryResult.Equals(zeroconfDiscoveryResult)):
 
                         # trace.
+                        _logsi.LogVerbose("Spotify Connect zeroconf DiscoveryResult change detected for device: %s" % (scDevice.Title))
                         _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DeviceInfo / getInfo)" % (scDevice.Title), scDevice.DeviceInfo, excludeNonPublic=True)
                         _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: \"%s\" (OLD DiscoveryResult) [%s]" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), scDevice.DiscoveryResult, excludeNonPublic=True)
 
-                        # set zeroconf discovery result properties.
+                        # preserve various old property values for comparison later.
+                        oldDeviceId:str = scDevice.DeviceInfo.DeviceId
+                        oldRemoteName:str = scDevice.DeviceInfo.RemoteNameOrAlias
+                        oldHostIpPort:int = scDevice.DiscoveryResult.HostIpPort
+                        newRemoteName:str = None
+                        newDeviceId:str = None
+
+                        try:
+
+                            # trace.
+                            _logsi.LogVerbose("Retrieving Spotify Connect device information: %s [DiscoveryResult change]" % (zeroconfDiscoveryResult.Id))
+
+                            # create connection object to retrieve spotify connect device information (via direct ip address).
+                            zconn:ZeroconfConnect = ZeroconfConnect(
+                                zeroconfDiscoveryResult.HostIpAddress,
+                                zeroconfDiscoveryResult.HostIpPort,
+                                zeroconfDiscoveryResult.SpotifyConnectCPath,
+                                zeroconfDiscoveryResult.SpotifyConnectVersion,
+                                useSSL=False,
+                                tokenStorageDir=self.SpotifyClientInstance.TokenStorageDir,
+                                tokenStorageFile=self.SpotifyClientInstance.TokenStorageFile
+                            )
+
+                            # retrieve spotify connect device information (by ip address).
+                            getInfo:ZeroconfGetInfo = zconn.GetInformation()
+
+                            # if service discovery version not set, then use the getInfo version.
+                            if (zeroconfDiscoveryResult.SpotifyConnectVersion is None):
+                                if (getInfo.Version is not None):
+                                    zeroconfDiscoveryResult.SpotifyConnectVersion = getInfo.Version
+
+                            # update base device info from getInfo details.
+                            scDevice.DeviceInfo = getInfo
+
+                            # set device name and id values from getInfo response values.
+                            newRemoteName = getInfo.RemoteNameOrAlias
+                            newDeviceId = getInfo.DeviceId
+
+                        except Exception as ex:
+
+                            # trace.
+                            _logsi.LogVerbose("Could not retrieve Spotify Connect device information; defaulting DeviceID to GetSpotifyDeviceIDFromName \"%s\"" % (zeroconfDiscoveryResult.DeviceName))
+
+                            # at this point we don't know for sure what the device name is since getInfo failed.
+                            # set device name and id values from serviceinfo discovery values.
+                            newRemoteName:str = zeroconfDiscoveryResult.DeviceName
+                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(newRemoteName)
+
+                        # update zeroconf discovery result properties in the base device object.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult
 
-                        # did the device name change?  if so, then update name and id properties,
-                        # as well as the corresponding getInfo properties.
-                        if (scDevice.Name != zeroconfDiscoveryResult.DeviceName):
-                            newDeviceName:str = zeroconfDiscoveryResult.DeviceName
-                            newDeviceId:str = self.GetSpotifyDeviceIDFromName(zeroconfDiscoveryResult.DeviceName)
-                            _logsi.LogVerbose("Spotify Connect Zeroconf SpotifyConnectDevice entry name and id changed from %s to \"%s\" (%s)" % (scDevice.Title, newDeviceName, newDeviceId))
-                            scDevice.Name = newDeviceName
+                        # did the device remote name change? if so, then update base device properties.
+                        if (oldRemoteName != newRemoteName):
+                            _logsi.LogVerbose("Spotify Connect Zeroconf device RemoteNameAlias changed from \"%s\" to \"%s\"" % (oldRemoteName, newRemoteName))
+                            scDevice.Name = newRemoteName
+                            scDevice.DeviceInfo.RemoteName = newRemoteName
+
+                        # did the device id change?
+                        if (oldDeviceId != newDeviceId):
+                            _logsi.LogVerbose("Spotify Connect Zeroconf device Id changed from \"%s\" to \"%s\"" % (oldDeviceId, newDeviceId))
                             scDevice.Id = newDeviceId
                             scDevice.DeviceInfo.DeviceId = newDeviceId
-                            scDevice.DeviceInfo.RemoteName = newDeviceName
+
+                        # did the device zeroconf server listener port change?
+                        if (oldHostIpPort != zeroconfDiscoveryResult.HostIpPort):
+                            _logsi.LogVerbose("Spotify Connect Zeroconf device HostIpPort changed from \"%s\" to \"%s\"" % (oldHostIpPort, zeroconfDiscoveryResult.HostIpPort))
 
                         # update existing Spotify Connect Device in devices collection.
                         self._SpotifyConnectDevices.Items[idx] = scDevice
@@ -2575,6 +2622,10 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 # ignore exceptions, as there is nothing we can do at this point.
 
             finally:
+
+                # free resources.
+                if (zconn is not None):
+                    zconn = None
 
                 # trace.
                 _logsi.LeaveMethod(SILevel.Debug)

@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.292 ] - 2026/08/25
+
+  * Updated Spotify Connect Zeroconf ServiceInfo update processing to call `getInfo` to retrieve Spotify Connect device details when zeroconf discovery service detects an update after a user context switch.
+
 ###### [ 1.0.291 ] - 2026/08/23
 
   * Updated `ZeroconfConnect` processing for `accesstoken` token types to use the Spotify OAuth token that is stored in the Token Cache File.  See the SpotifyPlus wiki docs for the [Spotify Desktop Player Authentication](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-desktop-player-authentication-configuration) configuration options for more details.

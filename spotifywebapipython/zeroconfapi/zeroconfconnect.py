@@ -1497,7 +1497,7 @@ class ZeroconfConnect:
             result = ZeroconfGetInfo(root=responseData)
 
             # trace.
-            _logsi.LogObject(SILevel.Verbose, '%s result (%s) - "%s" (%s)' % (apiMethodName, type(result).__name__, result.RemoteName, result.DeviceId), result, excludeNonPublic=True)
+            _logsi.LogObject(SILevel.Verbose, '%s result (%s) - "%s" (%s)' % (apiMethodName, type(result).__name__, result.RemoteNameOrAlias, result.DeviceId), result, excludeNonPublic=True)
 
             # if result status is not ok, then raise an exception.
             if (result.Status != 101):
