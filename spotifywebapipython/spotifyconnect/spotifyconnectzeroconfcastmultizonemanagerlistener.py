@@ -113,9 +113,9 @@ class SpotifyConnectZeroconfCastMultiZoneManagerListener(MultiZoneManagerListene
                         # trace.
                         _logsi.LogVerbose("Chromecast multizone manager added device \"%s\" to multizone group %s" % (self._CastDevice.cast_info.friendly_name, scDevice.Title), colorValue=SIColors.Lavender)
 
-                        # # get the current multizone status.
-                        # castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, self._CastDevice.cast_info.services, self._ZeroconfInstance, 5)
-                        # _logsi.LogObject(SILevel.Verbose, "Chromecast multizone manager status for group: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Lavender)
+                        # get the current multizone status.
+                        castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, self._CastDevice.cast_info.services, self._ZeroconfInstance, 5)
+                        _logsi.LogObject(SILevel.Verbose, "Chromecast multizone manager status for group: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Lavender)
 
                         # # build member list with friendly names.
                         # result:list[str] = []
@@ -185,9 +185,9 @@ class SpotifyConnectZeroconfCastMultiZoneManagerListener(MultiZoneManagerListene
                         # trace.
                         _logsi.LogVerbose("Chromecast multizone manager removed device \"%s\" from multizone group %s" % (self._CastDevice.cast_info.friendly_name, scDevice.Title), colorValue=SIColors.Lavender)
 
-                        # # get the current multizone status.
-                        # castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, self._CastDevice.cast_info.services, self._ZeroconfInstance, 5)
-                        # _logsi.LogObject(SILevel.Verbose, "Chromecast multizone manager status for group: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Lavender)
+                        # get the current multizone status.
+                        castMultiZoneStatus:MultizoneStatus = get_multizone_status(scDevice.DiscoveryResult.HostIpAddress, self._CastDevice.cast_info.services, self._ZeroconfInstance, 5)
+                        _logsi.LogObject(SILevel.Verbose, "Chromecast multizone manager status for group: %s [%s] (get_multizone_status)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle), castMultiZoneStatus, colorValue=SIColors.Lavender)
 
                         # # build member list with friendly names.
                         # result:list[str] = []

@@ -393,7 +393,7 @@ class SpotifyConnectZeroconfCastAppTask(threading.Thread):
             loginId:str,
             ) -> SpotifyAuthToken:
         """
-        Retrieve Spotify Desktop authorrization access token from the token cache file.
+        Retrieve Spotify Desktop authorization access token from the token cache file.
         The resulting token will be used to launch the Spotify cast app.
         """
         apiMethodName:str = '_GetSpotifyDesktopAuthorizationToken'

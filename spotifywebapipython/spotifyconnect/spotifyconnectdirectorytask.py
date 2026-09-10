@@ -509,6 +509,108 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             # ignore exception, as nothing can be done about it.
 
 
+    def _VerifyMultizoneGroupLeader(
+        self, 
+        scDevice: SpotifyConnectDevice,
+        discoveryResult: ZeroconfDiscoveryResult,
+        ) -> None:
+        """
+        Verifies the current leader for a cast group is connected and available.
+
+        Args:
+            scDevice (SpotifyConnectDevice):
+                SpotifyConnectDevice object that contains discovery result details.
+            discoveryResult (ZeroconfDiscoveryResult):
+                Newly discovered zeroconf updates for the device.
+        """
+        try:
+
+            leaderIP:str|None = None 
+
+            # the MultiZoneManager should already have processed any multi-zone updates,
+            # including leadership changes; all we need to do now is to get the ChromeCast
+            # device reference from it, and retrieve the host IP address.
+
+            # if the Chromecast device socket client reports a different host IP address
+            # than it's CastInfo object, then it means that the multizone manager update
+            # is out of sync with the mDNS update!  if that is the case, then we need to
+            # determine which of the two (if any!) is the active group leader.
+
+            # get group info from the multizone manager instance.
+            groupInfo = self._CastMultiZoneManager._groups.get(scDevice.DiscoveryResult.Key, None)
+            if (groupInfo is not None):
+
+                # get the assumed group leader device reference.
+                castDevice:Chromecast = groupInfo.get('chromecast', None)
+                if (castDevice):
+
+                    if (castDevice.socket_client) and (castDevice.socket_client.is_connected):
+                        leaderIP = castDevice.socket_client.host
+
+                    elif (castDevice.cast_info):
+                        leaderIP = castDevice.cast_info.host
+
+                    # do we have a group leader conflict between the multizone manager
+                    # reference and the mDNS service update?
+                    if (leaderIP != discoveryResult.HostIpAddress):
+
+                        # at this point, mDNS information is in conflict with MultiZoneManager information
+                        # about who the group leader is!  we will now query BOTH addresses to see which one
+                        # responds, and use it as the group leader.
+
+                        # trace.
+                        _logsi.LogVerbose("Group leader conflict detected for device UUID: \"%s\"" % discoveryResult.Key)
+
+                        try:
+
+                            # connect to the first possible group leader.
+                            _logsi.LogVerbose("Connecting to possible Cast Group leader #1: \"%s\"" % (discoveryResult.HostIpAddress))
+                            castDevice = get_chromecast_from_host(
+                                host=(discoveryResult.HostIpAddress, discoveryResult.HostIpPort, discoveryResult.Key, scDevice.DeviceInfo.ModelDisplayName, scDevice.DeviceInfo.RemoteName),
+                                tries=1,
+                                retry_wait=0.5,
+                                timeout=2)
+
+                            # if connection was successful, then use it as the leader.
+                            leaderIP = discoveryResult.HostIpAddress
+
+                        except Exception as ex:
+
+                            try:
+
+                                # connect to the first possible group leader.
+                                _logsi.LogVerbose("Connecting to possible Cast Group leader #2: \"%s\"" % (leaderIP))
+                                castDevice = get_chromecast_from_host(
+                                    host=(leaderIP, scDevice.DiscoveryResult.HostIpPort, scDevice.DiscoveryResult.Key, scDevice.DeviceInfo.ModelDisplayName, scDevice.DeviceInfo.RemoteName),
+                                    tries=1,
+                                    retry_wait=0.5,
+                                    timeout=2)
+
+                                # if connection was successful, then use it as the leader.
+                                leaderIP = leaderIP
+
+                            except Exception as ex:
+
+                                _logsi.LogVerbose("Could not connect to either possible Cast Group leader for device: \"%s\"" % (scDevice.Title))
+
+                        # free resources.
+                        castDevice = None
+
+                    # do we have a group leader change?
+                    if (leaderIP != scDevice.DiscoveryResult.HostIpAddress):
+
+                        # trace.
+                        _logsi.LogObject(SILevel.Verbose, "Cast Group leader IP was changed from [%s] to [%s] for device \"%s\"" % (scDevice.DiscoveryResult.HostIpAddress, leaderIP, scDevice.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
+                        scDevice.DiscoveryResult.HostIpAddress = leaderIP
+                        scDevice.DiscoveryResult.Id = "\"%s\" (%s:%s)" % (scDevice.DiscoveryResult.DeviceName, scDevice.DiscoveryResult.HostIpAddress, scDevice.DiscoveryResult.HostIpPort)
+
+        except Exception as ex:
+            
+            # trace.
+            _logsi.LogException("Chromecast Multizone group leader query exception: %s" % (str(ex)), ex, logToSystemLogger=False)
+            # ignore exception, as nothing can be done about it.
+
+
     def ActivateCastAppSpotify(
         self,
         deviceName:str,
@@ -585,6 +687,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                 # match was found; reset device id activated before we activate a device.
                 scDevice.DeviceIdActivated = None
+
+                # is the activation request for a group?
+                if (scDevice.DiscoveryResult.IsChromeCastGroup):
+
+                    # verify the current leader of the group.
+                    # the device collection entry will be updated if a change was detected.
+                    self._VerifyMultizoneGroupLeader(scDevice, scDevice.DiscoveryResult)
 
             # is this a chromecast device?
             if (not scDevice.IsChromeCast):
@@ -1997,17 +2106,27 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                             scDevice.DeviceInfo.RemoteName = newDeviceName
                             deviceNameChanged = True
 
-                        # is this a Google Cast Group "update_cast" event? 
-                        # if so, AND the device name did not change, then ignore the update since
-                        # we want the first device discovered in the group to be the coordinator by default.
-                        if (zeroconfDiscoveryResult.IsChromeCastGroup) and (not deviceNameChanged) and (serviceType == "update_cast"):
-                            _logsi.LogObject(SILevel.Verbose, "SpotifyConnectDevice info: \"%s\" (ignored; Cast Group device update)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
-                            _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (NEW DiscoveryResult ignored) [%s]" % (scDevice.Title, zeroconfDiscoveryResult.HostIpTitle), zeroconfDiscoveryResult, excludeNonPublic=True)
-                            return
+                        # is this a Google Cast Group update?
+                        if (zeroconfDiscoveryResult.IsChromeCastGroup):
 
-                        # always process changes for Google Cast Group "add_cast" event.
-                        # if the group coordinator changes, then an "add_cast" event will occur with the 
-                        # new group coordinator device (I think!).
+                            # is this a Google Cast Group "add_cast" event? 
+                            # if so, then it's probably a group leadership change that did not issue a call to
+                            # "remove_cast" as part of the update. we now have to determine which device in the 
+                            # group is the new leader, and update the group DiscoveryResult accordingly.
+                            if (serviceType == "add_cast"):
+
+                                # verify the current leader of the group.
+                                # the device collection entry will be updated if a change was detected.
+                                self._VerifyMultizoneGroupLeader(scDevice, zeroconfDiscoveryResult)
+
+                            # is this a Google Cast Group "update_cast" event? 
+                            # if so, AND the device name did not change, then ignore the update since
+                            # we will pickup any group leader changes in the ActivateCastAppSpotify method.
+                            elif (serviceType == "update_cast") and (not deviceNameChanged):
+
+                                _logsi.LogObject(SILevel.Verbose, "SpotifyConnectDevice info: \"%s\" (ignored; Cast Group device update)" % (scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True)
+                                _logsi.LogObject(SILevel.Debug, "SpotifyConnectDevice info: %s (NEW DiscoveryResult ignored) [%s]" % (scDevice.Title, zeroconfDiscoveryResult.HostIpTitle), zeroconfDiscoveryResult, excludeNonPublic=True)
+                                return
 
                         # set zeroconf discovery result properties.
                         scDevice.DiscoveryResult = zeroconfDiscoveryResult

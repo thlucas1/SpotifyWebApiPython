@@ -91,10 +91,10 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
         try:
 
-            # is this an MDNSServiceInfo service record?  we only want discovery results
-            # that contain MDNSServiceInfo service information.
+            # is this an GoogleCast service record?  we only want discovery results
+            # that contain GoogleCast service information.
             if (serviceName.find(ZEROCONF_SERVICETYPE_GOOGLECAST) == -1):
-                _logsi.LogDebug("Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, "ignored; not MDNSInfo"))
+                _logsi.LogDebug("Chromecast Zeroconf discovery service notification: \"%s\" (%s)" % (serviceName, "ignored; not GoogleCast service type"))
                 return None
 
             # get chromecast info.

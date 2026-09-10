@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.293 ] - 2026/09/10
+
+  * Updated Spotify Connect CastApp logic to better account for Cast Group leader changes.  It now does a query immediately before starting the Spotify CastApp to determine where to send the request.
+
 ###### [ 1.0.292 ] - 2026/08/25
 
   * Updated Spotify Connect Zeroconf ServiceInfo update processing to call `getInfo` to retrieve Spotify Connect device details when zeroconf discovery service detects an update after a user context switch.
