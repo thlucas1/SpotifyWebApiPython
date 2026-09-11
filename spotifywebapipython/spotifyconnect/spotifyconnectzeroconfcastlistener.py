@@ -149,7 +149,7 @@ class SpotifyConnectZeroconfCastListener(AbstractCastListener):
 
             # ensure IPV4 connection - ignore if IPV6.
             # Windows OS does not support dual-stack socket handling IPv4 (224.0.0.251) and IPv6 (ff02::fb).
-            if (castInfoHost.count(":")) > 1:
+            if (castInfoHost.count(":")) > 1:  #IPV6?
                 _logsi.LogDebug("Chromecast IPV6 device addresses are not supported; device could cause problems: \"%s\" (%s)" % (castInfo.friendly_name, serviceName), colorValue=SIColors.Red)
 
                 # will still allow this for now, but we might want to ignore IPV6 devices

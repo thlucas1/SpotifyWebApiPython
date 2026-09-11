@@ -1,6 +1,7 @@
 # external package imports.
 from abc import abstractmethod
 import copy
+from collections import Counter
 from datetime import datetime
 import hashlib
 from pychromecast import APP_MEDIA_RECEIVER, CastBrowser, CastInfo, Chromecast, get_chromecast_from_cast_info, get_chromecast_from_host
@@ -512,7 +513,6 @@ class SpotifyConnectDirectoryTask(threading.Thread):
     def _VerifyMultizoneGroupLeader(
         self, 
         scDevice: SpotifyConnectDevice,
-        discoveryResult: ZeroconfDiscoveryResult,
         ) -> None:
         """
         Verifies the current leader for a cast group is connected and available.
@@ -520,94 +520,169 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         Args:
             scDevice (SpotifyConnectDevice):
                 SpotifyConnectDevice object that contains discovery result details.
-            discoveryResult (ZeroconfDiscoveryResult):
-                Newly discovered zeroconf updates for the device.
+
+        This method should be called from a method that syncronizes access via lock
+        (using `self._SpotifyConnectDevices_RLock`), as it could possibly modify the 
+        SpotifyConnectDevices collection.
         """
+
+        member_summary:list[str] = []
+        member_hosts:list[str] = []
+        timeout:float = 2.0
+        group_uuid:UUID = UUID(scDevice.DiscoveryResult.Key)
+
         try:
 
-            leaderIP:str|None = None 
+            # get a list of device IP addresses that are members of the group, and also log
+            # a user-friendly trace line for debugging.
 
-            # the MultiZoneManager should already have processed any multi-zone updates,
-            # including leadership changes; all we need to do now is to get the ChromeCast
-            # device reference from it, and retrieve the host IP address.
+            # trace.
+            _logsi.LogObject(SILevel.Verbose, "Verifying Chromecast Multizone group leader for Cast Group: %s [UUID=%s]" % (scDevice.Title, group_uuid), scDevice.DiscoveryResult, excludeNonPublic=True, colorValue=SIColors.Coral)
 
-            # if the Chromecast device socket client reports a different host IP address
-            # than it's CastInfo object, then it means that the multizone manager update
-            # is out of sync with the mDNS update!  if that is the case, then we need to
-            # determine which of the two (if any!) is the active group leader.
+            # get multizone controller reference for the group.
+            castMultizoneController:MultizoneController = self._CastMultiZoneControllers.get(str(group_uuid), None)
+            if (castMultizoneController is not None):
 
-            # get group info from the multizone manager instance.
-            groupInfo = self._CastMultiZoneManager._groups.get(scDevice.DiscoveryResult.Key, None)
-            if (groupInfo is not None):
+                # process all members, building a list of their host addresses.
+                for member in castMultizoneController.members:
+                    scMemberDevice:SpotifyConnectDevice = self._SpotifyConnectDevices.GetDeviceByDiscoveryKey(member)
+                    if (scMemberDevice is None):
+                        member_summary.append(member)
+                    else:
+                        member_summary.append("%s [ip=%s]" % (scMemberDevice.Title, scMemberDevice.DiscoveryResult.HostIpTitle))
+                        member_hosts.append(scMemberDevice.DiscoveryResult.HostIpAddress)
 
-                # get the assumed group leader device reference.
-                castDevice:Chromecast = groupInfo.get('chromecast', None)
-                if (castDevice):
+                # trace.
+                _logsi.LogArray(SILevel.Verbose, "Chromecast Multizone group member summary: \"%s\" (count=%d)" % (scDevice.Title, len(member_summary)), member_summary, colorValue=SIColors.Coral)
 
-                    if (castDevice.socket_client) and (castDevice.socket_client.is_connected):
-                        leaderIP = castDevice.socket_client.host
+            # process each member in the group, retrieving it's multi-zone status.
 
-                    elif (castDevice.cast_info):
-                        leaderIP = castDevice.cast_info.host
+            votes: Counter[str] = Counter()
+            port_for: dict[str, int] = {}
 
-                    # do we have a group leader conflict between the multizone manager
-                    # reference and the mDNS service update?
-                    if (leaderIP != discoveryResult.HostIpAddress):
+            for host in member_hosts:
 
-                        # at this point, mDNS information is in conflict with MultiZoneManager information
-                        # about who the group leader is!  we will now query BOTH addresses to see which one
-                        # responds, and use it as the group leader.
+                # trace.
+                _logsi.LogVerbose("Retrieving Chromecast Multizone group status for member host: %s" % (host), colorValue=SIColors.Coral)
+
+                # get multizone status for the specified group member.
+                # note that `get_multizone_status` can return both IPV4 (e.g. "192.168.1.97") and IPV6 (e.g. "::ffff:c0a8:161") addresses!
+                status = get_multizone_status(host, timeout=timeout)
+
+                # trace.
+                _logsi.LogDictionary(SILevel.Verbose, "Chromecast Multizone group status for member host: %s" % (host), status, prettyPrint=True, colorValue=SIColors.Coral)
+
+                # if we could not retrieve status, then move on to the next group member.
+                if status is None:
+                    continue
+
+                # add to the vote count for this host address.
+                # a member that is the LEADER answers with its own host and the group's cast_port;
+                # a member that is a FOLLOWER answers with the leader's host and no port (pychromecast 
+                # strips the ':10001' multizone port); right after a re-form, a single member can still 
+                # say 'self' although it no longer leads, so take the majority.
+                for g in status.groups:
+                    if g.uuid == group_uuid and g.host:
+                        votes[g.host] += 1
+                        if g.port:
+                            port_for[g.host] = g.port
+
+                # add to the vote count for this host address for dynamic groups as well.
+                for g in status.dynamic_groups:
+                    if g.uuid == group_uuid and g.host:
+                        votes[g.host] += 1
+                        if g.port:
+                            port_for[g.host] = g.port
+
+            # trace.
+            _logsi.LogCollection(SILevel.Verbose, "Chromecast Multizone group leader vote summary for Cast Group: %s [UUID=%s]" % (scDevice.Title, group_uuid), votes.most_common(), colorValue=SIColors.Coral)
+
+            # we will now verify connectivity to all devices that were resolved
+            # as group leaders from the various group members.  in most cases, this
+            # should be just one device, if they all reported the same leader. 
+            # if multiple leaders were reported (this can happen while the group is 
+            # in the midst of reforming), then we will use the host address that was
+            # reported the most, using the host address that was reported the least
+            # as a fallback in case we could not connect to the most-used address.
+
+            # process all reported leaders, using most reported host address first.
+            for host, _ in votes.most_common():
+
+                # trace.
+                _logsi.LogVerbose("Verifying connectivity to Chromecast Multizone group leader: %s" % (host), colorValue=SIColors.Coral)
+
+                # ensure we resolved a port for this host.
+                port = port_for.get(host)
+                if port is None:
+
+                    # if a port was not resolved for this host, then it points at a host we have not 
+                    # retrieved multizone status for yet - ask it for its port.
+
+                    # trace.
+                    _logsi.LogVerbose("Retrieving Chromecast Multizone group status for member host: %s" % (host), colorValue=SIColors.Coral)
+
+                    # get multizone status for the specified group member.
+                    # note that `get_multizone_status` can return both IPV4 (e.g. "192.168.1.97") and IPV6 (e.g. "::ffff:c0a8:161") addresses!
+                    status = get_multizone_status(host, timeout=timeout)
+
+                    # trace.
+                    _logsi.LogDictionary(SILevel.Verbose, "Chromecast Multizone group status for member host: %s" % (host), status, prettyPrint=True, colorValue=SIColors.Coral)
+
+                    if status:
+                        for g in status.groups:
+                            if g.uuid == group_uuid and g.host == host and g.port:
+                                port = g.port
+                        for g in status.dynamic_groups:
+                            if g.uuid == group_uuid and g.host == host and g.port:
+                                port = g.port
+
+                # verify connectivity if we have a port for this host.
+                if port:
+
+                    try:
 
                         # trace.
-                        _logsi.LogVerbose("Group leader conflict detected for device UUID: \"%s\"" % discoveryResult.Key)
+                        _logsi.LogVerbose("Verifying connection to Chromecast Multizone group leader host candidate: ip=%s, port=%s" % (host, port), colorValue=SIColors.Coral)
 
-                        try:
+                        # connect to the host on the designated port.  this should return almost
+                        # immediately if the device is found on the local network.
+                        with socket.create_connection((host, port), timeout=timeout):
 
-                            # connect to the first possible group leader.
-                            _logsi.LogVerbose("Connecting to possible Cast Group leader #1: \"%s\"" % (discoveryResult.HostIpAddress))
-                            castDevice = get_chromecast_from_host(
-                                host=(discoveryResult.HostIpAddress, discoveryResult.HostIpPort, discoveryResult.Key, scDevice.DeviceInfo.ModelDisplayName, scDevice.DeviceInfo.RemoteName),
-                                tries=1,
-                                retry_wait=0.5,
-                                timeout=2)
+                            # if it's a good socket connection, then we will treat this host as the
+                            # group leader; update the devices collection if the addresses are different.
+                            if (host != scDevice.DiscoveryResult.HostIpAddress):
 
-                            # if connection was successful, then use it as the leader.
-                            leaderIP = discoveryResult.HostIpAddress
+                                # note that we only care about IPV4 addresses, as `get_multizone_status`
+                                # can return both IPV4 and IPV6 addresses.
+                                if (host.count(":")) > 1: # IPV6 address?
+                                    _logsi.LogVerbose("Ignoring Chromecast Multizone group leader candidate address: %s (IPV6 address)" % (host), colorValue=SIColors.Coral)
+                                else:
+                                    _logsi.LogObject(SILevel.Verbose, "Cast Group leader IP was changed from [%s] to [%s] for Cast Group \"%s\"" % (scDevice.DiscoveryResult.HostIpAddress, host, scDevice.Name), scDevice.DiscoveryResult, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
+                                    scDevice.DiscoveryResult.HostIpAddress = host
+                                    scDevice.DiscoveryResult.Id = "\"%s\" (%s:%s)" % (scDevice.DiscoveryResult.DeviceName, scDevice.DiscoveryResult.HostIpAddress, scDevice.DiscoveryResult.HostIpPort)
 
-                        except Exception as ex:
+                            # connection was good; we are done here.
+                            _logsi.LogVerbose("Chromecast Multizone group leader host was verified for Cast Group: \"%s\" [%s:%s]" % (scDevice.Name, host, port), colorValue=SIColors.Coral)
+                            return
 
-                            try:
-
-                                # connect to the first possible group leader.
-                                _logsi.LogVerbose("Connecting to possible Cast Group leader #2: \"%s\"" % (leaderIP))
-                                castDevice = get_chromecast_from_host(
-                                    host=(leaderIP, scDevice.DiscoveryResult.HostIpPort, scDevice.DiscoveryResult.Key, scDevice.DeviceInfo.ModelDisplayName, scDevice.DeviceInfo.RemoteName),
-                                    tries=1,
-                                    retry_wait=0.5,
-                                    timeout=2)
-
-                                # if connection was successful, then use it as the leader.
-                                leaderIP = leaderIP
-
-                            except Exception as ex:
-
-                                _logsi.LogVerbose("Could not connect to either possible Cast Group leader for device: \"%s\"" % (scDevice.Title))
-
-                        # free resources.
-                        castDevice = None
-
-                    # do we have a group leader change?
-                    if (leaderIP != scDevice.DiscoveryResult.HostIpAddress):
+                    except Exception as ex:
 
                         # trace.
-                        _logsi.LogObject(SILevel.Verbose, "Cast Group leader IP was changed from [%s] to [%s] for device \"%s\"" % (scDevice.DiscoveryResult.HostIpAddress, leaderIP, scDevice.Name), scDevice, excludeNonPublic=True, colorValue=SIColors.ForestGreen)
-                        scDevice.DiscoveryResult.HostIpAddress = leaderIP
-                        scDevice.DiscoveryResult.Id = "\"%s\" (%s:%s)" % (scDevice.DiscoveryResult.DeviceName, scDevice.DiscoveryResult.HostIpAddress, scDevice.DiscoveryResult.HostIpPort)
+                        _logsi.LogException("Chromecast Group member [ip=%s, port=%s] could not be reached; moving on to next host" % (host, port, str(ex)), ex, logToSystemLogger=False)
+                        # ignore exception and check the next available host
+
+                else:
+                    _logsi.LogVerbose("Ignoring Chromecast Multizone group leader address: %s (port not found)" % (host), colorValue=SIColors.Coral)
+
+            # if we make it here, then the cast group leader could not be verified!
+
+            # trace.
+            _logsi.LogVerbose("Could not verify Chromecast Multizone group leader for Cast Group: %s [UUID=%s] - existing host [ip=%s] will be used" % (scDevice.Title, group_uuid, scDevice.DiscoveryResult.HostIpTitle), colorValue=SIColors.Coral)
 
         except Exception as ex:
             
             # trace.
-            _logsi.LogException("Chromecast Multizone group leader query exception: %s" % (str(ex)), ex, logToSystemLogger=False)
+            _logsi.LogException("Chromecast Multizone group leader verification exception: %s" % (str(ex)), ex, logToSystemLogger=False)
             # ignore exception, as nothing can be done about it.
 
 
@@ -693,7 +768,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                     # verify the current leader of the group.
                     # the device collection entry will be updated if a change was detected.
-                    self._VerifyMultizoneGroupLeader(scDevice, scDevice.DiscoveryResult)
+                    self._VerifyMultizoneGroupLeader(scDevice)
 
             # is this a chromecast device?
             if (not scDevice.IsChromeCast):
@@ -866,14 +941,6 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                         tries=2,
                         retry_wait=0.5,
                         timeout=10)
-
-                    # don't need this anymore, since we are activating media receiver on each group member.
-                    # left it in here just in case we change our mind.
-                    # # calculate wait timeout for devices to become active, based on number of devices in group.
-                    # if (castMultiZoneStatus.groups is not None):
-                    #     groupCount:int = len(castMultiZoneStatus.groups)
-                    #     if (groupCount > 1):
-                    #         deviceWaitTimeoutSecs = (groupCount * 5.0)
 
                 # trace.
                 _logsi.LogVerbose("%s - Waiting %d seconds max for Chromecast group multizone device to activate: %s [ip=%s:%s]" % (self.name, deviceWaitTimeoutSecs, scDevice.Title, groupHost, groupPort), colorValue=SIColors.Coral)
@@ -2117,7 +2184,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                                 # verify the current leader of the group.
                                 # the device collection entry will be updated if a change was detected.
-                                self._VerifyMultizoneGroupLeader(scDevice, zeroconfDiscoveryResult)
+                                self._VerifyMultizoneGroupLeader(scDevice)
 
                             # is this a Google Cast Group "update_cast" event? 
                             # if so, AND the device name did not change, then ignore the update since
