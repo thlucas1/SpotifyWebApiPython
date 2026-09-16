@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.295 ] - 2026/09/16
+
+  * Changed transfer playback logic for Chromecast groups to only start the Google default media receiver app on each member device if the the initial activation of the Spotify Cast App fails.  Now that the group leadership changes are fine-tuned (due to v1.0.294), it was found that the Google default media receiver app should not need to be started on each device.  This saves time in the group activation process, as well as eliminates the extra beep that each group device emits when the media receiver app is started.
+
 ###### [ 1.0.294 ] - 2026/09/11
 
   * Updated Spotify Connect CastApp logic to better account for Cast Group leader changes.

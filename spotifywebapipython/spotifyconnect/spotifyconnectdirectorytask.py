@@ -692,6 +692,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
         transferPlayback:bool=False,
         timeoutActivation:float=15.0,
         timeoutTransfer:float=10.0,
+        activateAppMediaReceiverOnGroupMembers:bool=False,
         ) -> str:
         """
         Activates the Spotify Cast Application on the specified Chromecast device.
@@ -712,18 +713,22 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
         Args:
             deviceName (str):
-                Chromecast device friendly name (or device id) to activate.
+                Chromecast device friendly name (or device id) to activate.  
             transferPlayback (bool):
                 True to transfer playback to the device; otherwise, False to just activate
-                the Spotify Cast App on the device.
+                the Spotify Cast App on the device.  
             timeoutActivation (float):
                 Amount of time to wait (in seconds) for the Spotify Cast App to be fully activated,
                 the user logged in, and ready for transfer of playback.  
-                Default is 15 seconds.
+                Default is 15 seconds.  
             timeoutTransfer (float):
                 If `transferPlayback` argument is True, the amount of time to wait (in seconds)
                 for the transfer to complete; otherwise, argument is ignored.  
-                Default is 10 seconds.
+                Default is 10 seconds.  
+            activateAppMediaReceiverOnGroupMembers (bool):
+                True to force start the APP_MEDIA_RECEIVER on each group member cast device prior
+                to activating the Spotify Cast App; otherwise, False (default) to not start the
+                APP_MEDIA_RECEIVER on any group devices.  
 
         Returns:
             The deviceId that was activated.
@@ -739,6 +744,7 @@ class SpotifyConnectDirectoryTask(threading.Thread):
             apiMethodParms.AppendKeyValue("transferPlayback", transferPlayback)
             apiMethodParms.AppendKeyValue("timeoutActivation", timeoutActivation)
             apiMethodParms.AppendKeyValue("timeoutTransfer", timeoutTransfer)
+            apiMethodParms.AppendKeyValue("activateAppMediaReceiverOnGroupMembers", activateAppMediaReceiverOnGroupMembers)
             _logsi.LogMethodParmList(SILevel.Verbose, "Activating Spotify App on Chromecast device: \"%s\"" % (deviceName), apiMethodParms)
 
             # validations.
@@ -829,13 +835,13 @@ class SpotifyConnectDirectoryTask(threading.Thread):
 
                 # for groups, the SpotifyAppTask must be activated on the group leader (e.g. coordinator).
                 # the cast zeroconf info may not contain the group leader host info, as it is constantly 
-                # being updated as devices are added / removed from the group.  this can lead to the 
-                # SpotifyAppTask being started on a member of the group that is not the leader, which will 
-                # cause other devices in the group not to play.
-                # 
-                # to combat this, we will call the `get_multizone_status` function that gives us the
-                # current group leader host info for each group.  we will then create a cast device to
-                # the group leader host address, and start the SpotifyCastApp on that specific host.
+                # being updated as devices are added / removed from the group.  the resolution of the group
+                # leader should have been handled by the `_VerifyMultizoneGroupLeader` call above.
+                #
+                # if this the the second attempt at activating the Spotify Cast App, then we will try
+                # starting the APP_MEDIA_RECEIVER on each group member device, as well as calling the
+                # `get_multizone_status` function again to verify the status of the zone before trying to
+                # start the Spotify Cast App.
 
                 # trace.
                 if (_logsi.IsOn(SILevel.Verbose)):
@@ -845,102 +851,109 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 groupHost:str = scDevice.DiscoveryResult.HostIpAddress
                 groupPort:int = scDevice.DiscoveryResult.HostIpPort
 
-                try:
+                # are we starting the APP_MEDIA_RECEIVER on each group member?
+                if (activateAppMediaReceiverOnGroupMembers != True):
 
-                    # request a multizone group member update.
-                    # note that this will just send a request to the cast group device for its
-                    # status, which will then update the members list via event listener callbacks.
-                    castMultizoneController:MultizoneController = self._CastMultiZoneControllers.get(str(castInfo.uuid), None)
-                    if (castMultizoneController) and (castMultizoneController._socket_client):
-                        castMultizoneController.update_members()
-                        time.sleep(2.0)  # give controller some time to update member list.
+                    _logsi.LogVerbose("Bypassing start of APP_MEDIA_RECEIVER for group: %s" % (scDevice.Title), colorValue=SIColors.Coral)
 
-                        # activate media receiver app for each member in the group.
-                        # process all device members in the group / zone.
-                        for zone_member_uuid in castMultizoneController.members:
+                else:
 
-                            # get castInfo instance so we can connect to the device.
-                            zone_member_castInfo = self._CastBrowser.devices.get(UUID(zone_member_uuid))
-                            if zone_member_castInfo is not None:
+                    try:
 
-                                # get cast device instance.
-                                zone_member_castDevice = get_chromecast_from_cast_info(
-                                    cast_info=zone_member_castInfo,
-                                    zconf=self._ZeroconfInstance,
-                                    tries=2,
-                                    retry_wait=0.5,
-                                    timeout=5)
+                        # request a multizone group member update.
+                        # note that this will just send a request to the cast group device for its
+                        # status, which will then update the members list via event listener callbacks.
+                        castMultizoneController:MultizoneController = self._CastMultiZoneControllers.get(str(castInfo.uuid), None)
+                        if (castMultizoneController) and (castMultizoneController._socket_client):
+                            castMultizoneController.update_members()
+                            time.sleep(2.0)  # give controller some time to update member list.
 
-                                # wait for the cast device to provide an initial status.
-                                zone_member_castDevice.wait(10)
+                            # activate media receiver app for each member in the group.
+                            # process all device members in the group / zone.
+                            for zone_member_uuid in castMultizoneController.members:
 
-                                # formulate title for trace messages.
-                                trc_zone_member_title:str = "\"%s\" [ip=%s:%s]" % (zone_member_castDevice.cast_info.friendly_name, zone_member_castDevice.socket_client.host, zone_member_castDevice.socket_client.port)
+                                # get castInfo instance so we can connect to the device.
+                                zone_member_castInfo = self._CastBrowser.devices.get(UUID(zone_member_uuid))
+                                if zone_member_castInfo is not None:
 
-                                # trace.
-                                _logsi.LogObject(SILevel.Verbose, "%s - Cast group \"%s\" member Chromecast device status: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), zone_member_castDevice.status, colorValue=SIColors.Coral)
+                                    # get cast device instance.
+                                    zone_member_castDevice = get_chromecast_from_cast_info(
+                                        cast_info=zone_member_castInfo,
+                                        zconf=self._ZeroconfInstance,
+                                        tries=2,
+                                        retry_wait=0.5,
+                                        timeout=5)
 
-                                # if current app is APP_SPOTIFY, then stop the app before starting the media receiver.
-                                if (zone_member_castDevice.status) and (zone_member_castDevice.status.app_id == APP_SPOTIFY):
-                                    _logsi.LogVerbose("%s - Issuing quit_app (APP_SPOTIFY) for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
-                                    zone_member_castDevice.quit_app(timeout=5.0)
-                                elif (zone_member_castDevice.status) and (zone_member_castDevice.status.app_id == APP_SPOTIFY_CONNECT):
-                                    _logsi.LogVerbose("%s - Issuing quit_app (APP_SPOTIFY_CONNECT) for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
-                                    zone_member_castDevice.quit_app(timeout=5.0)
+                                    # wait for the cast device to provide an initial status.
+                                    zone_member_castDevice.wait(10)
 
-                                # start the media receiver app.
-                                # this will stabilize routing for the group using the Default Media Receiver.
-                                _logsi.LogVerbose("%s - Starting Chromecast default APP_MEDIA_RECEIVER for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
-                                zone_member_castDevice.start_app(APP_MEDIA_RECEIVER, force_launch=True, timeout=10.0)
+                                    # formulate title for trace messages.
+                                    trc_zone_member_title:str = "\"%s\" [ip=%s:%s]" % (zone_member_castDevice.cast_info.friendly_name, zone_member_castDevice.socket_client.host, zone_member_castDevice.socket_client.port)
 
-                                # start the connection worker thread, if needed.
-                                # failure to do this will result in the following exception being thrown when
-                                # the `launch_app()` method is called:
-                                # - `pychromecast.error.NotConnected: Chromecast unknown:8009 is connecting...`
-                                if (zone_member_castDevice.is_idle):
-                                    if (zone_member_castDevice.socket_client is not None) and (zone_member_castDevice.socket_client.first_connection):
-                                        _logsi.LogVerbose("%s - Starting Chromecast default APP_MEDIA_RECEIVER connection worker thread for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
-                                        zone_member_castDevice.start()
-                                        zone_member_castDevice.wait(timeout=5.0)
+                                    # trace.
+                                    _logsi.LogObject(SILevel.Verbose, "%s - Cast group \"%s\" member Chromecast device status: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), zone_member_castDevice.status, colorValue=SIColors.Coral)
 
-                                # media receiver app needs time to start.
-                                time.sleep(2.0)
+                                    # if current app is APP_SPOTIFY, then stop the app before starting the media receiver.
+                                    if (zone_member_castDevice.status) and (zone_member_castDevice.status.app_id == APP_SPOTIFY):
+                                        _logsi.LogVerbose("%s - Issuing quit_app (APP_SPOTIFY) for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
+                                        zone_member_castDevice.quit_app(timeout=5.0)
+                                    elif (zone_member_castDevice.status) and (zone_member_castDevice.status.app_id == APP_SPOTIFY_CONNECT):
+                                        _logsi.LogVerbose("%s - Issuing quit_app (APP_SPOTIFY_CONNECT) for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
+                                        zone_member_castDevice.quit_app(timeout=5.0)
 
-                except Exception as ex:
+                                    # start the media receiver app.
+                                    # this will stabilize routing for the group using the Default Media Receiver.
+                                    _logsi.LogVerbose("%s - Starting Chromecast default APP_MEDIA_RECEIVER for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
+                                    zone_member_castDevice.start_app(APP_MEDIA_RECEIVER, force_launch=True, timeout=10.0)
+
+                                    # start the connection worker thread, if needed.
+                                    # failure to do this will result in the following exception being thrown when
+                                    # the `launch_app()` method is called:
+                                    # - `pychromecast.error.NotConnected: Chromecast unknown:8009 is connecting...`
+                                    if (zone_member_castDevice.is_idle):
+                                        if (zone_member_castDevice.socket_client is not None) and (zone_member_castDevice.socket_client.first_connection):
+                                            _logsi.LogVerbose("%s - Starting Chromecast default APP_MEDIA_RECEIVER connection worker thread for group \"%s\" member device: %s" % (self.name, castInfo.friendly_name, trc_zone_member_title), colorValue=SIColors.Coral)
+                                            zone_member_castDevice.start()
+                                            zone_member_castDevice.wait(timeout=5.0)
+
+                                    # media receiver app needs time to start.
+                                    time.sleep(2.0)
+
+                    except Exception as ex:
             
-                    # trace.
-                    _logsi.LogException("Chromecast Multizone group update_members exception: %s" % (str(ex)), ex, logToSystemLogger=False)
-                    # ignore exception, as nothing can be done about it.
+                        # trace.
+                        _logsi.LogException("Chromecast Multizone group update_members exception: %s" % (str(ex)), ex, logToSystemLogger=False)
+                        # ignore exception, as nothing can be done about it.
 
-                # get current multizone status for all groups.
-                castMultiZoneStatus:MultizoneStatus = get_multizone_status(castInfo.host, castInfo.services, self.ZeroconfInstance, 5)
-                _logsi.LogObject(SILevel.Verbose, "%s - Chromecast group multizone status for device: %s [ip=%s:%s]" % (self.name, scDevice.Title, castInfo.host, castInfo.port), castMultiZoneStatus, colorValue=SIColors.Coral)
+                    # get current multizone status for all groups.
+                    castMultiZoneStatus:MultizoneStatus = get_multizone_status(castInfo.host, castInfo.services, self.ZeroconfInstance, 5)
+                    _logsi.LogObject(SILevel.Verbose, "%s - Chromecast group multizone status for device: %s [ip=%s:%s]" % (self.name, scDevice.Title, castInfo.host, castInfo.port), castMultiZoneStatus, colorValue=SIColors.Coral)
 
-                # ensure group device is still on the network;
-                # if group device dropped off the network, then we can't query it!
-                if (castMultiZoneStatus is not None):
+                    # ensure group device is still on the network;
+                    # if group device dropped off the network, then we can't query it!
+                    if (castMultiZoneStatus is not None):
 
-                    # find the group coordinator for the selected device.
-                    zoneInfo:MultizoneInfo = None
-                    for zoneInfo in castMultiZoneStatus.groups:
+                        # find the group coordinator for the selected device.
+                        zoneInfo:MultizoneInfo = None
+                        for zoneInfo in castMultiZoneStatus.groups:
 
-                        # is this our group?
-                        if (str(zoneInfo.uuid) == scDevice.DiscoveryResult.Key):
+                            # is this our group?
+                            if (str(zoneInfo.uuid) == scDevice.DiscoveryResult.Key):
 
-                            # yes - get host info to use for the device.
-                            # we will use the device discovery result HostIpAddress instead of the zoneInfo.host
-                            # value here, as the zoneInfo MAY contain an IPV6 formatted address, which was causing 
-                            # issues if the device was originally activated using an IPV4 address!
-                            groupHost = scDevice.DiscoveryResult.HostIpAddress
-                            groupPort = scDevice.DiscoveryResult.HostIpPort
-                            break
+                                # yes - get host info to use for the device.
+                                # we will use the device discovery result HostIpAddress instead of the zoneInfo.host
+                                # value here, as the zoneInfo MAY contain an IPV6 formatted address, which was causing 
+                                # issues if the device was originally activated using an IPV4 address!
+                                groupHost = scDevice.DiscoveryResult.HostIpAddress
+                                groupPort = scDevice.DiscoveryResult.HostIpPort
+                                break
 
-                    # connect to the device and build a Chromecast instance from group coordinator host info.
-                    castDevice = get_chromecast_from_host(
-                        host=(groupHost, groupPort, castInfo.uuid, castInfo.model_name, castInfo.friendly_name),
-                        tries=2,
-                        retry_wait=0.5,
-                        timeout=10)
+                # connect to the device and build a Chromecast instance from group coordinator host info.
+                castDevice = get_chromecast_from_host(
+                    host=(groupHost, groupPort, castInfo.uuid, castInfo.model_name, castInfo.friendly_name),
+                    tries=2,
+                    retry_wait=0.5,
+                    timeout=10)
 
                 # trace.
                 _logsi.LogVerbose("%s - Waiting %d seconds max for Chromecast group multizone device to activate: %s [ip=%s:%s]" % (self.name, deviceWaitTimeoutSecs, scDevice.Title, groupHost, groupPort), colorValue=SIColors.Coral)

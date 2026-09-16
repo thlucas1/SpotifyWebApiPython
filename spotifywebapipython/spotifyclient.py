@@ -11327,7 +11327,7 @@ class SpotifyClient:
                     # try again ...
                     # activate the spotify cast application on the device.
                     _logsi.LogVerbose("Activating Chromecast Spotify Connect device: %s on host ip: %s (attempt #2)" % (scDevice.Title, scDevice.DiscoveryResult.HostIpTitle))
-                    deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False)
+                    deviceIdActivated:str = self._SpotifyConnectDirectory.ActivateCastAppSpotify(scDevice.Id or scDevice.Name, transferPlayback=False, activateAppMediaReceiverOnGroupMembers=True)
 
                 # re-fetch device instance, as it has updated properties from the activation sequence.
                 # do not need to refresh from Spotify Web API, as only zeroconf response data was changed.
