@@ -28,6 +28,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         self._AccountReq:str = None
         self._ActiveUser:str = ""
         self._Aliases:list[ZeroconfGetInfoAlias] = []
+        self._AuthInfo:str = ""
         self._Availability:str = ""
         self._BrandDisplayName:str = None
         self._ClientId:str = None
@@ -55,6 +56,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
 
             self._AccountReq = root.get('accountReq', None)
             self._ActiveUser = root.get('activeUser', "")
+            self._AuthInfo = root.get('authInfo', None)
             self._Availability = root.get('availability', "")
             self._BrandDisplayName = root.get('brandDisplayName', None)
             self._ClientId = root.get('clientID', None)
@@ -135,6 +137,27 @@ class ZeroconfGetInfo(ZeroconfResponse):
         Please refer to the `RemoteName` property for more information.       
         """
         return self._Aliases
+
+
+    @property
+    def AuthInfo(self) -> str:
+        """ 
+        This variable is not documented by the Spotify Web API.
+
+        It appears to be structured authentication information associated with the Soloist 
+        client/device, in base64-encoded / protobuf format (e.g. "CiQyZjA2M ... BVE9NWmU5RQ==").
+        
+        The maximum length of the auth Info string is unknown. 
+        """
+        return self._AuthInfo
+
+    @AuthInfo.setter
+    def AuthInfo(self, value:str):
+        """ 
+        Sets the AuthInfo property value.
+        """
+        if (isinstance(value, str)) or (value is None):
+            self._AuthInfo = value
 
 
     @property
@@ -526,6 +549,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
             'AccountReq': self._AccountReq,
             'ActiveUser': self._ActiveUser,
             'Aliases': [ item.ToDictionary() for item in self._Aliases ],
+            'AuthInfo': self._AuthInfo,
             'Availability': self._Availability,
             'BrandDisplayName': self._BrandDisplayName,
             'ClientId': self._ClientId,
@@ -577,6 +601,7 @@ class ZeroconfGetInfo(ZeroconfResponse):
         if self._AccountReq is not None: msg = '%s\n AccountReq="%s"' % (msg, str(self._AccountReq))
         if self._ActiveUser is not None: msg = '%s\n ActiveUser="%s"' % (msg, str(self._ActiveUser))
         if self._Aliases is not None: msg = '%s\n Aliases=%s' % (msg, str(self._Aliases))
+        if self._AuthInfo is not None: msg = '%s\n AuthInfo="%s"' % (msg, str(self._AuthInfo))
         if self._Availability is not None: msg = '%s\n Availability="%s"' % (msg, str(self._Availability))
         if self._BrandDisplayName is not None: msg = '%s\n BrandDisplayName="%s"' % (msg, str(self._BrandDisplayName))
         if self._ClientId is not None: msg = '%s\n ClientId="%s"' % (msg, str(self._ClientId))

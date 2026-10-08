@@ -6,6 +6,12 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.296 ] - 2026/10/08
+
+  * Added `ZeroconfGetInfo.AuthInfo` property for devices that utilize the "Core Playback SDK" response source.
+  * Merged PR request (number 8) to fix stale Sonos references after SoCo registry reset.
+  * Added exception processing for Spotify Soloist devices, which will be raised if an initial connection has not been established to the Soloist device prior to transferring playback to the device.
+
 ###### [ 1.0.295 ] - 2026/09/16
 
   * Changed transfer playback logic for Chromecast groups to only start the Google default media receiver app on each member device if the the initial activation of the Spotify Cast App fails.  Now that the group leadership changes are fine-tuned (due to v1.0.294), it was found that the Google default media receiver app should not need to be started on each device.  This saves time in the group activation process, as well as eliminates the extra beep that each group device emits when the media receiver app is started.
