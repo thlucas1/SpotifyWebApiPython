@@ -1548,11 +1548,20 @@ class SpotifyConnectDirectoryTask(threading.Thread):
                 returnCoordinator = True
 
             # get Sonos Controller instance for device name.
-            sonosPlayer:SoCo = self._SonosPlayers.get(device.DiscoveryResult.HostIpAddress, None)
+            hostIpAddress:str = device.DiscoveryResult.HostIpAddress
+            sonosPlayer:SoCo = self._SonosPlayers.get(hostIpAddress, None)
 
             # if not found then it's an error.
             if (sonosPlayer is None):
                 raise SpotifyApiError("Could not find Sonos Controller instance for device: %s" % (device.Title), None, logsi=_logsi)
+
+            # Another integration (e.g. Home Assistant Sonos) can call soco_reset().
+            # Our cached reference then outlives the SoCo singleton registry, and
+            # topology updates only reach the current instance. Reacquire it before
+            # inspecting its coordinator role or group. Without a reset this returns
+            # the same instance, preserving the normal SoCo topology cache.
+            sonosPlayer = SoCo(hostIpAddress)
+            self._SonosPlayers[hostIpAddress] = sonosPlayer
 
             # trace.
             _logsi.LogDictionary(SILevel.Verbose, "Sonos Controller instance for device: %s (speaker_info)" % (device.Title), sonosPlayer.speaker_info)
