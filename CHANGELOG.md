@@ -6,6 +6,10 @@ Change are listed in reverse chronological order (newest to oldest).
 
 <span class="changelog">
 
+###### [ 1.0.297 ] - 2026/10/29
+
+  * Updated `SpotifyClient` logic to use a 30 second read timeout value for all Spotify Web API calls; a read timeout is required, otherwise a stalled response will block a request forever.
+
 ###### [ 1.0.296 ] - 2026/10/08
 
   * Added `ZeroconfGetInfo.AuthInfo` property for devices that utilize the "Core Playback SDK" response source.

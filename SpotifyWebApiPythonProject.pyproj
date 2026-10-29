@@ -354,6 +354,7 @@ PYTHONWARNINGS=always</Environment>
     <Compile Include="test\test_AuthToken_AuthorizationCodePKCE_Streaming.py" />
     <Compile Include="test\test_AuthTokenGenerator_Sonos_Control.py" />
     <Compile Include="test\test_ImagePalette.py" />
+    <Compile Include="test\test_request_timeout.py" />
     <Compile Include="test\test_SampleCode_PREMIUM.py" />
     <Compile Include="test\test_SampleCode_SpotifyConnect.py" />
     <Compile Include="test\test_sonos_player_registry.py" />
