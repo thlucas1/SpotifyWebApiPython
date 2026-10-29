@@ -266,7 +266,8 @@ class SpotifyClient:
             )
 
             # create new pool manager with specified timeouts and limits.
-            timeout = Timeout(connect=float(30), read=None)
+            # a read timeout is required, otherwise a stalled response will block the request forever.
+            timeout = Timeout(connect=float(30), read=float(30))
             self._Manager = PoolManager(headers={'User-Agent': 'SpotifyWebApiPython/1.0.0'},
                                         timeout=timeout,
                                         num_pools=10,   # number of connection pools to allocate.
